@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "nombre": "Placa de Video RTX 3060",
+    "precio": 350000,
+    "stock": 2,
+    "stockMinimo": 5,
+    "proveedor": "CompraGamer"
+  },
+  {
+    "id": 2,
+    "nombre": "Monitor 24 pulgadas",
+    "precio": 150000,
+    "stock": 10,
+    "stockMinimo": 3,
+    "proveedor": "Mexx"
+  }
+]
