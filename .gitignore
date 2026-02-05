@@ -1,0 +1,19 @@
+# Dependencias (La carpeta pesada)
+node_modules/
+jspm_packages/
+
+# Logs y errores
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno (CLAVE DE SEGURIDAD: Aquí van claves de BD, contraseñas, etc.)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos del sistema operativo (basura)
+.DS_Store
+Thumbs.db
