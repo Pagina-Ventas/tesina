@@ -252,3 +252,367 @@ body {
   box-shadow: 0 4px 15px rgba(197, 160, 89, 0.4);
   transform: scale(1.05);
 }
+
+  /* --- MODAL DEL CARRITO (Ventana Flotante) --- */
+.cart-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8); /* Fondo oscuro transparente */
+  display: flex;
+  justify-content: flex-end; /* Para que salga del lado derecho */
+  z-index: 1000;
+  backdrop-filter: blur(5px); /* Efecto borroso de fondo premium */
+}
+
+.cart-modal {
+  width: 450px;
+  background-color: var(--dark-bg);
+  height: 100%;
+  border-left: 2px solid var(--gold-alpaca);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.cart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #333;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+}
+
+.cart-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  color: var(--gold-alpaca);
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.close-btn:hover { color: #fff; }
+
+/* Lista de Items */
+.cart-items {
+  flex-grow: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.03);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.item-info h4 { color: #fff; font-size: 0.9rem; margin-bottom: 5px; }
+.item-info p { color: var(--gold-alpaca); font-weight: bold; font-size: 0.9rem; }
+.item-quantity { color: #888; font-size: 0.8rem; }
+
+.btn-remove {
+  background: transparent;
+  border: 1px solid #d32f2f;
+  color: #d32f2f;
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.btn-remove:hover { background: #d32f2f; color: #fff; }
+
+/* Footer del Carrito (Total y Botón) */
+.cart-footer {
+  border-top: 1px solid #333;
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 20px;
+}
+
+.btn-checkout {
+  width: 100%;
+  background: var(--gold-alpaca);
+  color: #000;
+  padding: 15px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 1rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-checkout:hover {
+  background: #e0c078;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(197, 160, 89, 0.3);
+}
+
+/* --- PÁGINA DE CARRITO COMPLETA (Estilo Premium) --- */
+
+/* Contenedor principal de la tarjeta del carrito */
+.cart-page-container {
+  max-width: 900px;
+  margin: 20px auto;
+  background-color: var(--card-bg); /* Fondo gris oscuro */
+  padding: 40px;
+  border-radius: 16px;
+  border: 1px solid #333;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4); /* Sombra profunda */
+}
+
+/* Título del encabezado */
+.cart-header-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem;
+  color: var(--gold-alpaca);
+  margin-bottom: 40px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #333;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+/* Lista de items */
+.cart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Fila de cada producto */
+.cart-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto; /* 3 columnas: Info | Cantidad | Eliminar */
+  align-items: center;
+  gap: 25px;
+  background: rgba(255,255,255,0.03); /* Fondo sutil */
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #333;
+  transition: all 0.3s ease;
+}
+
+.cart-item-row:hover {
+  border-color: var(--gold-alpaca); /* Borde dorado al pasar el mouse */
+  background: rgba(197, 160, 89, 0.05);
+  transform: translateX(5px);
+}
+
+.item-details h3 {
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.item-price {
+  color: var(--gold-alpaca);
+  font-weight: 700;
+  font-size: 1.1rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Caja de cantidad */
+.item-quantity-box {
+  background: #111;
+  padding: 10px 20px;
+  border-radius: 30px;
+  border: 2px solid #333;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+/* Botón de eliminar */
+.btn-delete-item {
+  background: transparent;
+  border: 2px solid #d32f2f; /* Rojo elegante */
+  color: #d32f2f;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-delete-item:hover {
+  background: #d32f2f;
+  color: white;
+  box-shadow: 0 4px 10px rgba(211, 47, 47, 0.3);
+}
+
+/* --- Resumen y Totales (Footer) --- */
+.cart-summary-footer {
+  margin-top: 50px;
+  padding-top: 30px;
+  border-top: 3px solid #333;
+}
+
+.cart-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.total-label {
+  font-size: 1.5rem;
+  font-family: 'Playfair Display', serif;
+  color: var(--text-muted);
+}
+
+.total-amount {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--mate-light); /* Total en verde brillante */
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Botones de acción finales */
+.cart-actions {
+  display: flex;
+  gap: 20px;
+  justify-content: flex-end; /* Alineados a la derecha */
+}
+
+/* Botón secundario (Seguir comprando) */
+.btn-continue {
+  background: transparent;
+  border: 2px solid var(--gold-alpaca);
+  color: var(--gold-alpaca);
+  padding: 15px 30px;
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+}
+
+.btn-continue:hover {
+  background: var(--gold-alpaca);
+  color: #000;
+}
+
+/* Botón principal (Confirmar) */
+.btn-confirm-order {
+  background: linear-gradient(135deg, var(--mate-green) 0%, var(--mate-light) 100%);
+  color: white;
+  border: none;
+  padding: 15px 50px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(46, 125, 50, 0.4);
+  transition: all 0.3s;
+  letter-spacing: 1px;
+}
+
+.btn-confirm-order:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 40px rgba(46, 125, 50, 0.6);
+}
+
+/* Estado vacío */
+.empty-cart {
+  text-align: center;
+  padding: 80px 20px;
+}
+.empty-icon { font-size: 5rem; margin-bottom: 30px; display: block; opacity: 0.5;
+  /* ACTUALIZACIÓN: Caja de cantidad mejorada (Versión Premium) */
+.item-quantity-box {
+  background: #0a0a0a; /* Fondo más oscuro para contraste */
+  border-radius: 50px; /* Forma de píldora perfecta */
+  border: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Separar extremos */
+  padding: 5px 8px;
+  width: 110px; /* Ancho fijo para que todos midan igual */
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); /* Sombra interna para profundidad */
+}
+
+/* El número del medio */
+.qty-number {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  width: 30px; /* Espacio fijo para el número */
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Botones + y - */
+.qty-btn {
+  background: transparent;
+  color: var(--gold-alpaca); /* Texto Dorado */
+  border: 1px solid var(--gold-alpaca); /* Borde fino Dorado */
+  width: 28px;
+  height: 28px;
+  border-radius: 50%; /* Círculos perfectos */
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding-bottom: 2px; /* Ajuste visual para centrar el símbolo */
+  line-height: 1;
+}
+
+/* Efecto Hover (Se llena de dorado) */
+.qty-btn:hover:not(:disabled) {
+  background: var(--gold-alpaca);
+  color: #000; /* Texto negro sobre dorado */
+  box-shadow: 0 0 8px rgba(197, 160, 89, 0.4);
+}
+
+/* Estilo cuando está deshabilitado (cantidad 1) */
+.qty-btn:disabled {
+  border-color: #333;
+  color: #444;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+ }
