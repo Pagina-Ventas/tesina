@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { Tienda } from './Tienda'
 import { Carrito } from './Carrito'
+// 1. IMPORTAR EL NUEVO COMPONENTE
+import { Inventario } from './Inventario'
 import './App.css'
 
 function App() {
@@ -25,11 +27,9 @@ function App() {
     }
   }
 
-  // --- NUEVA FUNCIÓN PARA SUMAR/RESTAR ---
   const modificarCantidad = (id, cantidad) => {
     setCarrito(carrito.map(item => {
       if (item.id === id) {
-        // Math.max(1, ...) asegura que nunca baje de 1
         const nuevaCant = Math.max(1, item.cantidad + cantidad)
         return { ...item, cantidad: nuevaCant }
       }
@@ -61,7 +61,12 @@ function App() {
       <div className="dashboard-container">
         <header className="header">
           <Link to="/" className="logo" style={{textDecoration: 'none'}}>IMPERIO<span>MATE</span></Link>
-          <input type="text" placeholder="Buscar..." className="search-bar" />
+          
+          {/* 2. AGREGAR UN LINK AL ADMIN EN EL HEADER (Temporal, para acceso rápido) */}
+          <Link to="/admin" style={{color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.8rem', border: '1px solid #444', padding: '5px 10px', borderRadius: '4px'}}>
+            ⚙️ ADMIN
+          </Link>
+
           <Link to="/carrito" style={{textDecoration: 'none'}}>
             <div style={{color: '#c5a059', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center'}}>
               <span>🛒 TU MATE</span>
@@ -88,10 +93,12 @@ function App() {
               carrito={carrito} 
               eliminarDelCarrito={eliminarDelCarrito} 
               finalizarCompra={finalizarCompra}
-              // PASAMOS LA NUEVA FUNCIÓN AQUÍ ABAJO 👇
               modificarCantidad={modificarCantidad} 
             />
           } />
+
+          {/* 3. NUEVA RUTA PARA EL INVENTARIO */}
+          <Route path="/admin" element={<Inventario />} />
         </Routes>
       </div>
     </BrowserRouter>
