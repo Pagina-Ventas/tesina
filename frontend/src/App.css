@@ -1,43 +1,254 @@
-#root {
-  max-width: 1280px;
+/* FUENTES ELEGANTES */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Playfair+Display:ital,wght@0,700;1,400&display=swap');
+
+:root {
+  /* PALETA "MATE IMPERIAL" */
+  --mate-green: #2e7d32;       /* Verde Bosque Intenso */
+  --mate-light: #4caf50;       /* Verde Hoja (para hovers) */
+  --gold-alpaca: #c5a059;      /* Dorado tipo Alpaca/Bronce */
+  --dark-bg: #121212;          /* Negro suave premium */
+  --card-bg: #1e1e1e;          /* Gris muy oscuro */
+  --text-main: #e0e0e0;
+  --text-muted: #a0a0a0;
+}
+
+body {
+  background-color: var(--dark-bg);
+  color: var(--text-main);
+  font-family: 'Montserrat', sans-serif; /* Tipografía moderna y limpia */
+}
+
+.dashboard-container {
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-h1 { color: #646cff; }
-
-.grid {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 30px;
-}
-
-.card {
-  background-color: #1a1a1a;
   padding: 20px;
-  border-radius: 10px;
-  border: 1px solid #333;
-  width: 250px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 
-.precio { font-size: 1.2em; font-weight: bold; color: #4CAF50; }
-.stock { color: #ccc; }
-.bajo { color: #ff4444; font-weight: bold; }
+/* HEADER SOFISTICADO */
+.header {
+  background: linear-gradient(to bottom, #1a1a1a, #121212);
+  padding: 25px 40px;
+  border-bottom: 2px solid var(--gold-alpaca); /* Detalle dorado */
+  margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
 
-button {
-  margin-top: 10px;
-  background-color: #646cff;
+.logo {
+  font-family: 'Playfair Display', serif; /* Fuente con estilo clásico */
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 1px;
+}
+
+.logo span { color: var(--gold-alpaca); font-style: italic; }
+
+.search-bar {
+  background: #2c2c2c;
+  border: 1px solid #444;
+  padding: 12px 20px;
+  width: 35%;
+  color: white;
+  border-radius: 30px; /* Redondeado, más orgánico */
+  transition: border 0.3s;
+}
+
+.search-bar:focus {
+  border-color: var(--mate-green);
+  outline: none;
+}
+
+/* GRID */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
+}
+
+/* TARJETA PREMIUM */
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid #333;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  border-color: var(--mate-green);
+  box-shadow: 0 10px 30px rgba(46, 125, 50, 0.15); /* Sombra verde suave */
+}
+
+.card-image-box {
+  height: 220px;
+  background: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 5rem;
+  color: var(--text-muted);
+  position: relative;
+}
+
+/* Etiqueta de Categoría Flotante */
+.category-tag {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: rgba(0,0,0,0.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--gold-alpaca);
+  border: 1px solid var(--gold-alpaca);
+}
+
+.card-body {
+  padding: 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #fff;
+}
+
+.card-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 15px;
+  font-style: italic;
+}
+
+/* PRECIOS */
+.price-section {
+  margin-top: auto;
+  border-top: 1px solid #333;
+  padding-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.precio-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.precio-final {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--mate-light); /* Precio en verde */
+}
+
+/* BOTÓN ELEGANTE */
+.btn-buy {
+  background-color: var(--mate-green);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
+  width: 100%;
+  padding: 14px;
+  font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  margin-top: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background 0.3s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 
-button:hover { background-color: #535bf2; }
-button:disabled { background-color: #555; cursor: not-allowed; }
+.btn-buy:hover:not(:disabled) {
+  background-color: var(--mate-light);
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+}
+
+.btn-buy:disabled {
+  background-color: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* BADGES */
+.badge-stock {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: var(--gold-alpaca);
+  color: #000;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.badge-stock.low {
+  background: #d32f2f; /* Rojo oscuro elegante */
+  color: white;
+} /* <--- ¡ESTA LLAVE FALTABA! */
+
+/* --- SECCIÓN DE FILTROS PREMIUM --- */
+.filter-container {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  /* Base oscura y elegante */
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid #444;
+  color: #a0a0a0;
+  
+  /* Forma y Texto */
+  padding: 10px 24px;
+  border-radius: 50px; /* Redondeado tipo píldora */
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  
+  /* Animación suave */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efecto al pasar el mouse (Hover) */
+.filter-btn:hover {
+  border-color: var(--gold-alpaca);
+  color: var(--gold-alpaca);
+  background-color: rgba(197, 160, 89, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Botón SELECCIONADO (Active) */
+.filter-btn.active {
+  background: linear-gradient(135deg, var(--gold-alpaca) 0%, #e0c078 100%);
+  color: #000;
+  border-color: transparent;
+  font-weight: 800;
+  box-shadow: 0 4px 15px rgba(197, 160, 89, 0.4);
+  transform: scale(1.05);
+}

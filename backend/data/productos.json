@@ -1,23 +1,50 @@
 [
   {
     "id": 1,
-    "nombre": "Placa de Video RTX 3060",
-    "precio": 350000,
-    "stock": 457,
-    "stockMinimo": 5
+    "nombre": "Kit Matero 'Black Edition' Completo",
+    "precio": 45000,
+    "stock": 5,
+    "stockMinimo": 2,
+    "categoria": "Kits"
   },
   {
     "id": 2,
-    "nombre": "Monitor 24 pulgadas",
-    "precio": 150000,
+    "nombre": "Termo Stanley 1.4L - Classic Green",
+    "precio": 120000,
     "stock": 9,
-    "stockMinimo": 3
+    "stockMinimo": 3,
+    "categoria": "Termos"
   },
   {
     "id": 3,
-    "nombre": "Teclado Mecánico",
-    "precio": 45000,
-    "stock": 318,
-    "stockMinimo": 5
+    "nombre": "Bombilla Pico de Loro Alpaca Premium",
+    "precio": 18500,
+    "stock": 15,
+    "stockMinimo": 5,
+    "categoria": "Bombillas"
+  },
+  {
+    "id": 4,
+    "nombre": "Mochila Matera Anti-Golpes (Impermeable)",
+    "precio": 32000,
+    "stock": 3,
+    "stockMinimo": 4,
+    "categoria": "Bolsos"
+  },
+  {
+    "id": 5,
+    "nombre": "Yerba Mate Orgánica - Selección Especial 500g",
+    "precio": 4500,
+    "stock": 50,
+    "stockMinimo": 10,
+    "categoria": "Insumos"
+  },
+  {
+    "id": 6,
+    "nombre": "Set Latas Yerba/Azúcar - Diseño Geométrico",
+    "precio": 12000,
+    "stock": 8,
+    "stockMinimo": 4,
+    "categoria": "Accesorios"
   }
 ]
