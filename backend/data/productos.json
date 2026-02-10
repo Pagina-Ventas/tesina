@@ -11,7 +11,7 @@
     "id": 2,
     "nombre": "Termo Stanley 1.4L - Classic Green",
     "precio": 120000,
-    "stock": 8,
+    "stock": 7,
     "stockMinimo": 3,
     "categoria": "Termos"
   },
@@ -19,7 +19,7 @@
     "id": 3,
     "nombre": "Bombilla Pico de Loro Alpaca Premium",
     "precio": 18500,
-    "stock": 14,
+    "stock": 11,
     "stockMinimo": 5,
     "categoria": "Bombillas"
   },
@@ -27,7 +27,7 @@
     "id": 4,
     "nombre": "Mochila Matera Anti-Golpes (Impermeable)",
     "precio": 32000,
-    "stock": 3,
+    "stock": 1,
     "stockMinimo": 4,
     "categoria": "Bolsos"
   },

@@ -1,7 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import './App.css'
-
+import '../style/App.css'
 // Recibimos modificarCantidad
 export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modificarCantidad }) {
   
