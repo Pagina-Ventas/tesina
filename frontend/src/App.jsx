@@ -26,6 +26,7 @@ function App() {
 
   useEffect(() => {
     cargarProductos()
+    cargarPedidos()
   }, [])
 
   const cargarProductos = () => {
@@ -35,14 +36,66 @@ function App() {
       .catch(err => console.error(err))
   }
 
-  // --- NUEVA FUNCIÓN: CREAR PRODUCTO (ADMIN) ---
-  const crearProducto = (nuevoProducto) => {
-    // Generamos un ID temporal (el último + 1)
-    const id = productos.length > 0 ? Math.max(...productos.map(p => p.id)) + 1 : 1
-    const productoConId = { ...nuevoProducto, id }
-    
-    setProductos([...productos, productoConId])
-    toast.success('Producto creado con éxito ✨')
+  const cargarPedidos = () => {
+      fetch('/api/pedidos')
+        .then(res => res.json())
+        .then(data => setPedidos(data))
+        .catch(err => console.error(err))
+    }
+
+  // 1. CREAR PRODUCTO (Versión conectada al Backend)
+  const crearProducto = async (nuevoProducto) => {
+    try {
+      // Enviamos la orden al servidor
+      const respuesta = await fetch('/api/productos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nuevoProducto)
+      })
+
+      if (respuesta.ok) {
+        const data = await respuesta.json()
+        // Agregamos a la lista el producto que devolvió el servidor (que ya tiene ID real)
+        setProductos([...productos, data.producto])
+        toast.success('Producto guardado en el servidor 💾')
+      } else {
+        toast.error('El servidor rechazó el producto')
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('Error de conexión con el Backend')
+    }
+  }
+
+// --- FUNCIÓN ACTUALIZADA: CONFIRMAR PEDIDO (PUT + RESTAR STOCK) ---
+  const confirmarPedidoAdmin = async (idPedido) => {
+    const pedido = pedidos.find(p => p.id === idPedido)
+    if (!pedido) return
+
+    const toastId = toast.loading('Procesando pago y stock...')
+
+    try {
+      // 1. Restar Stock (Ya lo tenías, lo mantenemos)
+      for (const item of pedido.items) {
+        await fetch(`/api/vender/${item.id}/${item.cantidad}`)
+      }
+
+      // 2. NUEVO: Actualizar estado del pedido en el Backend (PUT)
+      await fetch(`/api/pedidos/${idPedido}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estado: 'PAGADO' })
+      })
+
+      // 3. Actualizar vista local y recargar productos
+      setPedidos(pedidos.map(p => p.id === idPedido ? { ...p, estado: 'PAGADO' } : p))
+      cargarProductos() 
+
+      toast.success('¡Pedido confirmado y Stock actualizado! 🚀', { id: toastId })
+    } catch (error) {
+      console.error(error)
+      toast.error('Error al procesar el pedido', { id: toastId })
+    }
   }
 
   const agregarAlCarrito = (producto) => {
@@ -68,37 +121,47 @@ function App() {
     })
   }
 
-  // --- LÓGICA DE PEDIDOS ---
-  const crearOrdenPendiente = (ordenData) => {
+ // --- FUNCIÓN ACTUALIZADA: CREAR PEDIDO (POST AL BACKEND) ---
+  const crearOrdenPendiente = async (ordenData) => {
     const nuevaOrden = {
         id: Date.now(),
-        ...ordenData
+        items: carrito,
+        ...ordenData,
+        estado: 'PENDIENTE' // Aseguramos que tenga estado inicial
     }
-    setPedidos([nuevaOrden, ...pedidos])
-    
-    setCarrito([])
-    setMostrarCheckout(false)
 
-    // Mensaje formateado
-    const mensajeEncoded = encodeURIComponent(
-        `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
-        `Acabo de realizar el PEDIDO WEB #${nuevaOrden.id}.\n\n` +
-        `💰 *Total a Pagar: $${ordenData.total.toLocaleString()}*\n` +
-        `💳 Forma de Pago: ${ordenData.metodoPago}\n` +
-        `🚚 Entrega: ${ordenData.tipoEntrega} ${ordenData.envio ? `(${ordenData.envio})` : ''}\n\n` +
-        `Espero confirmación para abonar. ¡Gracias!`
-    )
+    try {
+        // 1. Guardar en Backend
+        const respuesta = await fetch('/api/pedidos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nuevaOrden)
+        })
 
-    // AQUÍ ELEGIMOS A QUIÉN ENVIAR EL PEDIDO
-    const telefonoDestino = ADMIN_SAN_JUAN 
+        if (respuesta.ok) {
+            // 2. Actualizar vista local
+            setPedidos([nuevaOrden, ...pedidos])
+            setCarrito([])
+            setMostrarCheckout(false)
 
-    window.open(`https://wa.me/${telefonoDestino}?text=${mensajeEncoded}`, '_blank')
-
-    toast.success('¡Pedido Enviado a WhatsApp! 📱', { duration: 5000, icon: '🚀' })
-  }
-
-  const confirmarPedidoAdmin = (idPedido) => {
-    setPedidos(pedidos.map(p => p.id === idPedido ? { ...p, estado: 'PAGADO' } : p))
+            // 3. Enviar a WhatsApp
+            const mensajeEncoded = encodeURIComponent(
+                `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
+                `Acabo de realizar el PEDIDO WEB #${nuevaOrden.id}.\n\n` +
+                `💰 *Total a Pagar: $${ordenData.total.toLocaleString()}*\n` +
+                `💳 Forma de Pago: ${ordenData.metodoPago}\n` +
+                `🚚 Entrega: ${ordenData.tipoEntrega} ${ordenData.envio ? `(${ordenData.envio})` : ''}\n\n` +
+                `Espero confirmación para abonar. ¡Gracias!`
+            )
+            const telefonoDestino = ADMIN_SAN_JUAN 
+            window.open(`https://wa.me/${telefonoDestino}?text=${mensajeEncoded}`, '_blank')
+            
+            toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
+        }
+    } catch (error) {
+        console.error(error)
+        toast.error('Error al guardar el pedido')
+    }
   }
 
   const totalItems = carrito.reduce((acc, item) => acc + item.cantidad, 0)
@@ -169,7 +232,7 @@ function App() {
             <AdminPanel 
                 pedidos={pedidos} 
                 confirmarPedidoAdmin={confirmarPedidoAdmin}
-                crearProducto={crearProducto} // <--- SE PASA LA FUNCIÓN AQUÍ
+                crearProducto={crearProducto} 
             />
           } />
         </Routes>

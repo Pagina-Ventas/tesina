@@ -1,0 +1,71 @@
+[
+  {
+    "id": 1770753973237,
+    "items": [
+      {
+        "id": 3,
+        "nombre": "Bombilla Pico de Loro Alpaca Premium",
+        "precio": 18500,
+        "stock": 11,
+        "stockMinimo": 5,
+        "categoria": "Bombillas",
+        "cantidad": 1
+      }
+    ],
+    "cliente": "ggg",
+    "telefono": "ggasdasd",
+    "direccion": "Retiro en Local",
+    "total": 18500,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PENDIENTE",
+    "fecha": "10/2/2026, 05:06:13"
+  },
+  {
+    "id": 1770754041593,
+    "items": [
+      {
+        "id": 3,
+        "nombre": "Bombilla Pico de Loro Alpaca Premium",
+        "precio": 18500,
+        "stock": 11,
+        "stockMinimo": 5,
+        "categoria": "Bombillas",
+        "cantidad": 1
+      }
+    ],
+    "cliente": "asd",
+    "telefono": "asdasd",
+    "direccion": "Retiro en Local",
+    "total": 18500,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PENDIENTE",
+    "fecha": "10/2/2026, 05:07:21"
+  },
+  {
+    "id": 1770754102440,
+    "items": [
+      {
+        "id": 3,
+        "nombre": "Bombilla Pico de Loro Alpaca Premium",
+        "precio": 18500,
+        "stock": 11,
+        "stockMinimo": 5,
+        "categoria": "Bombillas",
+        "cantidad": 1
+      }
+    ],
+    "cliente": "asd",
+    "telefono": "asd",
+    "direccion": "Retiro en Local",
+    "total": 18500,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PENDIENTE",
+    "fecha": "10/2/2026, 05:08:22"
+  }
+]

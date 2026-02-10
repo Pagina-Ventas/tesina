@@ -46,5 +46,13 @@
     "stock": 8,
     "stockMinimo": 4,
     "categoria": "Accesorios"
+  },
+  {
+    "nombre": "popote",
+    "categoria": "Bombillas",
+    "precio": 6969,
+    "stock": 6,
+    "stockMinimo": 5,
+    "id": 7
   }
 ]
