@@ -12,14 +12,15 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
   const [busqueda, setBusqueda] = useState('')
   const [vistaActiva, setVistaActiva] = useState('dashboard')
 
-  // --- NUEVO: ESTADO PARA EL MODAL DE CREAR PRODUCTO ---
+  // --- ESTADO PARA EL MODAL DE CREAR PRODUCTO ---
   const [mostrarModal, setMostrarModal] = useState(false)
   const [nuevoProd, setNuevoProd] = useState({
       nombre: '',
       categoria: 'Termos',
       precio: '',
       stock: '',
-      stockMinimo: 5
+      stockMinimo: 5,
+      imagen: null // <--- NUEVO: Campo para la imagen
   })
 
   useEffect(() => {
@@ -27,31 +28,46 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
       .then(res => res.json())
       .then(data => setProductos(data))
       .catch(err => console.error(err))
-  }, [mostrarModal]) // Recargamos si se cierra el modal (opcional, por si queremos refrescar)
+  }, [mostrarModal, pedidos]) // Agregué pedidos para recargar si hay cambios
 
-  // Manejar inputs del modal
+  // Manejar inputs de texto
   const handleInputChange = (e) => {
     setNuevoProd({ ...nuevoProd, [e.target.name]: e.target.value })
   }
 
-  // Enviar formulario de nuevo producto
+  // NUEVO: Manejar input de archivo
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+        setNuevoProd({ ...nuevoProd, imagen: e.target.files[0] })
+    }
+  }
+
+  // Enviar formulario (AHORA CON FORMDATA)
   const handleSubmit = (e) => {
       e.preventDefault()
-      const productoAEnviar = {
-          ...nuevoProd,
-          precio: Number(nuevoProd.precio),
-          stock: Number(nuevoProd.stock),
-          stockMinimo: Number(nuevoProd.stockMinimo)
+      
+      // Creamos un FormData para poder enviar el archivo
+      const formData = new FormData()
+      formData.append('nombre', nuevoProd.nombre)
+      formData.append('categoria', nuevoProd.categoria)
+      formData.append('precio', nuevoProd.precio)
+      formData.append('stock', nuevoProd.stock)
+      formData.append('stockMinimo', nuevoProd.stockMinimo)
+
+      // Solo agregamos la imagen si el usuario seleccionó una
+      if (nuevoProd.imagen) {
+          formData.append('imagen', nuevoProd.imagen)
       }
-      // Llamada a la función del padre
-      crearProducto(productoAEnviar)
+
+      // Llamada a la función del padre (App.jsx)
+      crearProducto(formData)
       
       // Reset y cerrar
       setMostrarModal(false)
-      setNuevoProd({ nombre: '', categoria: 'Termos', precio: '', stock: '', stockMinimo: 5 })
+      setNuevoProd({ nombre: '', categoria: 'Termos', precio: '', stock: '', stockMinimo: 5, imagen: null })
   }
 
-  // --- 1. DATOS REALES PARA EL GRÁFICO DE TORTA (Categorías) ---
+  // --- 1. DATOS REALES PARA EL GRÁFICO DE TORTA ---
   const dataCategorias = productos.reduce((acc, curr) => {
     const cat = acc.find(item => item.name === curr.categoria)
     if (cat) {
@@ -62,7 +78,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
     return acc
   }, [])
 
-  // Colores para el gráfico de torta
   const COLORES_TORTA = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444']
 
   // --- 2. DATOS SIMULADOS PARA EL GRÁFICO DE LÍNEAS ---
@@ -162,7 +177,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
               <div className="chart-container">
                 <h3>📈 Rendimiento de Ventas (Semestral)</h3>
                 <div style={{ width: '100%', height: 250 }}>
-                  <ResponsiveContainer>
+                  <ResponsiveContainer> 
                     <AreaChart data={dataVentas}>
                       <defs>
                         <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
@@ -220,13 +235,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
             <section className="recent-orders">
               <div className="section-header">
                 <h3>Inventario Detallado</h3>
-                {/* BOTÓN PARA ABRIR MODAL */}
                 <button className="btn-add" onClick={() => setMostrarModal(true)}>+ Nuevo Producto</button>
               </div>
               <div className="table-responsive">
                 <table className="clean-table">
                   <thead>
                     <tr>
+                      <th>Img</th>
                       <th>Producto</th>
                       <th>Categoría</th>
                       <th>Precio</th>
@@ -237,6 +252,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
                   <tbody>
                     {productosFiltrados.map(prod => (
                       <tr key={prod.id}>
+                        <td>
+                            {prod.imagen ? (
+                                <img src={`http://localhost:3000${prod.imagen}`} alt="mini" style={{width:'40px', height:'40px', objectFit:'cover', borderRadius:'4px'}} />
+                            ) : (
+                                <span>📷</span>
+                            )}
+                        </td>
                         <td style={{fontWeight: 'bold'}}>{prod.nombre}</td>
                         <td>{prod.categoria}</td>
                         <td>${prod.precio.toLocaleString()}</td>
@@ -292,12 +314,19 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
 
       </main>
 
-      {/* --- MODAL FLOTANTE PARA CREAR PRODUCTO --- */}
+      {/* --- MODAL CREAR PRODUCTO --- */}
       {mostrarModal && (
           <div className="checkout-overlay">
               <div className="checkout-card" style={{maxWidth: '500px'}}>
                   <h2 className="checkout-title">Nuevo Producto</h2>
                   <form onSubmit={handleSubmit}>
+                      
+                      {/* --- NUEVO INPUT PARA IMAGEN --- */}
+                      <div className="form-group" style={{border: '1px dashed #444', padding: '10px', borderRadius: '8px', marginBottom:'15px'}}>
+                          <label className="form-label">📸 Imagen del Producto</label>
+                          <input type="file" accept="image/*" className="form-input" onChange={handleFileChange} />
+                      </div>
+
                       <div className="form-group">
                           <label className="form-label">Nombre del Producto</label>
                           <input type="text" name="nombre" required className="form-input" onChange={handleInputChange} value={nuevoProd.nombre}/>

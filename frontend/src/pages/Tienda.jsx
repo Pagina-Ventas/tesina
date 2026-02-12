@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Hero } from '../components/Hero' // <--- IMPORTAMOS HERO
+import { Hero } from '../components/Hero' 
 import '../style/App.css'
 
 export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSeleccionada, setCategoriaSeleccionada }) {
@@ -11,7 +11,6 @@ export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSelec
 
   return (
     <>
-      {/* 1. AGREGAMOS EL HERO */}
       <Hero />
       <div id="catalogo" style={{paddingTop: '20px'}}></div>
 
@@ -39,11 +38,31 @@ export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSelec
               </div>
               
               <Link to={`/producto/${prod.id}`} style={{textDecoration: 'none'}}>
-                  <div className="card-image-box">
-                    {prod.categoria === 'Termos' ? '⚱️' : 
-                     prod.categoria === 'Bombillas' ? '🧪' : 
-                     prod.categoria === 'Kits' ? '💼' : 
-                     prod.categoria === 'Insumos' ? '🍃' : '🧉'}
+                  <div className="card-image-box" style={{overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    {/* --- AQUÍ ESTÁ EL CAMBIO CLAVE --- */}
+                    {prod.imagen ? (
+                        // 1. SI HAY FOTO REAL:
+                        <img 
+                            src={`http://localhost:3000${prod.imagen}`} 
+                            alt={prod.nombre} 
+                            style={{
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: 'cover', // Esto hace que la foto llene el cuadro sin deformarse
+                                transition: 'transform 0.3s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        />
+                    ) : (
+                        // 2. SI NO HAY FOTO (Usamos el Emoji como fallback):
+                        <span style={{fontSize: '5rem'}}>
+                            {prod.categoria === 'Termos' ? '⚱️' : 
+                             prod.categoria === 'Bombillas' ? '🧪' : 
+                             prod.categoria === 'Kits' ? '💼' : 
+                             prod.categoria === 'Insumos' ? '🍃' : '🧉'}
+                        </span>
+                    )}
                   </div>
               </Link>
 

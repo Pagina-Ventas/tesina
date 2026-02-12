@@ -7,11 +7,19 @@ import { Tienda } from './pages/Tienda'
 import { Carrito } from './pages/Carrito'
 import { Inventario as AdminPanel } from './pages/AdminPanel' 
 import { ProductoDetalle } from './pages/ProductoDetalle'
+import { Login } from './pages/Login'
+import { PerfilUsuario } from './pages/PerfilUsuario'
 import { CheckoutForm } from './components/CheckoutForm'
 
 // --- IMPORTACIONES DE ESTILOS ---
 import './style/App.css'
 import './style/Admin.css' 
+
+// Componente de Seguridad
+const RutaProtegida = ({ children }) => {
+  const token = localStorage.getItem('adminToken')
+  return token ? children : <Login />
+}
 
 function App() {
   const [productos, setProductos] = useState([])
@@ -43,31 +51,28 @@ function App() {
         .catch(err => console.error(err))
     }
 
-  // 1. CREAR PRODUCTO (Versión conectada al Backend)
-  const crearProducto = async (nuevoProducto) => {
+  // 1. CREAR PRODUCTO (Versión con IMAGEN / FormData)
+  const crearProducto = async (productoFormData) => {
     try {
-      // Enviamos la orden al servidor
       const respuesta = await fetch('/api/productos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nuevoProducto)
+        body: productoFormData 
       })
 
       if (respuesta.ok) {
         const data = await respuesta.json()
-        // Agregamos a la lista el producto que devolvió el servidor (que ya tiene ID real)
         setProductos([...productos, data.producto])
-        toast.success('Producto guardado en el servidor 💾')
+        toast.success('Producto con foto guardado 📸')
       } else {
-        toast.error('El servidor rechazó el producto')
+        toast.error('Error al subir producto')
       }
     } catch (error) {
       console.error(error)
-      toast.error('Error de conexión con el Backend')
+      toast.error('Error de conexión')
     }
   }
 
-// --- FUNCIÓN ACTUALIZADA: CONFIRMAR PEDIDO (PUT + RESTAR STOCK) ---
+  // 2. CONFIRMAR PEDIDO
   const confirmarPedidoAdmin = async (idPedido) => {
     const pedido = pedidos.find(p => p.id === idPedido)
     if (!pedido) return
@@ -75,19 +80,16 @@ function App() {
     const toastId = toast.loading('Procesando pago y stock...')
 
     try {
-      // 1. Restar Stock (Ya lo tenías, lo mantenemos)
       for (const item of pedido.items) {
-        await fetch(`/api/vender/${item.id}/${item.cantidad}`)
+        await fetch(`/api/productos/vender/${item.id}/${item.cantidad}`)
       }
 
-      // 2. NUEVO: Actualizar estado del pedido en el Backend (PUT)
       await fetch(`/api/pedidos/${idPedido}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ estado: 'PAGADO' })
       })
 
-      // 3. Actualizar vista local y recargar productos
       setPedidos(pedidos.map(p => p.id === idPedido ? { ...p, estado: 'PAGADO' } : p))
       cargarProductos() 
 
@@ -98,13 +100,41 @@ function App() {
     }
   }
 
+  // 3. AGREGAR AL CARRITO (BLINDADO)
   const agregarAlCarrito = (producto) => {
+    
+    // 1. Verificamos si hay sesión iniciada
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
+    
+    if (!token) {
+      toast.error('🔒 Debes iniciar sesión para comprar', {
+        description: 'Redirigiendo al login...',
+        duration: 2000
+      })
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 1500)
+      return 
+    }
+
+    // 2. Si es cliente, verificamos datos
+    const usuarioData = localStorage.getItem('usuarioData')
+    if (token && !localStorage.getItem('adminToken') && usuarioData) {
+        const user = JSON.parse(usuarioData)
+        if (!user.nombre || !user.direccion) {
+            toast.warning('⚠️ Por favor completa tus datos de envío antes de comprar')
+            setTimeout(() => window.location.href = '/perfil', 1500)
+            return
+        }
+    }
+
     const existe = carrito.find(item => item.id === producto.id)
     if (existe) {
       setCarrito(carrito.map(item => item.id === producto.id ? { ...existe, cantidad: existe.cantidad + 1 } : item))
     } else {
       setCarrito([...carrito, { ...producto, cantidad: 1 }])
     }
+    
     toast.success(`¡${producto.nombre} agregado!`, {
       style: { background: '#1e1e1e', border: '1px solid #c5a059', color: '#fff' }
     })
@@ -121,17 +151,16 @@ function App() {
     })
   }
 
- // --- FUNCIÓN ACTUALIZADA: CREAR PEDIDO (POST AL BACKEND) ---
+  // 4. CREAR PEDIDO
   const crearOrdenPendiente = async (ordenData) => {
     const nuevaOrden = {
         id: Date.now(),
         items: carrito,
         ...ordenData,
-        estado: 'PENDIENTE' // Aseguramos que tenga estado inicial
+        estado: 'PENDIENTE'
     }
 
     try {
-        // 1. Guardar en Backend
         const respuesta = await fetch('/api/pedidos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -139,12 +168,10 @@ function App() {
         })
 
         if (respuesta.ok) {
-            // 2. Actualizar vista local
             setPedidos([nuevaOrden, ...pedidos])
             setCarrito([])
             setMostrarCheckout(false)
 
-            // 3. Enviar a WhatsApp
             const mensajeEncoded = encodeURIComponent(
                 `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
                 `Acabo de realizar el PEDIDO WEB #${nuevaOrden.id}.\n\n` +
@@ -166,7 +193,9 @@ function App() {
 
   const totalItems = carrito.reduce((acc, item) => acc + item.cantidad, 0)
   const totalPrecio = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
-  const categorias = ['Todos', ...new Set(productos.map(p => p.categoria))]
+  const categorias = Array.isArray(productos) 
+    ? ['Todos', ...new Set(productos.map(p => p.categoria))] 
+    : ['Todos']
 
   return (
     <BrowserRouter>
@@ -185,8 +214,8 @@ function App() {
         <header className="header">
           <Link to="/" className="logo" style={{textDecoration: 'none'}}>IMPERIO<span>MATE</span></Link>
           
-          <Link to="/admin" style={{color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.8rem', border: '1px solid #444', padding: '5px 10px', borderRadius: '4px'}}>
-            ⚙️ ADMIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && '🔴'}
+          <Link to="/admin" style={{color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px'}}>
+            👤 LOGIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{color: '#ff4444'}}>•</span>}
           </Link>
 
           <input type="text" placeholder="Buscar..." className="search-bar" />
@@ -228,13 +257,20 @@ function App() {
             />
           } />
 
+          <Route path="/login" element={<Login />} />
+
+          <Route path="/perfil" element={<PerfilUsuario />} />
+
           <Route path="/admin" element={
-            <AdminPanel 
-                pedidos={pedidos} 
-                confirmarPedidoAdmin={confirmarPedidoAdmin}
-                crearProducto={crearProducto} 
-            />
+            <RutaProtegida>
+                <AdminPanel 
+                    pedidos={pedidos} 
+                    confirmarPedidoAdmin={confirmarPedidoAdmin}
+                    crearProducto={crearProducto} 
+                />
+            </RutaProtegida>
           } />
+
         </Routes>
       </div>
     </BrowserRouter>

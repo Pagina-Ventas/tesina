@@ -1,17 +1,23 @@
-const { Router } = require('express');
-const router = Router();
-const controller = require('../controllers/productos.controller');
+const { Router } = require('express')
+const router = Router()
+const controller = require('../controllers/productos.controller')
+const multer = require('multer')
+const path = require('path')
 
-// Obtener todos los productos
-router.get('/productos', controller.getProductos);
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => { cb(null, 'uploads/') },
+    filename: (req, file, cb) => {
+        const unico = Date.now() + '-' + Math.round(Math.random() * 1E9)
+        cb(null, file.fieldname + '-' + unico + path.extname(file.originalname))
+    }
+})
+const upload = multer({ storage: storage })
 
-// Crear un producto (POST)
-router.post('/productos', controller.createProducto);
+// --- RUTAS ---
+router.get('/', controller.getProductos)
+router.post('/', upload.single('imagen'), controller.createProducto)
 
-// Vender un producto (GET - Compatible con tu código anterior)
-router.get('/vender/:id/:cantidad', controller.venderProducto);
+// 👇 ¡ESTA ES LA LÍNEA QUE FALTABA! AGREGALA:
+router.get('/vender/:id/:cantidad', controller.venderProducto)
 
-// Verificar stock manual
-router.get('/verificar-stock', controller.verificarStock);
-
-module.exports = router;
+module.exports = router

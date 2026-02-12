@@ -22,20 +22,32 @@ const getProductos = (req, res) => {
     res.json(productos);
 };
 
-// 2. Crear producto (Agregado para que funcione tu Admin Panel)
+// 2. Crear producto (CORREGIDO)
 const createProducto = (req, res) => {
-    const productos = leerDB();
-    const nuevoProducto = req.body;
+    // 👇 CORRECCIÓN: Usamos leerDB()
+    const productos = leerDB() 
     
-    // ID Automático
-    const id = productos.length > 0 ? Math.max(...productos.map(p => p.id)) + 1 : 1
-    const productoConId = { ...nuevoProducto, id };
+    const { nombre, precio, categoria, stock, stockMinimo } = req.body
     
-    productos.push(productoConId);
-    escribirDB(productos);
+    const imagenUrl = req.file ? `/uploads/${req.file.filename}` : null
+
+    const nuevoProducto = {
+        id: Date.now(),
+        nombre,
+        precio: Number(precio),
+        categoria,
+        stock: Number(stock),
+        stockMinimo: Number(stockMinimo),
+        imagen: imagenUrl
+    }
     
-    res.json({ success: true, producto: productoConId });
-};
+    productos.push(nuevoProducto)
+    
+    // 👇 CORRECCIÓN: Usamos escribirDB()
+    escribirDB(productos)
+    
+    res.json({ success: true, producto: nuevoProducto })
+}
 
 // 3. Vender Producto
 const venderProducto = (req, res) => {
@@ -51,13 +63,11 @@ const venderProducto = (req, res) => {
         return res.send(`❌ Error: No hay suficiente stock. Solo quedan ${productos[index].stock}.`);
     }
 
-    // Restar stock
     productos[index].stock -= cantidadVenta;
     escribirDB(productos);
 
     let mensajeRespuesta = `✅ ¡Venta Exitosa! Se vendieron ${cantidadVenta} de ${productos[index].nombre}. Stock restante: ${productos[index].stock}.`;
 
-    // Alerta de stock bajo
     if (productos[index].stock <= productos[index].stockMinimo) {
         enviarAlerta(productos[index], true);
         mensajeRespuesta += " 🚨 SE DISPARÓ UNA ALERTA DE STOCK.";
