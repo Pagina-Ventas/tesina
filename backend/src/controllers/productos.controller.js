@@ -22,13 +22,10 @@ const getProductos = (req, res) => {
     res.json(productos);
 };
 
-// 2. Crear producto (CORREGIDO)
+// 2. Crear producto
 const createProducto = (req, res) => {
-    // 👇 CORRECCIÓN: Usamos leerDB()
     const productos = leerDB() 
-    
     const { nombre, precio, categoria, stock, stockMinimo } = req.body
-    
     const imagenUrl = req.file ? `/uploads/${req.file.filename}` : null
 
     const nuevoProducto = {
@@ -42,54 +39,73 @@ const createProducto = (req, res) => {
     }
     
     productos.push(nuevoProducto)
-    
-    // 👇 CORRECCIÓN: Usamos escribirDB()
     escribirDB(productos)
-    
     res.json({ success: true, producto: nuevoProducto })
 }
 
-// 3. Vender Producto
-const venderProducto = (req, res) => {
+// 👇👇👇 3. VENDER PRODUCTO (CORREGIDO Y BLINDADO) 👇👇👇
+const venderProducto = async (req, res) => { // <--- Agregamos ASYNC
     const idProd = parseInt(req.params.id);
     const cantidadVenta = parseInt(req.params.cantidad);
     
+    console.log(`🛒 Procesando venta... ID: ${idProd}, Cant: ${cantidadVenta}`);
+
     const productos = leerDB();
     const index = productos.findIndex(p => p.id === idProd);
 
     if (index === -1) return res.send("❌ Error: Producto no encontrado.");
 
-    if (productos[index].stock < cantidadVenta) {
-        return res.send(`❌ Error: No hay suficiente stock. Solo quedan ${productos[index].stock}.`);
+    // Aseguramos que trabajamos con NÚMEROS
+    let stockActual = parseInt(productos[index].stock);
+    let stockMin = parseInt(productos[index].stockMinimo);
+
+    if (stockActual < cantidadVenta) {
+        return res.send(`❌ Error: No hay suficiente stock. Solo quedan ${stockActual}.`);
     }
 
-    productos[index].stock -= cantidadVenta;
+    // Restamos stock
+    stockActual -= cantidadVenta;
+    productos[index].stock = stockActual;
+    
+    // Guardamos en la base de datos
     escribirDB(productos);
 
-    let mensajeRespuesta = `✅ ¡Venta Exitosa! Se vendieron ${cantidadVenta} de ${productos[index].nombre}. Stock restante: ${productos[index].stock}.`;
+    let mensajeRespuesta = `✅ ¡Venta Exitosa! Se vendieron ${cantidadVenta} de ${productos[index].nombre}. Stock restante: ${stockActual}.`;
 
-    if (productos[index].stock <= productos[index].stockMinimo) {
-        enviarAlerta(productos[index], true);
-        mensajeRespuesta += " 🚨 SE DISPARÓ UNA ALERTA DE STOCK.";
+    // VERIFICACIÓN DE ALERTA
+    console.log(`🔎 Verificando alerta: ¿${stockActual} <= ${stockMin}?`);
+    
+    if (stockActual <= stockMin) {
+        console.log("🚨 CONDICIÓN DE ALERTA CUMPLIDA. Enviando mensaje...");
+        try {
+            // Esperamos a que el bot envíe el mensaje antes de responder al navegador
+            await enviarAlerta(productos[index], true); 
+            mensajeRespuesta += " 🚨 SE DISPARÓ UNA ALERTA DE STOCK.";
+        } catch (error) {
+            console.error("❌ Error enviando alerta:", error);
+        }
+    } else {
+        console.log("👍 Stock saludable, no se envía alerta.");
     }
 
     res.send(mensajeRespuesta);
 };
 
 // 4. Verificar Stock Manualmente
-const verificarStock = (req, res) => {
+const verificarStock = async (req, res) => { // <--- También agregamos ASYNC aquí por seguridad
     const productos = leerDB();
     let alertas = 0;
 
-    productos.forEach(prod => {
+    // Usamos un bucle for..of para poder usar await dentro
+    for (const prod of productos) {
         if (prod.stock <= prod.stockMinimo) {
-            enviarAlerta(prod, false);
+            await enviarAlerta(prod, false);
             alertas++;
         }
-    });
+    }
 
-    if (alertas > 0) res.send(`Alertas enviadas: ${alertas}`);
-    else res.send("Todo en orden ✅");
+    if (alertas > 0) res.send(`✅ Se enviaron ${alertas} alertas a Telegram.`);
+    else res.send("👍 Todo el stock está saludable. No hay alertas.");
 };
 
 module.exports = {

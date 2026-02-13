@@ -65,7 +65,108 @@
     "metodoPago": "Transferencia",
     "tipoEntrega": "Retiro",
     "envio": "-",
-    "estado": "PENDIENTE",
+    "estado": "PAGADO",
     "fecha": "10/2/2026, 05:08:22"
+  },
+  {
+    "id": 1771021007675,
+    "items": [
+      {
+        "id": 2,
+        "nombre": "Termo Stanley 1.4L - Classic Green",
+        "precio": 120000,
+        "stock": 7,
+        "stockMinimo": 3,
+        "categoria": "Termos",
+        "cantidad": 1
+      },
+      {
+        "id": 3,
+        "nombre": "Bombilla Pico de Loro Alpaca Premium",
+        "precio": 18500,
+        "stock": 11,
+        "stockMinimo": 5,
+        "categoria": "Bombillas",
+        "cantidad": 1
+      }
+    ],
+    "cliente": "g",
+    "telefono": "264 411-7588",
+    "direccion": "Retiro en Local",
+    "total": 138500,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PAGADO",
+    "fecha": "13/2/2026, 07:16:47"
+  },
+  {
+    "id": 1771022109788,
+    "items": [
+      {
+        "id": 2,
+        "nombre": "Termo Stanley 1.4L - Classic Green",
+        "precio": 120000,
+        "stock": 7,
+        "stockMinimo": 3,
+        "categoria": "Termos",
+        "cantidad": 12
+      }
+    ],
+    "cliente": "ggg",
+    "telefono": "264 411-7588",
+    "direccion": "Retiro en Local",
+    "total": 1440000,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PAGADO",
+    "fecha": "13/2/2026, 07:35:09"
+  },
+  {
+    "id": 1771023459765,
+    "items": [
+      {
+        "id": 6,
+        "nombre": "Set Latas Yerba/Azúcar - Diseño Geométrico",
+        "precio": 12000,
+        "stock": 8,
+        "stockMinimo": 4,
+        "categoria": "Accesorios",
+        "cantidad": 4
+      }
+    ],
+    "cliente": "f",
+    "telefono": "f",
+    "direccion": "Retiro en Local",
+    "total": 48000,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PENDIENTE",
+    "fecha": "13/2/2026, 07:57:39"
+  },
+  {
+    "id": 1771023938597,
+    "items": [
+      {
+        "id": 5,
+        "nombre": "Yerba Mate Orgánica - Selección Especial 500g",
+        "precio": 4500,
+        "stock": 4,
+        "stockMinimo": 5,
+        "categoria": "Insumos",
+        "cantidad": 2
+      }
+    ],
+    "cliente": "fdfasd",
+    "telefono": "asdasdas",
+    "direccion": "Retiro en Local",
+    "total": 9000,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PENDIENTE",
+    "fecha": "13/2/2026, 08:05:38"
   }
 ]

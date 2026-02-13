@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, 
@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import '../style/Admin.css'
 
-// Recibimos 'crearProducto' desde App.jsx
+// Recibimos 'crearProducto' y 'pedidos' desde App.jsx
 export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
   const [productos, setProductos] = useState([])
   const [busqueda, setBusqueda] = useState('')
@@ -20,7 +20,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
       precio: '',
       stock: '',
       stockMinimo: 5,
-      imagen: null // <--- NUEVO: Campo para la imagen
+      imagen: null 
   })
 
   useEffect(() => {
@@ -28,25 +28,20 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
       .then(res => res.json())
       .then(data => setProductos(data))
       .catch(err => console.error(err))
-  }, [mostrarModal, pedidos]) // Agregué pedidos para recargar si hay cambios
+  }, [mostrarModal, pedidos]) 
 
-  // Manejar inputs de texto
   const handleInputChange = (e) => {
     setNuevoProd({ ...nuevoProd, [e.target.name]: e.target.value })
   }
 
-  // NUEVO: Manejar input de archivo
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
         setNuevoProd({ ...nuevoProd, imagen: e.target.files[0] })
     }
   }
 
-  // Enviar formulario (AHORA CON FORMDATA)
   const handleSubmit = (e) => {
       e.preventDefault()
-      
-      // Creamos un FormData para poder enviar el archivo
       const formData = new FormData()
       formData.append('nombre', nuevoProd.nombre)
       formData.append('categoria', nuevoProd.categoria)
@@ -54,15 +49,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
       formData.append('stock', nuevoProd.stock)
       formData.append('stockMinimo', nuevoProd.stockMinimo)
 
-      // Solo agregamos la imagen si el usuario seleccionó una
       if (nuevoProd.imagen) {
           formData.append('imagen', nuevoProd.imagen)
       }
 
-      // Llamada a la función del padre (App.jsx)
       crearProducto(formData)
-      
-      // Reset y cerrar
       setMostrarModal(false)
       setNuevoProd({ nombre: '', categoria: 'Termos', precio: '', stock: '', stockMinimo: 5, imagen: null })
   }
@@ -80,21 +71,52 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
 
   const COLORES_TORTA = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444']
 
-  // --- 2. DATOS SIMULADOS PARA EL GRÁFICO DE LÍNEAS ---
-  const dataVentas = [
-    { name: 'Ene', ventas: 40000 },
-    { name: 'Feb', ventas: 30000 },
-    { name: 'Mar', ventas: 60000 },
-    { name: 'Abr', ventas: 95000 },
-    { name: 'May', ventas: 80000 },
-    { name: 'Jun', ventas: 120000 },
-  ]
+  // --- 2. DATOS REALES PARA EL GRÁFICO DE VENTAS (NUEVO 🧠) ---
+  const dataVentas = useMemo(() => {
+    // A. Generamos los últimos 6 meses (vacíos al principio)
+    const meses = []
+    const hoy = new Date()
+    
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
+        const nombreMes = d.toLocaleString('es-ES', { month: 'short' }) // 'ene', 'feb'
+        // Guardamos el nombre bonito (Mayúscula inicial) y el índice para comparar
+        meses.push({ 
+            name: nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1), 
+            ventas: 0, 
+            anio: d.getFullYear(),
+            mesIndex: d.getMonth() 
+        })
+    }
+
+    // B. Recorremos los pedidos y sumamos si están PAGADOS
+    pedidos.forEach(p => {
+        if (p.estado === 'PAGADO') {
+            const fechaPedido = new Date(p.id) // El ID es el timestamp
+            const mesP = fechaPedido.getMonth()
+            const anioP = fechaPedido.getFullYear()
+
+            // Buscamos si el pedido cae en alguno de los 6 meses del gráfico
+            const mesEncontrado = meses.find(m => m.mesIndex === mesP && m.anio === anioP)
+            if (mesEncontrado) {
+                mesEncontrado.ventas += p.total
+            }
+        }
+    })
+
+    return meses
+  }, [pedidos]) // Se recalcula cada vez que cambian los pedidos
 
   // Cálculos generales
   const totalProductos = productos.length
   const totalStock = productos.reduce((acc, p) => acc + p.stock, 0)
   const sinStock = productos.filter(p => p.stock === 0).length
+  // Valor de inventario (Precio * Stock)
   const valorInventario = productos.reduce((acc, p) => acc + (p.precio * p.stock), 0)
+  // Total Vendido (Histórico de pedidos pagados)
+  const totalVendidoHistorico = pedidos
+    .filter(p => p.estado === 'PAGADO')
+    .reduce((acc, p) => acc + p.total, 0)
 
   const productosFiltrados = productos.filter(prod => 
     prod.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -153,15 +175,16 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
               <div className="stat-card">
                 <div className="stat-icon money">💰</div>
                 <div className="stat-info">
-                  <h3>${valorInventario.toLocaleString()}</h3>
-                  <p>Valor Total</p>
+                  {/* Mostramos el total vendido histórico */}
+                  <h3>${totalVendidoHistorico.toLocaleString()}</h3>
+                  <p>Ventas Totales</p>
                 </div>
               </div>
               <div className="stat-card">
                 <div className="stat-icon chart">📈</div>
                 <div className="stat-info">
-                  <h3>{totalStock}</h3>
-                  <p>Unid. Stock</p>
+                  <h3>${valorInventario.toLocaleString()}</h3>
+                  <p>Valor Stock</p>
                 </div>
               </div>
               <div className="stat-card alert">
@@ -174,10 +197,10 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
             </section>
 
             <section className="charts-grid">
-              <div className="chart-container">
-                <h3>📈 Rendimiento de Ventas (Semestral)</h3>
-                <div style={{ width: '100%', height: 250 }}>
-                  <ResponsiveContainer> 
+              <div className="chart-container" style={{ minWidth: 0 }}>
+                <h3>📈 Ventas Mensuales (Reales)</h3>
+                <div style={{ width: '100%', height: 250, minWidth: 0 }}>
+                  <ResponsiveContainer>
                     <AreaChart data={dataVentas}>
                       <defs>
                         <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
@@ -188,16 +211,16 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} />
                       <YAxis axisLine={false} tickLine={false} />
-                      <Tooltip />
+                      <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
                       <Area type="monotone" dataKey="ventas" stroke="#3b82f6" fillOpacity={1} fill="url(#colorVentas)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="chart-container">
+              <div className="chart-container" style={{ minWidth: 0 }}>
                 <h3>🍰 Distribución por Categoría</h3>
-                <div style={{ width: '100%', height: 250 }}>
+                <div style={{ width: '100%', height: 250, minWidth: 0 }}>
                   <ResponsiveContainer>
                     <PieChart>
                       <Pie
@@ -221,7 +244,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
                   {dataCategorias.map((entry, index) => (
                     <div key={index} className="legend-item">
                       <span className="dot" style={{background: COLORES_TORTA[index % COLORES_TORTA.length]}}></span>
-                      <span>{entry.name}</span>
+                      <span>{entry.name} ({entry.value})</span>
                     </div>
                   ))}
                 </div>
@@ -302,6 +325,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
                                                     ✅ Confirmar
                                                 </button>
                                             )}
+                                            {p.estado === 'PAGADO' && <span>✅</span>}
                                         </td>
                                     </tr>
                                 ))
@@ -321,7 +345,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
                   <h2 className="checkout-title">Nuevo Producto</h2>
                   <form onSubmit={handleSubmit}>
                       
-                      {/* --- NUEVO INPUT PARA IMAGEN --- */}
                       <div className="form-group" style={{border: '1px dashed #444', padding: '10px', borderRadius: '8px', marginBottom:'15px'}}>
                           <label className="form-label">📸 Imagen del Producto</label>
                           <input type="file" accept="image/*" className="form-input" onChange={handleFileChange} />

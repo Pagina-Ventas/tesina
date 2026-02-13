@@ -64,11 +64,13 @@ function App() {
         setProductos([...productos, data.producto])
         toast.success('Producto con foto guardado 📸')
       } else {
-        toast.error('Error al subir producto')
+        // 👇 AQUI LEEMOS EL MENSAJE DE ERROR DEL SERVIDOR
+        const errorData = await respuesta.json()
+        toast.error(`Error: ${errorData.message || 'No se pudo subir'}`)
       }
     } catch (error) {
       console.error(error)
-      toast.error('Error de conexión')
+      toast.error('Error de conexión o archivo muy pesado')
     }
   }
 
