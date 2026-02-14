@@ -74,7 +74,7 @@ function App() {
     }
   }
 
-  // 2. CONFIRMAR PEDIDO
+  // 2. CONFIRMAR PEDIDO (CORREGIDO)
   const confirmarPedidoAdmin = async (idPedido) => {
     const pedido = pedidos.find(p => p.id === idPedido)
     if (!pedido) return
@@ -82,20 +82,24 @@ function App() {
     const toastId = toast.loading('Procesando pago y stock...')
 
     try {
-      for (const item of pedido.items) {
-        await fetch(`/api/productos/vender/${item.id}/${item.cantidad}`)
-      }
+      // ❌ BORRAMOS EL BUCLE "for (const item of pedido.items)..." QUE ESTABA AQUÍ
+      // El backend ahora se encarga de todo.
 
-      await fetch(`/api/pedidos/${idPedido}`, {
+      // Solo enviamos la orden de cambio de estado
+      const respuesta = await fetch(`/api/pedidos/${idPedido}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ estado: 'PAGADO' })
       })
 
-      setPedidos(pedidos.map(p => p.id === idPedido ? { ...p, estado: 'PAGADO' } : p))
-      cargarProductos() 
+      if (respuesta.ok) {
+        setPedidos(pedidos.map(p => p.id === idPedido ? { ...p, estado: 'PAGADO' } : p))
+        cargarProductos() // Recargamos para ver el stock nuevo en la tabla
+        toast.success('¡Pedido confirmado y Stock actualizado! 🚀', { id: toastId })
+      } else {
+        toast.error('Error al confirmar pedido', { id: toastId })
+      }
 
-      toast.success('¡Pedido confirmado y Stock actualizado! 🚀', { id: toastId })
     } catch (error) {
       console.error(error)
       toast.error('Error al procesar el pedido', { id: toastId })

@@ -168,5 +168,51 @@
     "envio": "-",
     "estado": "PENDIENTE",
     "fecha": "13/2/2026, 08:05:38"
+  },
+  {
+    "id": 1771105656472,
+    "items": [
+      {
+        "id": 3,
+        "nombre": "Bombilla Pico de Loro Alpaca Premium",
+        "precio": 18500,
+        "stock": 9,
+        "stockMinimo": 5,
+        "categoria": "Bombillas",
+        "cantidad": 5
+      }
+    ],
+    "cliente": "dasd",
+    "telefono": "asdasd",
+    "direccion": "Retiro en Local",
+    "total": 92500,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PAGADO",
+    "fecha": "14/2/2026, 06:47:36"
+  },
+  {
+    "id": 1771106044944,
+    "items": [
+      {
+        "id": 2,
+        "nombre": "Termo Stanley 1.4L - Classic Green",
+        "precio": 120000,
+        "stock": 6,
+        "stockMinimo": 5,
+        "categoria": "Termos",
+        "cantidad": 2
+      }
+    ],
+    "cliente": "a",
+    "telefono": "a",
+    "direccion": "Retiro en Local",
+    "total": 240000,
+    "metodoPago": "Transferencia",
+    "tipoEntrega": "Retiro",
+    "envio": "-",
+    "estado": "PAGADO",
+    "fecha": "14/2/2026, 06:54:04"
   }
 ]

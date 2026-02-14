@@ -14,43 +14,46 @@ console.log("CHAT_ID:", chatId ? "✅ OK" : "❌ Faltante");
 let bot = null;
 
 if (token) {
-    // Inicializamos el bot
     bot = new TelegramBot(token, { polling: true });
     
-    // Manejo de errores de conexión (Polling)
     bot.on("polling_error", (msg) => console.log("⚠️ Error Polling Telegram:", msg.message));
     console.log("🤖 Bot iniciado y escuchando...");
 
     // --- ESCUCHAR CLICS EN BOTONES ---
-   bot.on('callback_query', (query) => {
+    bot.on('callback_query', (query) => {
         const idUsuario = query.message.chat.id;
         const data = query.data;
         
-        // 👇👇👇 CAMBIO AQUÍ: Agregamos .catch() para evitar el error rojo
+        // Evitamos error de botón expirado
         bot.answerCallbackQuery(query.id).catch(err => {
             console.log("⚠️ Clic en botón expirado (no es grave).");
         });
-        // 👆👆👆 FIN DEL CAMBIO
 
         console.log(`📩 Recibido clic: ${data} del usuario ${idUsuario}`);
 
         const partes = data.split('_');
+        
+        // 👇 VARIABLES CRÍTICAS (Aseguramos que sean válidas)
+        const accion = partes[0];
+        const idProducto = parseInt(partes[1]);
+        const cantidad = partes[2] ? parseInt(partes[2]) : 0;
 
         // ACCIÓN: IGNORAR
         if (accion === 'ignore') {
-            bot.sendMessage(idUsuario, "Alerta descartada.");
+            bot.sendMessage(idUsuario, "Alerta descartada. 🙈");
             bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: idUsuario, message_id: query.message.message_id });
         }
 
         // ACCIÓN: COMPRAR (REPONER STOCK)
         if (accion === 'buy') {
-            const cantidad = parseInt(partes[2]);
             
             if (fs.existsSync(rutaArchivo)) {
                 try {
                     const datos = fs.readFileSync(rutaArchivo, 'utf-8');
                     let productos = JSON.parse(datos);
-                    const index = productos.findIndex(p => p.id === idProducto);
+                    
+                    // Buscamos asegurando que ambos sean números
+                    const index = productos.findIndex(p => Number(p.id) === Number(idProducto));
 
                     if (index !== -1) {
                         // Actualizamos stock
@@ -60,7 +63,7 @@ if (token) {
                         // Confirmamos al usuario
                         bot.sendMessage(idUsuario, `✅ *¡LISTO!*\nSe sumaron ${cantidad} unidades.\nNuevo Stock: ${productos[index].stock}`, { parse_mode: 'Markdown' });
                         
-                        // Borramos los botones para que no se usen de nuevo
+                        // Borramos los botones
                         bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: idUsuario, message_id: query.message.message_id });
                         console.log(`✅ Stock actualizado: Producto ${idProducto} +${cantidad}`);
                     } else {
@@ -79,7 +82,7 @@ if (token) {
 const enviarAlerta = async (prod, esVenta = false) => {
     if (!bot || !chatId) {
         console.error("❌ Bot no configurado. No se puede enviar alerta.");
-        return; // Salimos sin hacer nada
+        return;
     }
 
     const titulo = esVenta ? "🚨 VENTA REALIZADA" : "⚠️ STOCK BAJO";
@@ -105,14 +108,10 @@ const enviarAlerta = async (prod, esVenta = false) => {
     };
 
     try {
-        // Usamos await para esperar a que Telegram responda
         await bot.sendMessage(chatId, mensaje, opciones);
         console.log(`✅ Alerta enviada a Telegram para: ${prod.nombre}`);
     } catch (error) {
         console.error("❌ Error enviando a Telegram:", error.message);
-        if (error.response?.body?.description) {
-            console.error("👉 Detalle:", error.response.body.description);
-        }
     }
 };
 

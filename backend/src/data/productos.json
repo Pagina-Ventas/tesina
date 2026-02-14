@@ -3,7 +3,7 @@
     "id": 1,
     "nombre": "Kit Matero 'Black Edition' Completo",
     "precio": 45000,
-    "stock": 4,
+    "stock": 3,
     "stockMinimo": 5,
     "categoria": "Kits"
   },
@@ -11,7 +11,7 @@
     "id": 2,
     "nombre": "Termo Stanley 1.4L - Classic Green",
     "precio": 120000,
-    "stock": 6,
+    "stock": 14,
     "stockMinimo": 5,
     "categoria": "Termos"
   },
@@ -19,7 +19,7 @@
     "id": 3,
     "nombre": "Bombilla Pico de Loro Alpaca Premium",
     "precio": 18500,
-    "stock": 9,
+    "stock": 184,
     "stockMinimo": 5,
     "categoria": "Bombillas"
   },
