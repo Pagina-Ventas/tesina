@@ -10,12 +10,11 @@ import { ProductoDetalle } from './pages/ProductoDetalle'
 import { Login } from './pages/Login'
 import { PerfilUsuario } from './pages/PerfilUsuario'
 import { CheckoutForm } from './components/CheckoutForm'
+import { Exito } from './pages/Exito' // 👈 ESTO YA LO TIENES, BIEN.
 
-// --- IMPORTACIONES DE ESTILOS ---
 import './style/App.css'
 import './style/Admin.css' 
 
-// Componente de Seguridad
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('adminToken')
   return token ? children : <Login />
@@ -28,9 +27,8 @@ function App() {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos')
   const [mostrarCheckout, setMostrarCheckout] = useState(false)
 
-  // --- CONFIGURACIÓN DE NÚMEROS DE WHATSAPP ---
-  const ADMIN_SAN_JUAN = "5492644117588"      // Principal (Logística Local)
-  const ADMIN_BS_AS = "5491169734096"         // Respaldo / Socio
+  const ADMIN_SAN_JUAN = "5492644117588"
+  const ADMIN_BS_AS = "5491169734096"
 
   useEffect(() => {
     cargarProductos()
@@ -51,7 +49,6 @@ function App() {
         .catch(err => console.error(err))
     }
 
-  // 1. CREAR PRODUCTO (Versión con IMAGEN / FormData)
   const crearProducto = async (productoFormData) => {
     try {
       const respuesta = await fetch('/api/productos', {
@@ -64,7 +61,6 @@ function App() {
         setProductos([...productos, data.producto])
         toast.success('Producto con foto guardado 📸')
       } else {
-        // 👇 AQUI LEEMOS EL MENSAJE DE ERROR DEL SERVIDOR
         const errorData = await respuesta.json()
         toast.error(`Error: ${errorData.message || 'No se pudo subir'}`)
       }
@@ -74,7 +70,6 @@ function App() {
     }
   }
 
-  // 2. CONFIRMAR PEDIDO (CORREGIDO)
   const confirmarPedidoAdmin = async (idPedido) => {
     const pedido = pedidos.find(p => p.id === idPedido)
     if (!pedido) return
@@ -82,10 +77,6 @@ function App() {
     const toastId = toast.loading('Procesando pago y stock...')
 
     try {
-      // ❌ BORRAMOS EL BUCLE "for (const item of pedido.items)..." QUE ESTABA AQUÍ
-      // El backend ahora se encarga de todo.
-
-      // Solo enviamos la orden de cambio de estado
       const respuesta = await fetch(`/api/pedidos/${idPedido}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -94,7 +85,7 @@ function App() {
 
       if (respuesta.ok) {
         setPedidos(pedidos.map(p => p.id === idPedido ? { ...p, estado: 'PAGADO' } : p))
-        cargarProductos() // Recargamos para ver el stock nuevo en la tabla
+        cargarProductos() 
         toast.success('¡Pedido confirmado y Stock actualizado! 🚀', { id: toastId })
       } else {
         toast.error('Error al confirmar pedido', { id: toastId })
@@ -106,10 +97,7 @@ function App() {
     }
   }
 
-  // 3. AGREGAR AL CARRITO (BLINDADO)
   const agregarAlCarrito = (producto) => {
-    
-    // 1. Verificamos si hay sesión iniciada
     const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
     
     if (!token) {
@@ -123,7 +111,6 @@ function App() {
       return 
     }
 
-    // 2. Si es cliente, verificamos datos
     const usuarioData = localStorage.getItem('usuarioData')
     if (token && !localStorage.getItem('adminToken') && usuarioData) {
         const user = JSON.parse(usuarioData)
@@ -157,8 +144,8 @@ function App() {
     })
   }
 
-  // 4. CREAR PEDIDO
-  const crearOrdenPendiente = async (ordenData) => {
+  // TU FUNCIÓN MODIFICADA ESTÁ PERFECTA ✅
+  const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => { 
     const nuevaOrden = {
         id: Date.now(),
         items: carrito,
@@ -174,22 +161,27 @@ function App() {
         })
 
         if (respuesta.ok) {
-            setPedidos([nuevaOrden, ...pedidos])
-            setCarrito([])
-            setMostrarCheckout(false)
+            if (!esMercadoPago) {
+                setPedidos([nuevaOrden, ...pedidos])
+                setCarrito([])
+                setMostrarCheckout(false)
 
-            const mensajeEncoded = encodeURIComponent(
-                `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
-                `Acabo de realizar el PEDIDO WEB #${nuevaOrden.id}.\n\n` +
-                `💰 *Total a Pagar: $${ordenData.total.toLocaleString()}*\n` +
-                `💳 Forma de Pago: ${ordenData.metodoPago}\n` +
-                `🚚 Entrega: ${ordenData.tipoEntrega} ${ordenData.envio ? `(${ordenData.envio})` : ''}\n\n` +
-                `Espero confirmación para abonar. ¡Gracias!`
-            )
-            const telefonoDestino = ADMIN_SAN_JUAN 
-            window.open(`https://wa.me/${telefonoDestino}?text=${mensajeEncoded}`, '_blank')
-            
-            toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
+                const mensajeEncoded = encodeURIComponent(
+                    `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
+                    `Acabo de realizar el PEDIDO WEB #${nuevaOrden.id}.\n\n` +
+                    `💰 *Total a Pagar: $${ordenData.total.toLocaleString()}*\n` +
+                    `💳 Forma de Pago: ${ordenData.metodoPago}\n` +
+                    `🚚 Entrega: ${ordenData.tipoEntrega} ${ordenData.envio ? `(${ordenData.envio})` : ''}\n\n` +
+                    `Espero confirmación para abonar. ¡Gracias!`
+                )
+                const telefonoDestino = ADMIN_SAN_JUAN 
+                window.open(`https://wa.me/${telefonoDestino}?text=${mensajeEncoded}`, '_blank')
+                
+                toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
+            } else {
+                setPedidos([nuevaOrden, ...pedidos])
+                console.log("Orden guardada antes de ir a MP. Esperando pago...")
+            }
         }
     } catch (error) {
         console.error(error)
@@ -264,8 +256,11 @@ function App() {
           } />
 
           <Route path="/login" element={<Login />} />
-
           <Route path="/perfil" element={<PerfilUsuario />} />
+
+          {/* 👇👇👇 ESTA ES LA LÍNEA QUE FALTABA 👇👇👇 */}
+          <Route path="/exito" element={<Exito vaciarCarrito={() => setCarrito([])} />} />
+          {/* 👆👆👆 AGREGA ESTA RUTA ANTES DE CERRAR ROUTES 👆👆👆 */}
 
           <Route path="/admin" element={
             <RutaProtegida>

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 const fs = require('fs')
 const path = require('path')
+const bcrypt = require('bcryptjs') // 👈 IMPORTANTE: Nueva librería
 
 const rutaUsuarios = path.join(__dirname, '../data/users.json')
 
@@ -15,7 +16,7 @@ const leerUsuarios = () => {
 const guardarUsuarios = (data) => fs.writeFileSync(rutaUsuarios, JSON.stringify(data, null, 2))
 
 // 1. LOGIN (Admin o Usuario)
-const login = (req, res) => {
+const login = async (req, res) => { // 👈 Ahora es ASYNC
     const { username, password } = req.body
 
     // A) Verificar si es ADMIN (Prioridad)
@@ -26,18 +27,27 @@ const login = (req, res) => {
 
     // B) Verificar si es USUARIO CLIENTE
     const usuarios = leerUsuarios()
-    const usuarioEncontrado = usuarios.find(u => u.username === username && u.password === password)
+    // Buscamos SOLO por nombre de usuario primero
+    const usuarioEncontrado = usuarios.find(u => u.username === username)
 
     if (usuarioEncontrado) {
-        const token = jwt.sign({ role: 'client', id: usuarioEncontrado.id, username }, process.env.JWT_SECRET, { expiresIn: '4h' })
-        return res.json({ success: true, token, role: 'client', user: usuarioEncontrado })
+        // 👇 AQUÍ COMPARAMOS LA CONTRASEÑA ENCRIPTADA
+        // Si la contraseña no está encriptada (usuarios viejos), comparamos texto plano
+        const coincide = usuarioEncontrado.password.startsWith('$2a$') 
+            ? await bcrypt.compare(password, usuarioEncontrado.password)
+            : usuarioEncontrado.password === password;
+
+        if (coincide) {
+            const token = jwt.sign({ role: 'client', id: usuarioEncontrado.id, username }, process.env.JWT_SECRET, { expiresIn: '4h' })
+            return res.json({ success: true, token, role: 'client', user: usuarioEncontrado })
+        }
     }
 
     res.status(401).json({ success: false, message: 'Credenciales incorrectas ⛔' })
 }
 
 // 2. REGISTRO (Solo para clientes)
-const register = (req, res) => {
+const register = async (req, res) => { // 👈 Ahora es ASYNC
     const { username, password } = req.body
     const usuarios = leerUsuarios()
 
@@ -46,10 +56,13 @@ const register = (req, res) => {
         return res.status(400).json({ success: false, message: 'El usuario ya existe' })
     }
 
+    // 👇 AQUÍ ENCRIPTAMOS LA CONTRASEÑA
+    const passwordHash = await bcrypt.hash(password, 10)
+
     const nuevoUsuario = {
         id: Date.now(),
         username,
-        password, // Nota: En producción real, esto debería encriptarse
+        password: passwordHash, // Guardamos el hash, NO el texto plano
         nombre: '',
         telefono: '',
         provincia: '',
@@ -64,15 +77,14 @@ const register = (req, res) => {
     res.json({ success: true, message: 'Usuario creado con éxito' })
 }
 
-// 3. ACTUALIZAR PERFIL (Guardar datos de envío)
+// 3. ACTUALIZAR PERFIL (Sin cambios)
 const updateProfile = (req, res) => {
-    const { username, datos } = req.body // Esperamos datos = { nombre, telefono, etc }
+    const { username, datos } = req.body 
     const usuarios = leerUsuarios()
     
     const index = usuarios.findIndex(u => u.username === username)
 
     if (index !== -1) {
-        // Actualizamos solo los campos de datos personales
         usuarios[index] = { ...usuarios[index], ...datos }
         guardarUsuarios(usuarios)
         res.json({ success: true, user: usuarios[index] })

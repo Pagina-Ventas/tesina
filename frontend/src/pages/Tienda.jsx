@@ -29,17 +29,31 @@ export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSelec
 
       {/* GRILLA */}
       <div className="grid">
+        
+        {/* 1. SKELETON LOADING (Efecto de Carga cuando no hay datos) */}
+        {productos.length === 0 && (
+            Array(4).fill(0).map((_, i) => (
+                <div key={i} className="skeleton-card">
+                    <div className="skeleton-pulse"></div>
+                </div>
+            ))
+        )}
+
+        {/* 2. PRODUCTOS REALES */}
         {productosFiltrados.map(prod => {
           const esCritico = prod.stock <= prod.stockMinimo;
+          
           return (
             <div key={prod.id} className="card">
-              <div className={`badge-stock ${prod.stock === 0 ? 'low' : ''}`}>
-                {prod.stock === 0 ? 'SIN STOCK' : esCritico ? '¡POCAS UNIDADES!' : 'PREMIUM'}
+              {/* --- LÓGICA DE ETIQUETAS MEJORADA --- */}
+              <div className={`badge-stock ${prod.stock === 0 ? 'out' : esCritico ? 'low' : 'ok'}`}>
+                {prod.stock === 0 ? 'SIN STOCK' 
+                 : esCritico ? `¡SOLO QUEDAN ${prod.stock}!` 
+                 : 'PREMIUM'}
               </div>
               
               <Link to={`/producto/${prod.id}`} style={{textDecoration: 'none'}}>
                   <div className="card-image-box" style={{overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                    {/* --- AQUÍ ESTÁ EL CAMBIO CLAVE --- */}
                     {prod.imagen ? (
                         // 1. SI HAY FOTO REAL:
                         <img 
@@ -48,14 +62,14 @@ export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSelec
                             style={{
                                 width: '100%', 
                                 height: '100%', 
-                                objectFit: 'cover', // Esto hace que la foto llene el cuadro sin deformarse
+                                objectFit: 'cover', 
                                 transition: 'transform 0.3s'
                             }}
                             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
                             onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         />
                     ) : (
-                        // 2. SI NO HAY FOTO (Usamos el Emoji como fallback):
+                        // 2. SI NO HAY FOTO (Emoji fallback):
                         <span style={{fontSize: '5rem'}}>
                             {prod.categoria === 'Termos' ? '⚱️' : 
                              prod.categoria === 'Bombillas' ? '🧪' : 
