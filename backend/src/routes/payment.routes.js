@@ -4,5 +4,6 @@ const { crearPreferencia } = require('../controllers/payment.controller');
 
 // Ruta POST que llamará tu Frontend
 router.post('/crear-orden', crearPreferencia);
+router.post('/webhook', recibirWebhook);
 
 module.exports = router;

@@ -9,10 +9,11 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     ciudad: '',
     metodoPago: 'Transferencia', // Por defecto
     tipoEntrega: 'Retiro',
-    courier: ''
+    courier: '',
+    email: '' // 👈 IMPORTANTE: Agregamos email para poder mandarle el correo
   })
   
-  const [procesando, setProcesando] = useState(false) // ⏳ Para mostrar carga
+  const [procesando, setProcesando] = useState(false)
 
   // DATOS BANCARIOS DEL VENDEDOR
   const DATOS_BANCO = {
@@ -34,7 +35,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
 
   const totalFinal = totalProductos + costoEnvio
 
-  // Regla: Efectivo = Solo Retiro
   useEffect(() => {
     if (datos.metodoPago === 'Efectivo') {
       setDatos(prev => ({ ...prev, tipoEntrega: 'Retiro', courier: '' }))
@@ -48,9 +48,14 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    // 👇 GENERAMOS EL ID AQUÍ PARA PODER USARLO EN MP
+    const idPedidoGenerado = Date.now();
+
     // Objeto de orden base
     const orden = {
+        id: idPedidoGenerado, // 👈 Lo agregamos a la orden
         cliente: datos.nombre,
+        email: datos.email,   // 👈 Guardamos el email
         telefono: datos.telefono,
         direccion: datos.tipoEntrega === 'Envio' ? `${datos.direccion}, ${datos.ciudad}` : 'Retiro en Local',
         items: carrito,
@@ -67,19 +72,21 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
         try {
             setProcesando(true)
             
-            // 1. Pedimos la preferencia al Backend
+            // 1. PRIMERO: Guardamos el pedido silenciosamente
+            await onConfirmar(orden, true); 
+
+            // 2. Pedimos la preferencia al Backend
             const response = await fetch('/api/pagos/crear-orden', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: carrito, cliente: datos })
+                // 👇 Enviamos el idPedido al backend
+                body: JSON.stringify({ items: carrito, cliente: datos, idPedido: idPedidoGenerado }) 
             });
 
             const data = await response.json();
 
             if (data.id) {
-                // 2. Redirigimos a Mercado Pago
-                // Nota: No llamamos a onConfirmar aquí para evitar que se abra WhatsApp
-                // El usuario volverá a la URL de "exito" configurada en el backend.
+                // 3. Redirigimos a Mercado Pago
                 window.location.href = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${data.id}`;
             } else {
                 alert("Error al generar el pago. Intenta nuevamente.");
@@ -91,11 +98,11 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
             alert("Hubo un problema de conexión con Mercado Pago.");
             setProcesando(false);
         }
-        return; // Cortamos aquí para no ejecutar el flujo normal (WhatsApp)
+        return; 
     }
 
     // --- FLUJO NORMAL (Transferencia / Efectivo) ---
-    onConfirmar(orden)
+    onConfirmar(orden, false)
   }
 
   return (
@@ -116,6 +123,12 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
             </div>
           </div>
 
+          {/* 👇 NUEVO CAMPO DE EMAIL (Necesario para enviarle el recibo) */}
+          <div className="form-group">
+              <label className="form-label">Email (Para enviar recibo)</label>
+              <input type="email" name="email" required className="form-input" onChange={handleChange} disabled={procesando}/>
+          </div>
+
           {/* SELECCIÓN DE PAGO */}
           <div className="form-group">
             <label className="form-label">Forma de Pago</label>
@@ -127,8 +140,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
           </div>
 
           {/* INFORMACIÓN DE PAGO DINÁMICA */}
-          
-          {/* CASO 1: TRANSFERENCIA */}
           {datos.metodoPago === 'Transferencia' && (
               <div className="payment-info-box" style={{background: '#1a1a2e', padding: '15px', borderRadius: '8px', border: '1px solid #3b82f6', marginBottom: '20px'}}>
                   <p style={{color: '#3b82f6', fontWeight: 'bold', marginBottom: '5px'}}>Datos para transferir:</p>
@@ -138,11 +149,10 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
               </div>
           )}
 
-          {/* CASO 2: MERCADO PAGO */}
           {datos.metodoPago === 'MercadoPago' && (
               <div className="payment-info-box" style={{background: 'rgba(0, 158, 227, 0.1)', padding: '15px', borderRadius: '8px', border: '1px solid #009ee3', marginBottom: '20px', textAlign: 'center'}}>
                   <p style={{color: '#009ee3', fontWeight: 'bold', marginBottom: '5px'}}>¡Estás a un paso!</p>
-                  <p style={{fontSize: '0.9rem', color: '#ccc'}}>Al confirmar, serás redirigido a la web segura de Mercado Pago para abonar con Tarjeta, Débito o Dinero en cuenta.</p>
+                  <p style={{fontSize: '0.9rem', color: '#ccc'}}>Al confirmar, serás redirigido a la web segura de Mercado Pago.</p>
               </div>
           )}
 
@@ -194,7 +204,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
             </div>
           </div>
 
-          {/* BOTÓN DE ACCIÓN DINÁMICO */}
           <button type="submit" className="btn-whatsapp" disabled={procesando} style={{
               background: datos.metodoPago === 'MercadoPago' ? '#009ee3' : '#25D366',
               opacity: procesando ? 0.7 : 1

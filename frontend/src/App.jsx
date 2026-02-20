@@ -10,8 +10,9 @@ import { ProductoDetalle } from './pages/ProductoDetalle'
 import { Login } from './pages/Login'
 import { PerfilUsuario } from './pages/PerfilUsuario'
 import { CheckoutForm } from './components/CheckoutForm'
-import { Exito } from './pages/Exito' // 👈 ESTO YA LO TIENES, BIEN.
+import { Exito } from './pages/Exito'
 
+// --- IMPORTACIONES DE ESTILOS ---
 import './style/App.css'
 import './style/Admin.css' 
 
@@ -144,13 +145,11 @@ function App() {
     })
   }
 
-  // TU FUNCIÓN MODIFICADA ESTÁ PERFECTA ✅
+  // 👇 FUNCIÓN MODIFICADA: Ya no genera el ID aquí, usa el de ordenData
   const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => { 
+    // Usamos directamente ordenData porque CheckoutForm ya le puso el ID
     const nuevaOrden = {
-        id: Date.now(),
-        items: carrito,
-        ...ordenData,
-        estado: 'PENDIENTE'
+        ...ordenData
     }
 
     try {
@@ -258,9 +257,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
 
-          {/* 👇👇👇 ESTA ES LA LÍNEA QUE FALTABA 👇👇👇 */}
+          {/* LA RUTA EXITO YA ESTÁ AQUÍ ✅ */}
           <Route path="/exito" element={<Exito vaciarCarrito={() => setCarrito([])} />} />
-          {/* 👆👆👆 AGREGA ESTA RUTA ANTES DE CERRAR ROUTES 👆👆👆 */}
 
           <Route path="/admin" element={
             <RutaProtegida>

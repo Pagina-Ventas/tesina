@@ -1,16 +1,20 @@
-const { MercadoPagoConfig, Preference } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const { enviarCorreoCompra } = require('../services/mail.service');
+const fs = require('fs');
+const path = require('path');
 
-// 1. Configuración del Cliente (Token de Prueba)
-// Lo ideal es poner process.env.MP_ACCESS_TOKEN en tu archivo .env
 const client = new MercadoPagoConfig({ 
-    accessToken: process.env.MP_ACCESS_TOKEN || 'TU_ACCESS_TOKEN_DE_PRUEBA_AQUI' 
+    accessToken: process.env.MP_ACCESS_TOKEN || 'TU_TOKEN_DE_PRUEBA' 
 });
 
+const rutaPedidos = path.join(__dirname, '../data/pedidos.json');
+
+// 1. CREAR PREFERENCIA
 const crearPreferencia = async (req, res) => {
     try {
-        const { items, cliente } = req.body;
+        // Recibimos el idPedido desde el Frontend
+        const { items, cliente, idPedido } = req.body; 
 
-        // 2. Mapeamos los productos para que MP los entienda
         const itemsMP = items.map(item => ({
             title: item.nombre,
             quantity: Number(item.cantidad),
@@ -18,35 +22,82 @@ const crearPreferencia = async (req, res) => {
             currency_id: 'ARS'
         }));
 
-        // 3. Creamos el cuerpo de la preferencia
         const body = {
             items: itemsMP,
-            payer: {
-                // En producción, usa el email real del cliente
-                // En pruebas, MP a veces pide un email válido
-                email: "test_user_123456@testuser.com" 
-            },
+            payer: { email: cliente.email || "test_user@test.com" },
             back_urls: {
-                // A dónde vuelve el usuario después de pagar
-                // Ajusta el puerto 5173 si tu frontend usa otro (ej: 3000 o 4000)
-                success: "http://localhost:5173", 
+                success: "http://localhost:5173/exito",
                 failure: "http://localhost:5173",
                 pending: "http://localhost:5173"
             },
             auto_return: "approved",
+            // CLAVE: Le mandamos el ID de tu pedido a MP
+            external_reference: idPedido.toString(),
+            // 👇 ¡OJO AQUÍ! Cuando abras Ngrok, reemplaza esta URL por la tuya
+            notification_url: "https://TU_URL_DE_NGROK.ngrok-free.app/api/pagos/webhook" 
         };
 
-        // 4. Pedimos la preferencia a Mercado Pago
         const preference = new Preference(client);
         const result = await preference.create({ body });
-
-        // 5. Devolvemos el ID al Frontend
         res.json({ id: result.id });
 
     } catch (error) {
-        console.error("Error al crear preferencia:", error);
-        res.status(500).json({ error: "Error al crear la preferencia de pago" });
+        console.error(error);
+        res.status(500).json({ error: "Error al crear pago" });
     }
 };
 
-module.exports = { crearPreferencia };
+// 2. EL WEBHOOK (Recibe el aviso de Mercado Pago)
+const recibirWebhook = async (req, res) => {
+    try {
+        const paymentId = req.query.id || req.body.data?.id;
+
+        if (req.query.type === 'payment' || req.body.type === 'payment') {
+            const payment = new Payment(client);
+            // Consultamos el estado real del pago a Mercado Pago
+            const pagoInfo = await payment.get({ id: paymentId });
+
+            if (pagoInfo.status === 'approved') {
+                const idPedido = parseInt(pagoInfo.external_reference);
+                console.log(`✅ Webhook: El pedido ${idPedido} fue pagado.`);
+
+                // 1. Leemos los pedidos
+                let pedidos = [];
+                if (fs.existsSync(rutaPedidos)) {
+                    pedidos = JSON.parse(fs.readFileSync(rutaPedidos, 'utf-8'));
+                }
+
+                const index = pedidos.findIndex(p => p.id === idPedido);
+                
+                if (index !== -1 && pedidos[index].estado !== 'PAGADO') {
+                    // 2. Actualizamos a PAGADO
+                    pedidos[index].estado = 'PAGADO';
+                    fs.writeFileSync(rutaPedidos, JSON.stringify(pedidos, null, 2));
+
+                    // 3. ¡ENVIAMOS EL CORREO AL CLIENTE! 📧
+                    const pedidoActualizado = pedidos[index];
+                    
+                    // Verificamos que el cliente haya puesto un email
+                    if (pedidoActualizado.email) {
+                        await enviarCorreoCompra(
+                            pedidoActualizado.email, 
+                            pedidoActualizado.cliente, 
+                            pedidoActualizado.id,
+                            pedidoActualizado.total.toLocaleString() // Mandamos el total formateado
+                        );
+                    } else {
+                        console.log(`⚠️ Pedido ${idPedido} pagado, pero el cliente no dejó email.`);
+                    }
+                }
+            }
+        }
+        
+        // Siempre hay que responder 200 OK a Mercado Pago rápido
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error("Error en Webhook:", error);
+        res.status(500).send('Error');
+    }
+};
+
+module.exports = { crearPreferencia, recibirWebhook };
