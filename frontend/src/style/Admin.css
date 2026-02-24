@@ -1,222 +1,369 @@
-/* RESET PARA EL ADMIN */
+/* =========================================
+   PANEL DE ADMINISTRACIÓN - APOLO DASHBOARD
+   ========================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+:root {
+  /* --- PALETA ADMIN (Clean & Light) --- */
+  --admin-bg: #f8fafc;           /* Fondo general gris muy claro */
+  --admin-sidebar: #0f172a;      /* Azul marino oscuro casi negro */
+  --admin-surface: #ffffff;      /* Tarjetas blancas */
+  
+  /* --- ACENTOS --- */
+  --admin-primary: #3b82f6;      /* Azul principal */
+  --admin-primary-hover: #2563eb;
+  --admin-gold: #d4af37;         /* Dorado Apolo para detalles */
+  
+  /* --- TEXTOS --- */
+  --admin-text-main: #1e293b;
+  --admin-text-muted: #64748b;
+  
+  /* --- ESTADOS (Status) --- */
+  --status-ok-bg: #dcfce7;
+  --status-ok-text: #166534;
+  --status-warn-bg: #fef9c3;
+  --status-warn-text: #854d0e;
+  --status-err-bg: #fee2e2;
+  --status-err-text: #991b1b;
+
+  /* --- BORDES Y SOMBRAS --- */
+  --admin-border: #e2e8f0;
+  --admin-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* RESET */
 .admin-wrapper {
   display: flex;
   min-height: 100vh;
-  background-color: #f0f2f5; /* Fondo gris muy claro azulado */
+  background-color: var(--admin-bg);
   font-family: 'Montserrat', sans-serif;
-  color: #333;
-  /* Reseteamos variables oscuras */
-  --sidebar-bg: #1e293b; /* Azul oscuro pizarra */
-  --accent-blue: #3b82f6;
-  --text-dark: #1e293b;
+  color: var(--admin-text-main);
+  margin: 0;
+  padding: 0;
 }
 
-/* 1. SIDEBAR */
+/* =========================================
+   1. SIDEBAR (Menú Lateral)
+   ========================================= */
 .admin-sidebar {
-  width: 250px;
-  background-color: var(--sidebar-bg);
+  width: 260px;
+  background-color: var(--admin-sidebar);
   color: white;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 25px 20px;
   position: fixed;
-  height: 100%;
+  height: 100vh;
+  box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+  z-index: 100;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-logo {
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .sidebar-logo h2 {
-  font-size: 1.5rem;
-  margin-bottom: 5px;
+  font-size: 1.8rem;
+  margin: 0 0 5px 0;
+  letter-spacing: 2px;
 }
-.sidebar-logo span { color: #fbbf24; } /* Dorado */
-.sidebar-logo p { color: #94a3b8; font-size: 0.8rem; margin-bottom: 40px; }
 
-.sidebar-menu { display: flex; flex-direction: column; gap: 10px; }
+.sidebar-logo span { color: var(--admin-gold); }
+.sidebar-logo p { color: #94a3b8; font-size: 0.85rem; margin: 0; text-transform: uppercase; letter-spacing: 1px;}
+
+.sidebar-menu { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+}
 
 .menu-item {
   text-decoration: none;
-  color: #94a3b8;
-  padding: 12px 15px;
-  border-radius: 8px;
+  color: #cbd5e1;
+  padding: 14px 18px;
+  border-radius: 10px;
   transition: all 0.3s;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .menu-item:hover, .menu-item.active {
   background-color: rgba(255,255,255,0.1);
   color: white;
+  transform: translateX(5px);
 }
 
-.menu-item.logout { color: #fbbf24; margin-top: auto; }
+.menu-item.logout { 
+  color: var(--admin-gold); 
+  margin-top: auto; 
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+.menu-item.logout:hover {
+  background-color: var(--admin-gold);
+  color: #000;
+}
 
-/* 2. CONTENIDO PRINCIPAL */
+/* =========================================
+   2. CONTENIDO PRINCIPAL
+   ========================================= */
 .admin-content {
-  margin-left: 250px; /* Dejar espacio para el sidebar */
+  margin-left: 260px; /* Compensa el ancho del sidebar */
   flex-grow: 1;
-  padding: 30px;
+  padding: 40px;
+  width: calc(100% - 260px); /* Previene desbordamiento */
 }
 
-/* Header */
+/* Header del panel */
 .admin-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
+  background: var(--admin-surface);
+  padding: 20px 30px;
+  border-radius: 16px;
+  box-shadow: var(--admin-shadow);
 }
 
-.welcome-text { font-size: 1.5rem; color: var(--text-dark); }
+.welcome-text { 
+  font-size: 1.6rem; 
+  font-weight: 700;
+  margin: 0;
+}
 
-.topbar-actions { display: flex; gap: 20px; align-items: center; }
+.topbar-actions { 
+  display: flex; 
+  gap: 20px; 
+  align-items: center; 
+}
 
 .topbar-search {
-  padding: 10px 20px;
-  border: 1px solid #ddd;
-  border-radius: 20px;
+  padding: 12px 25px;
+  border: 1px solid var(--admin-border);
+  background-color: var(--admin-bg);
+  border-radius: 30px;
   width: 300px;
   outline: none;
+  transition: all 0.3s;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.topbar-search:focus {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .admin-profile {
-  width: 40px; height: 40px;
-  background: var(--accent-blue);
+  width: 45px; 
+  height: 45px;
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-hover));
   color: white;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
   font-weight: bold;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
 }
 
-/* 3. TARJETAS DE RESUMEN (Overview) */
+/* =========================================
+   3. TARJETAS DE RESUMEN (Overview)
+   ========================================= */
 .overview-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 25px;
+  margin-bottom: 40px;
 }
 
 .stat-card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
+  background: var(--admin-surface);
+  padding: 25px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  box-shadow: var(--admin-shadow);
+  border: 1px solid var(--admin-border);
+  transition: transform 0.3s;
 }
+
+.stat-card:hover { transform: translateY(-5px); }
 
 .stat-icon {
-  width: 50px; height: 50px;
-  border-radius: 12px;
+  width: 60px; height: 60px;
+  border-radius: 14px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
 }
 
-.stat-icon.box { background: #dbeafe; color: #3b82f6; } /* Azul claro */
-.stat-icon.money { background: #dcfce7; color: #22c55e; } /* Verde claro */
-.stat-icon.chart { background: #f3e8ff; color: #a855f7; } /* Violeta claro */
-.stat-icon.warning { background: #fee2e2; color: #ef4444; } /* Rojo claro */
+.stat-icon.box { background: #eff6ff; color: #3b82f6; }
+.stat-icon.money { background: #f0fdf4; color: #22c55e; }
+.stat-icon.chart { background: #faf5ff; color: #a855f7; }
+.stat-icon.warning { background: #fef2f2; color: #ef4444; }
 
-.stat-info h3 { font-size: 1.5rem; margin-bottom: 5px; color: var(--text-dark); }
-.stat-info p { color: #64748b; font-size: 0.9rem; }
+.stat-info h3 { font-size: 1.8rem; margin: 0 0 5px 0; font-weight: 700;}
+.stat-info p { color: var(--admin-text-muted); font-size: 0.95rem; margin: 0; font-weight: 500;}
 
-/* 4. TABLA LIMPIA */
+/* =========================================
+   4. TABLAS Y SECCIONES
+   ========================================= */
 .recent-orders {
-  background: white;
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  background: var(--admin-surface);
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: var(--admin-shadow);
+  border: 1px solid var(--admin-border);
+  overflow-x: auto; /* Permite scroll horizontal en pantallas chicas */
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 20px;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.section-header h3 {
+  font-size: 1.3rem;
+  margin: 0;
 }
 
 .btn-add {
-  background: var(--accent-blue);
+  background: var(--admin-primary);
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 12px 24px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.3s;
 }
 
-.clean-table { width: 100%; border-collapse: collapse; }
+.btn-add:hover { background: var(--admin-primary-hover); }
+
+.clean-table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  min-width: 600px; /* Evita que se aplaste demasiado */
+}
 
 .clean-table th {
   text-align: left;
-  padding: 15px;
-  color: #64748b;
-  border-bottom: 1px solid #eee;
-  font-size: 0.9rem;
+  padding: 15px 20px;
+  color: var(--admin-text-muted);
+  border-bottom: 2px solid var(--admin-border);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .clean-table td {
-  padding: 15px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #475569;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--admin-border);
+  font-weight: 500;
+}
+
+.clean-table tr:hover td {
+  background-color: #f8fafc;
 }
 
 .status-badge {
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 30px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
 }
 
-.status-badge.ok { background: #dcfce7; color: #166534; }
-.status-badge.low { background: #fef9c3; color: #854d0e; }
-.status-badge.out { background: #fee2e2; color: #991b1b; }
-/* --- NUEVOS ESTILOS PARA LOS GRÁFICOS --- */
+.status-badge.ok { background: var(--status-ok-bg); color: var(--status-ok-text); }
+.status-badge.low { background: var(--status-warn-bg); color: var(--status-warn-text); }
+.status-badge.out { background: var(--status-err-bg); color: var(--status-err-text); }
 
+/* =========================================
+   5. GRÁFICOS
+   ========================================= */
 .charts-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr; /* El de líneas ocupa 2 partes, el de torta 1 */
-  gap: 20px;
-  margin-bottom: 30px;
-}
-
-/* Responsivo: Si la pantalla es chica, uno abajo del otro */
-@media (max-width: 900px) {
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: 2fr 1fr;
+  gap: 25px;
+  margin-bottom: 40px;
 }
 
 .chart-container {
-  background: white;
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  background: var(--admin-surface);
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: var(--admin-shadow);
+  border: 1px solid var(--admin-border);
   display: flex;
   flex-direction: column;
 }
 
 .chart-container h3 {
-  font-size: 1.1rem;
-  margin-bottom: 20px;
-  color: var(--text-dark);
+  font-size: 1.2rem;
+  margin: 0 0 25px 0;
 }
 
-/* Leyenda del gráfico de torta */
 .chart-legend {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 15px;
-  margin-top: 10px;
+  gap: 20px;
+  margin-top: 20px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: #64748b;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
 }
 
 .legend-item .dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
+}
+
+/* =========================================
+   6. RESPONSIVE DESIGN (Móviles y Tablets)
+   ========================================= */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-sidebar {
+    transform: translateX(-100%); /* Oculta el sidebar por defecto en celular */
+  }
+  
+  .admin-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 20px;
+  }
+  
+  .admin-topbar {
+    flex-direction: column;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  
+  .topbar-search {
+    width: 100%;
+  }
 }

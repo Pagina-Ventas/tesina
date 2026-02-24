@@ -1,24 +1,27 @@
-import React from 'react'
-import '../style/App.css'
+import React from 'react';
+// 1. Importamos tu logo desde la carpeta assets
+import apoloLogo from '../assets/Apolo.jpg';
 
-export function Hero() {
+const Hero = () => {
   return (
     <div className="hero-container">
-      <div className="hero-content">
-        <span className="hero-badge">NUEVA COLECCIÓN 2026</span>
-        <h1 className="hero-title">El Arte del Buen Mate</h1>
-        <p className="hero-subtitle">
-          Descubrí nuestra selección premium de termos, bombillas y kits materos diseñados para durar toda la vida.
-        </p>
-        <a href="#catalogo" className="btn-hero">
-          VER PRODUCTOS ↓
-        </a>
-      </div>
       
-      {/* Elemento decorativo visual */}
-      <div className="hero-image">
-        🧉
+      {/* Lado Izquierdo: Textos y Botón */}
+      <div className="hero-content">
+        <span className="hero-badge">NUEVA COLECCIÓN</span>
+        <h1 className="hero-title">Elegancia en cada mate</h1>
+        <p className="hero-subtitle">Descubrí la experiencia premium de Apolo.</p>
+        <a href="#productos" className="btn-hero">Ver Productos</a>
       </div>
+
+      {/* Lado Derecho: Tu Logo */}
+      <div className="hero-image-container">
+        {/* 2. Mostramos la imagen usando la variable apoloLogo */}
+        <img src={apoloLogo} alt="Logo Apolo Mates" className="hero-image" />
+      </div>
+
     </div>
-  )
-}
+  );
+};
+
+export default Hero;

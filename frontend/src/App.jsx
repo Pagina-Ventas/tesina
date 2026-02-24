@@ -209,7 +209,7 @@ function App() {
 
       <div className="dashboard-container">
         <header className="header">
-          <Link to="/" className="logo" style={{textDecoration: 'none'}}>IMPERIO<span>MATE</span></Link>
+          <Link to="/" className="logo" style={{textDecoration: 'none'}}>APOLO<span>MATE</span></Link>
           
           <Link to="/admin" style={{color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px'}}>
             👤 LOGIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{color: '#ff4444'}}>•</span>}
