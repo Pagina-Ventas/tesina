@@ -558,7 +558,7 @@ body {
   text-align: center;
   padding: 80px 20px;
 }
-.empty-icon { font-size: 5rem; margin-bottom: 30px; display: block; opacity: 0.5;
+.empty-icon { font-size: 5rem; margin-bottom: 30px; display: block; opacity: 0.5;}
   /* ACTUALIZACIÓN: Caja de cantidad mejorada (Versión Premium) */
 .item-quantity-box {
   background: #0a0a0a; /* Fondo más oscuro para contraste */
@@ -757,7 +757,7 @@ body {
 .stock-tag.ok { background: rgba(46, 125, 50, 0.2); color: var(--mate-green); }
 .stock-tag.low { background: rgba(197, 160, 89, 0.2); color: var(--gold-alpaca); }
 .stock-tag.out { background: rgba(211, 47, 47, 0.2); color: var(--danger); }
- }
+ 
 /* --- MODAL DE CHECKOUT (DATOS DEL CLIENTE) --- */
 .checkout-overlay {
   position: fixed;
