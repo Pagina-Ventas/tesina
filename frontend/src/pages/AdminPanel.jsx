@@ -30,6 +30,32 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
       .catch(err => console.error(err))
   }, [mostrarModal, pedidos]) 
 
+  // ✅ NUEVO: eliminar pedido (admin)
+  const eliminarPedidoAdmin = async (id) => {
+  const ok = window.confirm(`¿Eliminar el pedido #${id}? Esta acción no se puede deshacer.`);
+  if (!ok) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/api/pedidos/${id}`, {
+      method: 'DELETE',
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      console.error('DELETE error:', data);
+      alert(data?.message || 'Error al eliminar pedido');
+      return;
+    }
+
+    alert('✅ Pedido eliminado');
+    window.location.reload();
+  } catch (e) {
+    console.error(e);
+    alert('Error de conexión al eliminar');
+  }
+};
+
   const handleInputChange = (e) => {
     setNuevoProd({ ...nuevoProd, [e.target.name]: e.target.value })
   }
@@ -92,7 +118,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
     // B. Recorremos los pedidos y sumamos si están PAGADOS
     pedidos.forEach(p => {
         if (p.estado === 'PAGADO') {
-            const fechaPedido = new Date(p.id) // El ID es el timestamp
+            const fechaPedido = new Date(p.id) // El ID es el timestamp (⚠️ en MySQL esto ya no aplica perfecto)
             const mesP = fechaPedido.getMonth()
             const anioP = fechaPedido.getFullYear()
 
@@ -175,7 +201,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
               <div className="stat-card">
                 <div className="stat-icon money">💰</div>
                 <div className="stat-info">
-                  {/* Mostramos el total vendido histórico */}
                   <h3>${totalVendidoHistorico.toLocaleString()}</h3>
                   <p>Ventas Totales</p>
                 </div>
@@ -319,12 +344,22 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto }) {
                                                 {p.estado}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td style={{display:'flex', gap:'10px', alignItems:'center'}}>
                                             {p.estado === 'PENDIENTE' && (
                                                 <button className="btn-add" style={{background:'#10b981'}} onClick={() => confirmarPedidoAdmin(p.id)}>
                                                     ✅ Confirmar
                                                 </button>
                                             )}
+
+                                            {/* ✅ NUEVO BOTÓN ELIMINAR */}
+                                            <button
+                                              className="btn-add"
+                                              style={{ background:'#ef4444' }}
+                                              onClick={() => eliminarPedidoAdmin(p.id)}
+                                            >
+                                              🗑 Eliminar
+                                            </button>
+
                                             {p.estado === 'PAGADO' && <span>✅</span>}
                                         </td>
                                     </tr>

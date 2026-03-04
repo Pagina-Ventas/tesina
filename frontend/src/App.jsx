@@ -5,7 +5,7 @@ import { Toaster, toast } from 'sonner'
 // --- IMPORTACIONES ORDENADAS ---
 import { Tienda } from './pages/Tienda'
 import { Carrito } from './pages/Carrito'
-import { Inventario as AdminPanel } from './pages/AdminPanel' 
+import { Inventario as AdminPanel } from './pages/AdminPanel'
 import { ProductoDetalle } from './pages/ProductoDetalle'
 import { Login } from './pages/Login'
 import { PerfilUsuario } from './pages/PerfilUsuario'
@@ -14,11 +14,20 @@ import { Exito } from './pages/Exito'
 
 // --- IMPORTACIONES DE ESTILOS ---
 import './style/App.css'
-import './style/Admin.css' 
+import './style/Admin.css'
 
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('adminToken')
   return token ? children : <Login />
+}
+
+// ✅ Normaliza pedidos para que SIEMPRE usen el ID real (MySQL)
+const normalizarPedidos = (arr) => {
+  if (!Array.isArray(arr)) return []
+  return arr.map((p) => {
+    const pid = p.pedidoId ?? p.id
+    return { ...p, pedidoId: pid, id: pid }
+  })
 }
 
 function App() {
@@ -44,17 +53,17 @@ function App() {
   }
 
   const cargarPedidos = () => {
-      fetch('/api/pedidos')
-        .then(res => res.json())
-        .then(data => setPedidos(data))
-        .catch(err => console.error(err))
-    }
+    fetch('/api/pedidos')
+      .then(res => res.json())
+      .then(data => setPedidos(normalizarPedidos(data)))
+      .catch(err => console.error(err))
+  }
 
   const crearProducto = async (productoFormData) => {
     try {
       const respuesta = await fetch('/api/productos', {
         method: 'POST',
-        body: productoFormData 
+        body: productoFormData
       })
 
       if (respuesta.ok) {
@@ -71,36 +80,65 @@ function App() {
     }
   }
 
+  // ✅ CONFIRMAR pedido (usa ID real)
   const confirmarPedidoAdmin = async (idPedido) => {
-    const pedido = pedidos.find(p => p.id === idPedido)
-    if (!pedido) return
+    const pid = Number(idPedido)
+    const pedido = pedidos.find(p => (p.pedidoId ?? p.id) === pid)
+    if (!pedido) return toast.error('Pedido no encontrado')
 
     const toastId = toast.loading('Procesando pago y stock...')
 
     try {
-      const respuesta = await fetch(`/api/pedidos/${idPedido}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ estado: 'PAGADO' })
+      const respuesta = await fetch(`/api/pedidos/${pid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'PAGADO' })
       })
 
+      const data = await respuesta.json().catch(() => ({}))
+
       if (respuesta.ok) {
-        setPedidos(pedidos.map(p => p.id === idPedido ? { ...p, estado: 'PAGADO' } : p))
-        cargarProductos() 
+        setPedidos(pedidos.map(p =>
+          (p.pedidoId ?? p.id) === pid ? { ...p, estado: 'PAGADO' } : p
+        ))
+        cargarProductos()
         toast.success('¡Pedido confirmado y Stock actualizado! 🚀', { id: toastId })
       } else {
-        toast.error('Error al confirmar pedido', { id: toastId })
+        toast.error(data?.message || data?.error || 'Error al confirmar pedido', { id: toastId })
       }
-
     } catch (error) {
       console.error(error)
       toast.error('Error al procesar el pedido', { id: toastId })
     }
   }
 
+  // ✅ ELIMINAR pedido (usa ID real)
+  const eliminarPedidoAdmin = async (idPedido) => {
+    const pid = Number(idPedido)
+    const toastId = toast.loading('Eliminando pedido...')
+
+    try {
+      const respuesta = await fetch(`/api/pedidos/${pid}`, {
+        method: 'DELETE'
+      })
+
+      const data = await respuesta.json().catch(() => ({}))
+
+      if (respuesta.ok) {
+        setPedidos(prev => prev.filter(p => (p.pedidoId ?? p.id) !== pid))
+        toast.success('Pedido eliminado 🗑️', { id: toastId })
+      } else {
+        toast.error(data?.message || data?.error || 'Pedido no encontrado', { id: toastId })
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('Error eliminando pedido', { id: toastId })
+    }
+  }
+
   const agregarAlCarrito = (producto) => {
     const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
-    
+
     if (!token) {
       toast.error('🔒 Debes iniciar sesión para comprar', {
         description: 'Redirigiendo al login...',
@@ -109,33 +147,37 @@ function App() {
       setTimeout(() => {
         window.location.href = '/login'
       }, 1500)
-      return 
+      return
     }
 
     const usuarioData = localStorage.getItem('usuarioData')
     if (token && !localStorage.getItem('adminToken') && usuarioData) {
-        const user = JSON.parse(usuarioData)
-        if (!user.nombre || !user.direccion) {
-            toast.warning('⚠️ Por favor completa tus datos de envío antes de comprar')
-            setTimeout(() => window.location.href = '/perfil', 1500)
-            return
-        }
+      const user = JSON.parse(usuarioData)
+      if (!user.nombre || !user.direccion) {
+        toast.warning('⚠️ Por favor completa tus datos de envío antes de comprar')
+        setTimeout(() => window.location.href = '/perfil', 1500)
+        return
+      }
     }
 
     const existe = carrito.find(item => item.id === producto.id)
     if (existe) {
-      setCarrito(carrito.map(item => item.id === producto.id ? { ...existe, cantidad: existe.cantidad + 1 } : item))
+      setCarrito(carrito.map(item =>
+        item.id === producto.id ? { ...existe, cantidad: existe.cantidad + 1 } : item
+      ))
     } else {
       setCarrito([...carrito, { ...producto, cantidad: 1 }])
     }
-    
+
     toast.success(`¡${producto.nombre} agregado!`, {
       style: { background: '#1e1e1e', border: '1px solid #c5a059', color: '#fff' }
     })
   }
 
   const modificarCantidad = (id, cantidad) => {
-    setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: Math.max(1, item.cantidad + cantidad) } : item))
+    setCarrito(carrito.map(item =>
+      item.id === id ? { ...item, cantidad: Math.max(1, item.cantidad + cantidad) } : item
+    ))
   }
 
   const eliminarDelCarrito = (id) => {
@@ -145,82 +187,94 @@ function App() {
     })
   }
 
-  // 👇 FUNCIÓN MODIFICADA: Ya no genera el ID aquí, usa el de ordenData
-  const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => { 
-    // Usamos directamente ordenData porque CheckoutForm ya le puso el ID
-    const nuevaOrden = {
-        ...ordenData
-    }
-
+  // ✅ CREAR PEDIDO: usa respuesta del BACKEND (id MySQL real)
+  const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => {
     try {
-        const respuesta = await fetch('/api/pedidos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(nuevaOrden)
-        })
+      const respuesta = await fetch('/api/pedidos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ordenData)
+      })
 
-        if (respuesta.ok) {
-            if (!esMercadoPago) {
-                setPedidos([nuevaOrden, ...pedidos])
-                setCarrito([])
-                setMostrarCheckout(false)
+      const data = await respuesta.json().catch(() => ({}))
 
-                const mensajeEncoded = encodeURIComponent(
-                    `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
-                    `Acabo de realizar el PEDIDO WEB #${nuevaOrden.id}.\n\n` +
-                    `💰 *Total a Pagar: $${ordenData.total.toLocaleString()}*\n` +
-                    `💳 Forma de Pago: ${ordenData.metodoPago}\n` +
-                    `🚚 Entrega: ${ordenData.tipoEntrega} ${ordenData.envio ? `(${ordenData.envio})` : ''}\n\n` +
-                    `Espero confirmación para abonar. ¡Gracias!`
-                )
-                const telefonoDestino = ADMIN_SAN_JUAN 
-                window.open(`https://wa.me/${telefonoDestino}?text=${mensajeEncoded}`, '_blank')
-                
-                toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
-            } else {
-                setPedidos([nuevaOrden, ...pedidos])
-                console.log("Orden guardada antes de ir a MP. Esperando pago...")
-            }
-        }
+      if (!respuesta.ok || !data?.success) {
+        toast.error(data?.message || data?.error || 'Error al guardar el pedido')
+        return
+      }
+
+      // ✅ Este es el pedido REAL con id de MySQL
+      const pedidoDB = {
+        ...data.pedido,
+        pedidoId: data.pedido.id,
+        id: data.pedido.id
+      }
+
+      // ✅ Lo agregamos al state SIN timestamps fantasma
+      setPedidos(prev => [pedidoDB, ...prev.filter(p => (p.pedidoId ?? p.id) !== pedidoDB.id)])
+
+      if (!esMercadoPago) {
+        setCarrito([])
+        setMostrarCheckout(false)
+
+        const mensajeEncoded = encodeURIComponent(
+          `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
+          `Acabo de realizar el PEDIDO WEB #${pedidoDB.id}.\n\n` +
+          `💰 *Total a Pagar: $${Number(pedidoDB.total || ordenData.total || 0).toLocaleString()}*\n` +
+          `💳 Forma de Pago: ${ordenData.metodoPago}\n` +
+          `🚚 Entrega: ${ordenData.tipoEntrega} ${ordenData.envio ? `(${ordenData.envio})` : ''}\n\n` +
+          `Espero confirmación para abonar. ¡Gracias!`
+        )
+
+        const telefonoDestino = ADMIN_SAN_JUAN
+        window.open(`https://wa.me/${telefonoDestino}?text=${mensajeEncoded}`, '_blank')
+
+        toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
+      } else {
+        console.log("Orden guardada antes de ir a MP. Esperando pago...")
+      }
     } catch (error) {
-        console.error(error)
-        toast.error('Error al guardar el pedido')
+      console.error(error)
+      toast.error('Error al guardar el pedido')
     }
   }
 
   const totalItems = carrito.reduce((acc, item) => acc + item.cantidad, 0)
   const totalPrecio = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
-  const categorias = Array.isArray(productos) 
-    ? ['Todos', ...new Set(productos.map(p => p.categoria))] 
+
+  const categorias = Array.isArray(productos)
+    ? ['Todos', ...new Set(productos.map(p => p.categoria))]
     : ['Todos']
 
   return (
     <BrowserRouter>
       <Toaster position="bottom-right" theme="dark" />
-      
+
       {mostrarCheckout && (
-        <CheckoutForm 
-          carrito={carrito} 
-          totalProductos={totalPrecio} 
-          onConfirmar={crearOrdenPendiente} 
-          onCancelar={() => setMostrarCheckout(false)} 
+        <CheckoutForm
+          carrito={carrito}
+          totalProductos={totalPrecio}
+          onConfirmar={crearOrdenPendiente}
+          onCancelar={() => setMostrarCheckout(false)}
         />
       )}
 
       <div className="dashboard-container">
         <header className="header">
-          <Link to="/" className="logo" style={{textDecoration: 'none'}}>APOLO<span>MATE</span></Link>
-          
-          <Link to="/admin" style={{color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px'}}>
-            👤 LOGIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{color: '#ff4444'}}>•</span>}
+          <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
+            APOLO<span>MATE</span>
+          </Link>
+
+          <Link to="/admin" style={{ color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            👤 LOGIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{ color: '#ff4444' }}>•</span>}
           </Link>
 
           <input type="text" placeholder="Buscar..." className="search-bar" />
-          
-          <Link to="/carrito" style={{textDecoration: 'none'}}>
-            <div style={{color: '#c5a059', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center'}}>
+
+          <Link to="/carrito" style={{ textDecoration: 'none' }}>
+            <div style={{ color: '#c5a059', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center' }}>
               <span>🛒 TU MATE</span>
-              <span style={{background: '#c5a059', color: '#000', padding: '2px 8px', borderRadius: '10px', fontSize: '0.9rem'}}>
+              <span style={{ background: '#c5a059', color: '#000', padding: '2px 8px', borderRadius: '10px', fontSize: '0.9rem' }}>
                 {totalItems}
               </span>
             </div>
@@ -229,47 +283,45 @@ function App() {
 
         <Routes>
           <Route path="/" element={
-            <Tienda 
-                productos={productos} 
-                agregarAlCarrito={agregarAlCarrito} 
-                categorias={categorias} 
-                categoriaSeleccionada={categoriaSeleccionada} 
-                setCategoriaSeleccionada={setCategoriaSeleccionada}
+            <Tienda
+              productos={productos}
+              agregarAlCarrito={agregarAlCarrito}
+              categorias={categorias}
+              categoriaSeleccionada={categoriaSeleccionada}
+              setCategoriaSeleccionada={setCategoriaSeleccionada}
             />
           } />
-          
+
           <Route path="/producto/:id" element={
-             <ProductoDetalle 
-                productos={productos} 
-                agregarAlCarrito={agregarAlCarrito} 
-             />
+            <ProductoDetalle
+              productos={productos}
+              agregarAlCarrito={agregarAlCarrito}
+            />
           } />
 
           <Route path="/carrito" element={
-            <Carrito 
-                carrito={carrito} 
-                eliminarDelCarrito={eliminarDelCarrito} 
-                finalizarCompra={() => setMostrarCheckout(true)} 
-                modificarCantidad={modificarCantidad} 
+            <Carrito
+              carrito={carrito}
+              eliminarDelCarrito={eliminarDelCarrito}
+              finalizarCompra={() => setMostrarCheckout(true)}
+              modificarCantidad={modificarCantidad}
             />
           } />
 
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
-
-          {/* LA RUTA EXITO YA ESTÁ AQUÍ ✅ */}
           <Route path="/exito" element={<Exito vaciarCarrito={() => setCarrito([])} />} />
 
           <Route path="/admin" element={
             <RutaProtegida>
-                <AdminPanel 
-                    pedidos={pedidos} 
-                    confirmarPedidoAdmin={confirmarPedidoAdmin}
-                    crearProducto={crearProducto} 
-                />
+              <AdminPanel
+                pedidos={pedidos}
+                confirmarPedidoAdmin={confirmarPedidoAdmin}
+                eliminarPedidoAdmin={eliminarPedidoAdmin}
+                crearProducto={crearProducto}
+              />
             </RutaProtegida>
           } />
-
         </Routes>
       </div>
     </BrowserRouter>
