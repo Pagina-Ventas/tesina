@@ -7,6 +7,7 @@ const productosRoutes = require('./routes/productos.routes');
 const pedidosRoutes = require('./routes/pedidos.routes');
 const authRoutes = require('./routes/auth.routes');
 const paymentRoutes = require('./routes/payment.routes'); // 👈 La ruta de pagos
+const categoriasRoutes = require('./routes/categorias.routes'); // ✅ NUEVO
 
 // DB pool
 const pool = require('./db');
@@ -42,6 +43,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/pagos', paymentRoutes); // 👈 Activamos pagos
+app.use('/api/categorias', categoriasRoutes); // ✅ NUEVO
 
 // --- 404 JSON (para que el frontend no reciba HTML) ---
 app.use((req, res) => {

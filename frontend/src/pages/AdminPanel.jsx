@@ -6,27 +6,32 @@ import {
 } from 'recharts'
 import '../style/Admin.css'
 
-// ✅ Ahora recibe también: reponerProductoAdmin (desde App.jsx)
+// Recibe desde App.jsx: pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin (si lo tenés)
 export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin }) {
   const [productos, setProductos] = useState([])
+  const [categorias, setCategorias] = useState([])
+
   const [busqueda, setBusqueda] = useState('')
   const [vistaActiva, setVistaActiva] = useState('dashboard')
 
-  // --- ESTADO PARA EL MODAL DE CREAR PRODUCTO ---
+  // --- MODAL CREAR PRODUCTO ---
   const [mostrarModal, setMostrarModal] = useState(false)
   const [nuevoProd, setNuevoProd] = useState({
     nombre: '',
-    categoria: 'Termos',
+    categoria: '', // ✅ ahora sale del listado de categorias
     precio: '',
     stock: '',
     stockMinimo: 5,
     imagen: null
   })
 
-  // ✅ MODAL REPONER STOCK
+  // --- MODAL REPONER STOCK ---
   const [mostrarModalReponer, setMostrarModalReponer] = useState(false)
   const [productoAReponer, setProductoAReponer] = useState(null)
   const [cantidadReponer, setCantidadReponer] = useState(1)
+
+  // --- CATEGORIAS: crear ---
+  const [nuevaCategoria, setNuevaCategoria] = useState('')
 
   const cargarProductos = async () => {
     try {
@@ -35,14 +40,28 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       setProductos(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
+      setProductos([])
+    }
+  }
+
+  const cargarCategorias = async () => {
+    try {
+      const res = await fetch('/api/categorias')
+      const data = await res.json()
+      setCategorias(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error(err)
+      setCategorias([])
     }
   }
 
   useEffect(() => {
     cargarProductos()
+    cargarCategorias()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarModal, pedidos])
 
-  // ✅ eliminar pedido (admin) (mantengo tu lógica)
+  // ✅ eliminar pedido (tu lógica)
   const eliminarPedidoAdmin = async (id) => {
     const ok = window.confirm(`¿Eliminar el pedido #${id}? Esta acción no se puede deshacer.`)
     if (!ok) return
@@ -77,9 +96,15 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   const handleSubmit = (e) => {
     e.preventDefault()
+
+    if (!nuevoProd.categoria) {
+      alert('Seleccioná una categoría')
+      return
+    }
+
     const formData = new FormData()
     formData.append('nombre', nuevoProd.nombre)
-    formData.append('categoria', nuevoProd.categoria)
+    formData.append('categoria', nuevoProd.categoria) // compatible con tu backend actual
     formData.append('precio', nuevoProd.precio)
     formData.append('stock', nuevoProd.stock)
     formData.append('stockMinimo', nuevoProd.stockMinimo)
@@ -88,7 +113,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
     crearProducto(formData)
     setMostrarModal(false)
-    setNuevoProd({ nombre: '', categoria: 'Termos', precio: '', stock: '', stockMinimo: 5, imagen: null })
+    setNuevoProd({ nombre: '', categoria: '', precio: '', stock: '', stockMinimo: 5, imagen: null })
   }
 
   // ✅ Abrir modal reponer
@@ -98,7 +123,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     setMostrarModalReponer(true)
   }
 
-  // ✅ Confirmar reponer (llama al backend /api/productos/:id/reponer)
+  // ✅ Confirmar reponer
   const confirmarReponer = async () => {
     if (!productoAReponer) return
 
@@ -109,7 +134,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
 
     try {
-      // Si App.jsx te pasa la función, la usamos
       if (typeof reponerProductoAdmin === 'function') {
         const actualizado = await reponerProductoAdmin(productoAReponer.id, cant)
         if (actualizado?.id) {
@@ -118,7 +142,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           await cargarProductos()
         }
       } else {
-        // Fallback por si no pasaste prop todavía
         const res = await fetch(`/api/productos/${productoAReponer.id}/reponer`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -138,7 +161,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // ✅ ELIMINAR PRODUCTO (NUEVO)
+  // ✅ ELIMINAR PRODUCTO (VOLVIÓ)
   const eliminarProductoAdmin = async (id) => {
     const ok = window.confirm('¿Eliminar este producto del catálogo?')
     if (!ok) return
@@ -151,7 +174,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         throw new Error(data?.message || 'No se pudo eliminar')
       }
 
-      // Quitarlo de la tabla sin recargar
       setProductos(prev => prev.filter(p => p.id !== id))
     } catch (e) {
       console.error(e)
@@ -159,8 +181,35 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // --- 1. DATOS REALES PARA EL GRÁFICO DE TORTA ---
-  const dataCategorias = productos.reduce((acc, curr) => {
+  // ✅ CREAR CATEGORIA
+  const crearCategoria = async () => {
+    const nombre = nuevaCategoria.trim()
+    if (!nombre) return alert('Escribí un nombre de categoría')
+
+    try {
+      const res = await fetch('/api/categorias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre })
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || !data?.success) {
+        alert(data?.message || 'Error creando categoría')
+        return
+      }
+
+      setNuevaCategoria('')
+      await cargarCategorias()
+      alert('✅ Categoría creada')
+    } catch (e) {
+      console.error(e)
+      alert('Error de conexión creando categoría')
+    }
+  }
+
+  // --- DATOS PARA GRAFICOS ---
+  const dataCategoriasGraf = productos.reduce((acc, curr) => {
     const cat = acc.find(item => item.name === curr.categoria)
     if (cat) cat.value += curr.stock
     else acc.push({ name: curr.categoria, value: curr.stock })
@@ -169,7 +218,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   const COLORES_TORTA = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444']
 
-  // --- 2. DATOS REALES PARA EL GRÁFICO DE VENTAS ---
   const dataVentas = useMemo(() => {
     const meses = []
     const hoy = new Date()
@@ -177,17 +225,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
       const nombreMes = d.toLocaleString('es-ES', { month: 'short' })
-      meses.push({
-        name: nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1),
-        ventas: 0,
-        anio: d.getFullYear(),
-        mesIndex: d.getMonth()
-      })
+      meses.push({ name: nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1), ventas: 0 })
     }
 
     pedidos.forEach(p => {
       if (p.estado === 'PAGADO') {
-        // ⚠️ Si no tenés created_at, lo sumo al mes actual para no romper
         meses[meses.length - 1].ventas += Number(p.total || 0)
       }
     })
@@ -195,7 +237,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     return meses
   }, [pedidos])
 
-  // Cálculos generales
   const totalProductos = productos.length
   const sinStock = productos.filter(p => p.stock === 0).length
   const valorInventario = productos.reduce((acc, p) => acc + (Number(p.precio || 0) * Number(p.stock || 0)), 0)
@@ -211,19 +252,31 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   return (
     <div className="admin-wrapper">
-
       {/* SIDEBAR */}
       <aside className="admin-sidebar">
         <div className="sidebar-logo">
           <h2>IMPERIO<span>MATE</span></h2>
           <p>Admin Panel</p>
         </div>
+
         <nav className="sidebar-menu">
-          <button className={`menu-item ${vistaActiva === 'dashboard' ? 'active' : ''}`} onClick={() => setVistaActiva('dashboard')}>📊 Dashboard</button>
-          <button className={`menu-item ${vistaActiva === 'inventario' ? 'active' : ''}`} onClick={() => setVistaActiva('inventario')}>📦 Inventario</button>
+          <button className={`menu-item ${vistaActiva === 'dashboard' ? 'active' : ''}`} onClick={() => setVistaActiva('dashboard')}>
+            📊 Dashboard
+          </button>
+
+          <button className={`menu-item ${vistaActiva === 'inventario' ? 'active' : ''}`} onClick={() => setVistaActiva('inventario')}>
+            📦 Inventario
+          </button>
+
+          {/* ✅ NUEVA SOLAPA */}
+          <button className={`menu-item ${vistaActiva === 'categorias' ? 'active' : ''}`} onClick={() => setVistaActiva('categorias')}>
+            📁 Categorías
+          </button>
+
           <button className={`menu-item ${vistaActiva === 'pedidos' ? 'active' : ''}`} onClick={() => setVistaActiva('pedidos')}>
             🛒 Pedidos {pedidosPendientes.length > 0 && <span className="badge-alert">{pedidosPendientes.length}</span>}
           </button>
+
           <div className="separator"></div>
           <Link to="/" className="menu-item logout">← Volver a Tienda</Link>
         </nav>
@@ -231,7 +284,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="admin-content">
-
         <header className="admin-topbar">
           <h2 className="welcome-text">Hola, Germán 👋</h2>
           <div className="topbar-actions">
@@ -246,7 +298,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </div>
         </header>
 
-        {/* --- VISTA DASHBOARD --- */}
+        {/* DASHBOARD */}
         {vistaActiva === 'dashboard' && (
           <>
             <section className="overview-cards">
@@ -307,16 +359,8 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                 <div style={{ width: '100%', height: 250, minWidth: 0 }}>
                   <ResponsiveContainer>
                     <PieChart>
-                      <Pie
-                        data={dataCategorias}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {dataCategorias.map((entry, index) => (
+                      <Pie data={dataCategoriasGraf} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                        {dataCategoriasGraf.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORES_TORTA[index % COLORES_TORTA.length]} />
                         ))}
                       </Pie>
@@ -324,20 +368,12 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="chart-legend">
-                  {dataCategorias.map((entry, index) => (
-                    <div key={index} className="legend-item">
-                      <span className="dot" style={{ background: COLORES_TORTA[index % COLORES_TORTA.length] }}></span>
-                      <span>{entry.name} ({entry.value})</span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </section>
           </>
         )}
 
-        {/* --- VISTA INVENTARIO --- */}
+        {/* INVENTARIO */}
         {vistaActiva === 'inventario' && (
           <section className="recent-orders">
             <div className="section-header">
@@ -382,21 +418,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                         </span>
                       </td>
 
-                      {/* ✅ BOTONES REPONER + ELIMINAR */}
-                      <td style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          className="btn-add"
-                          style={{ background: '#3b82f6' }}
-                          onClick={() => abrirReponer(prod)}
-                        >
+                      {/* ✅ REPONER + ELIMINAR */}
+                      <td style={{ display: 'flex', gap: 10 }}>
+                        <button className="btn-add" style={{ background: '#3b82f6' }} onClick={() => abrirReponer(prod)}>
                           ➕ Reponer
                         </button>
 
-                        <button
-                          className="btn-add"
-                          style={{ background: '#ef4444' }}
-                          onClick={() => eliminarProductoAdmin(prod.id)}
-                        >
+                        <button className="btn-add" style={{ background: '#ef4444' }} onClick={() => eliminarProductoAdmin(prod.id)}>
                           🗑 Eliminar
                         </button>
                       </td>
@@ -408,7 +436,48 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
-        {/* --- VISTA PEDIDOS --- */}
+        {/* ✅ CATEGORIAS */}
+        {vistaActiva === 'categorias' && (
+          <section className="recent-orders">
+            <div className="section-header">
+              <h3>Categorías</h3>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 15 }}>
+              <input
+                type="text"
+                placeholder="Nueva categoría..."
+                className="topbar-search"
+                value={nuevaCategoria}
+                onChange={(e) => setNuevaCategoria(e.target.value)}
+              />
+              <button className="btn-add" onClick={crearCategoria}>+ Agregar</button>
+            </div>
+
+            <div className="table-responsive">
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categorias.length === 0 ? (
+                    <tr><td style={{ padding: 20, textAlign: 'center' }}>No hay categorías todavía</td></tr>
+                  ) : (
+                    categorias.map(c => (
+                      <tr key={c.id}>
+                        <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* PEDIDOS */}
         {vistaActiva === 'pedidos' && (
           <section className="recent-orders">
             <h3>Pedidos Pendientes</h3>
@@ -435,11 +504,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                             </button>
                           )}
 
-                          <button
-                            className="btn-add"
-                            style={{ background: '#ef4444' }}
-                            onClick={() => eliminarPedidoAdmin(p.id)}
-                          >
+                          <button className="btn-add" style={{ background: '#ef4444' }} onClick={() => eliminarPedidoAdmin(p.id)}>
                             🗑 Eliminar
                           </button>
 
@@ -456,7 +521,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
       </main>
 
-      {/* --- MODAL CREAR PRODUCTO --- */}
+      {/* MODAL CREAR PRODUCTO */}
       {mostrarModal && (
         <div className="checkout-overlay">
           <div className="checkout-card" style={{ maxWidth: '500px' }}>
@@ -473,14 +538,20 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                 <input type="text" name="nombre" required className="form-input" onChange={handleInputChange} value={nuevoProd.nombre} />
               </div>
 
+              {/* ✅ SELECT DINAMICO DESDE CATEGORIAS */}
               <div className="form-group">
                 <label className="form-label">Categoría</label>
-                <select name="categoria" className="form-input" onChange={handleInputChange} value={nuevoProd.categoria}>
-                  <option value="Termos">Termos</option>
-                  <option value="Bombillas">Bombillas</option>
-                  <option value="Kits">Kits</option>
-                  <option value="Insumos">Insumos</option>
-                  <option value="Bolsos">Bolsos</option>
+                <select
+                  name="categoria"
+                  className="form-input"
+                  onChange={handleInputChange}
+                  value={nuevoProd.categoria}
+                  required
+                >
+                  <option value="" disabled>Seleccionar categoría...</option>
+                  {categorias.map(c => (
+                    <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                  ))}
                 </select>
               </div>
 
@@ -502,7 +573,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         </div>
       )}
 
-      {/* --- MODAL REPONER STOCK --- */}
+      {/* MODAL REPONER STOCK */}
       {mostrarModalReponer && (
         <div className="checkout-overlay">
           <div className="checkout-card" style={{ maxWidth: '420px' }}>
@@ -532,7 +603,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </div>
         </div>
       )}
-
     </div>
   )
 }
