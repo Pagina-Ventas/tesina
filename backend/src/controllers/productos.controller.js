@@ -62,7 +62,7 @@ const createProducto = async (req, res) => {
   }
 };
 
-// ✅ 3. Reponer stock (NUEVO)
+// ✅ 3. Reponer stock
 const reponerStock = async (req, res) => {
   const idProd = Number(req.params.id);
   const cantidad = Number(req.body?.cantidad);
@@ -78,7 +78,6 @@ const reponerStock = async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // Bloqueamos el producto para evitar condiciones de carrera
     const [rows] = await conn.query(
       `SELECT id, nombre, stock, stock_minimo AS stockMinimo, precio, categoria, imagen
        FROM productos
@@ -118,7 +117,29 @@ const reponerStock = async (req, res) => {
   }
 };
 
-// 4. Vender producto (misma lógica pero en SQL)
+// ✅ 4. Eliminar producto (NUEVO)
+const eliminarProducto = async (req, res) => {
+  const idProd = Number(req.params.id);
+
+  if (!Number.isFinite(idProd) || idProd <= 0) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+
+  try {
+    const [result] = await pool.query(`DELETE FROM productos WHERE id = ?`, [idProd]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    }
+
+    return res.json({ success: true, deletedId: idProd });
+  } catch (err) {
+    console.error('ELIMINAR PRODUCTO ERROR:', err);
+    return res.status(500).json({ success: false, message: 'Error eliminando producto', detail: err.message });
+  }
+};
+
+// 5. Vender producto
 const venderProducto = async (req, res) => {
   const idProd = Number(req.params.id);
   const cantidadVenta = Number(req.params.cantidad);
@@ -133,7 +154,6 @@ const venderProducto = async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // Bloqueamos la fila para evitar ventas simultáneas rompiendo stock
     const [rows] = await conn.query(
       `SELECT id, nombre, stock, stock_minimo AS stockMinimo
        FROM productos
@@ -190,7 +210,7 @@ const venderProducto = async (req, res) => {
   }
 };
 
-// 5. Verificar Stock Manualmente (SQL)
+// 6. Verificar Stock Manualmente
 const verificarStock = async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -218,7 +238,8 @@ const verificarStock = async (req, res) => {
 module.exports = {
   getProductos,
   createProducto,
-  reponerStock, // ✅ NUEVO
+  reponerStock,
+  eliminarProducto, // ✅ NUEVO
   venderProducto,
   verificarStock
 };

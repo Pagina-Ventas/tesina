@@ -34,8 +34,11 @@ const upload = multer({
 })
 
 // --- 3. RUTAS ---
+
+// Obtener productos
 router.get('/', controller.getProductos)
 
+// Crear producto
 router.post(
   '/',
   (req, res, next) => {
@@ -50,8 +53,12 @@ router.post(
 // Ruta de Venta
 router.get('/vender/:id/:cantidad', controller.venderProducto)
 
-// ✅ NUEVO: Reponer stock (para el panel admin)
+// Reponer stock
 router.put('/:id/reponer', controller.reponerStock)
+
+// 🆕 Eliminar producto
+router.delete('/:id', controller.eliminarProducto)
+
 
 // 👇 RUTA DE PRUEBA (BOTÓN DE PÁNICO)
 router.get('/test-bot', async (req, res) => {
@@ -76,7 +83,7 @@ router.get('/test-bot', async (req, res) => {
   }
 })
 
-// 👇 RUTA PARA VERIFICAR TODO EL STOCK REAL
+// Verificar stock manualmente
 router.get('/verificar-alertas', controller.verificarStock)
 
 module.exports = router

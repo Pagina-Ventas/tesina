@@ -138,6 +138,27 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
+  // ✅ ELIMINAR PRODUCTO (NUEVO)
+  const eliminarProductoAdmin = async (id) => {
+    const ok = window.confirm('¿Eliminar este producto del catálogo?')
+    if (!ok) return
+
+    try {
+      const res = await fetch(`/api/productos/${id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || 'No se pudo eliminar')
+      }
+
+      // Quitarlo de la tabla sin recargar
+      setProductos(prev => prev.filter(p => p.id !== id))
+    } catch (e) {
+      console.error(e)
+      alert(e?.message || 'Error eliminando producto')
+    }
+  }
+
   // --- 1. DATOS REALES PARA EL GRÁFICO DE TORTA ---
   const dataCategorias = productos.reduce((acc, curr) => {
     const cat = acc.find(item => item.name === curr.categoria)
@@ -166,8 +187,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
     pedidos.forEach(p => {
       if (p.estado === 'PAGADO') {
-        // ⚠️ OJO: esto era timestamp antes. Si no tenés created_at, no se puede mensual real.
-        // Para no romper, lo sumo al mes actual:
+        // ⚠️ Si no tenés created_at, lo sumo al mes actual para no romper
         meses[meses.length - 1].ventas += Number(p.total || 0)
       }
     })
@@ -177,9 +197,8 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   // Cálculos generales
   const totalProductos = productos.length
-  const totalStock = productos.reduce((acc, p) => acc + p.stock, 0)
   const sinStock = productos.filter(p => p.stock === 0).length
-  const valorInventario = productos.reduce((acc, p) => acc + (p.precio * p.stock), 0)
+  const valorInventario = productos.reduce((acc, p) => acc + (Number(p.precio || 0) * Number(p.stock || 0)), 0)
   const totalVendidoHistorico = pedidos
     .filter(p => p.estado === 'PAGADO')
     .reduce((acc, p) => acc + Number(p.total || 0), 0)
@@ -336,7 +355,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                     <th>Precio</th>
                     <th>Stock</th>
                     <th>Estado</th>
-                    <th>Acción</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -363,14 +382,22 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                         </span>
                       </td>
 
-                      {/* ✅ BOTÓN REPONER */}
-                      <td>
+                      {/* ✅ BOTONES REPONER + ELIMINAR */}
+                      <td style={{ display: 'flex', gap: '8px' }}>
                         <button
                           className="btn-add"
                           style={{ background: '#3b82f6' }}
                           onClick={() => abrirReponer(prod)}
                         >
                           ➕ Reponer
+                        </button>
+
+                        <button
+                          className="btn-add"
+                          style={{ background: '#ef4444' }}
+                          onClick={() => eliminarProductoAdmin(prod.id)}
+                        >
+                          🗑 Eliminar
                         </button>
                       </td>
                     </tr>
