@@ -37,8 +37,8 @@ function App() {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos')
   const [mostrarCheckout, setMostrarCheckout] = useState(false)
 
-  const ADMIN_SAN_JUAN = "5492644117588"
-  const ADMIN_BS_AS = "5491169734096"
+  const ADMIN_SAN_JUAN = '5492644117588'
+  const ADMIN_BS_AS = '5491169734096'
 
   useEffect(() => {
     cargarProductos()
@@ -77,6 +77,52 @@ function App() {
     } catch (error) {
       console.error(error)
       toast.error('Error de conexión o archivo muy pesado')
+    }
+  }
+
+  // ✅ NUEVO: Reponer stock (Admin)
+  // Llama a: PUT /api/productos/:id/reponer  body: { cantidad }
+  // Devuelve el producto actualizado (si tu backend responde success:true, producto:{...})
+  const reponerProductoAdmin = async (idProducto, cantidad) => {
+    const id = Number(idProducto)
+    const cant = Number(cantidad)
+
+    if (!Number.isFinite(id) || id <= 0) {
+      toast.error('ID de producto inválido')
+      return null
+    }
+    if (!Number.isFinite(cant) || cant <= 0) {
+      toast.error('Cantidad inválida (debe ser > 0)')
+      return null
+    }
+
+    const toastId = toast.loading('Reponiendo stock...')
+
+    try {
+      const res = await fetch(`/api/productos/${id}/reponer`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cantidad: cant })
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || !data?.success) {
+        toast.error(data?.message || 'No se pudo reponer stock', { id: toastId })
+        return null
+      }
+
+      // Actualizo el state de productos para reflejar stock en todo el front
+      setProductos(prev =>
+        prev.map(p => (p.id === data.producto.id ? { ...p, stock: data.producto.stock } : p))
+      )
+
+      toast.success('Stock repuesto ✅', { id: toastId })
+      return data.producto
+    } catch (e) {
+      console.error(e)
+      toast.error('Error reponiendo stock', { id: toastId })
+      return null
     }
   }
 
@@ -203,14 +249,12 @@ function App() {
         return
       }
 
-      // ✅ Este es el pedido REAL con id de MySQL
       const pedidoDB = {
         ...data.pedido,
         pedidoId: data.pedido.id,
         id: data.pedido.id
       }
 
-      // ✅ Lo agregamos al state SIN timestamps fantasma
       setPedidos(prev => [pedidoDB, ...prev.filter(p => (p.pedidoId ?? p.id) !== pedidoDB.id)])
 
       if (!esMercadoPago) {
@@ -231,7 +275,7 @@ function App() {
 
         toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
       } else {
-        console.log("Orden guardada antes de ir a MP. Esperando pago...")
+        console.log('Orden guardada antes de ir a MP. Esperando pago...')
       }
     } catch (error) {
       console.error(error)
@@ -319,6 +363,7 @@ function App() {
                 confirmarPedidoAdmin={confirmarPedidoAdmin}
                 eliminarPedidoAdmin={eliminarPedidoAdmin}
                 crearProducto={crearProducto}
+                reponerProductoAdmin={reponerProductoAdmin}
               />
             </RutaProtegida>
           } />

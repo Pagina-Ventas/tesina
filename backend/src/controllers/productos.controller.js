@@ -62,7 +62,63 @@ const createProducto = async (req, res) => {
   }
 };
 
-// 3. Vender producto (misma lógica pero en SQL)
+// ✅ 3. Reponer stock (NUEVO)
+const reponerStock = async (req, res) => {
+  const idProd = Number(req.params.id);
+  const cantidad = Number(req.body?.cantidad);
+
+  if (!Number.isFinite(idProd) || idProd <= 0) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+  if (!Number.isFinite(cantidad) || cantidad <= 0) {
+    return res.status(400).json({ success: false, message: 'Cantidad inválida (debe ser > 0)' });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Bloqueamos el producto para evitar condiciones de carrera
+    const [rows] = await conn.query(
+      `SELECT id, nombre, stock, stock_minimo AS stockMinimo, precio, categoria, imagen
+       FROM productos
+       WHERE id = ?
+       FOR UPDATE`,
+      [idProd]
+    );
+
+    if (rows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    }
+
+    const prod = rows[0];
+    const stockActual = Number(prod.stock || 0);
+    const nuevoStock = stockActual + cantidad;
+
+    await conn.query(`UPDATE productos SET stock = ? WHERE id = ?`, [nuevoStock, idProd]);
+
+    await conn.commit();
+
+    return res.json({
+      success: true,
+      producto: {
+        ...prod,
+        stock: nuevoStock,
+        stockMinimo: Number(prod.stockMinimo || 0),
+        precio: Number(prod.precio || 0),
+      }
+    });
+  } catch (err) {
+    try { await conn.rollback(); } catch {}
+    console.error('REPONER STOCK ERROR:', err);
+    return res.status(500).json({ success: false, message: 'Error reponiendo stock', detail: err.message });
+  } finally {
+    conn.release();
+  }
+};
+
+// 4. Vender producto (misma lógica pero en SQL)
 const venderProducto = async (req, res) => {
   const idProd = Number(req.params.id);
   const cantidadVenta = Number(req.params.cantidad);
@@ -115,7 +171,6 @@ const venderProducto = async (req, res) => {
     if (nuevoStock <= stockMin) {
       console.log("🚨 CONDICIÓN DE ALERTA CUMPLIDA. Enviando mensaje...");
       try {
-        // Para el bot, le pasamos el producto con el stock actualizado
         await enviarAlerta({ ...prod, stock: nuevoStock, stockMinimo: stockMin }, true);
         mensajeRespuesta += " 🚨 SE DISPARÓ UNA ALERTA DE STOCK.";
       } catch (error) {
@@ -135,7 +190,7 @@ const venderProducto = async (req, res) => {
   }
 };
 
-// 4. Verificar Stock Manualmente (SQL)
+// 5. Verificar Stock Manualmente (SQL)
 const verificarStock = async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -163,6 +218,7 @@ const verificarStock = async (req, res) => {
 module.exports = {
   getProductos,
   createProducto,
+  reponerStock, // ✅ NUEVO
   venderProducto,
   verificarStock
 };
