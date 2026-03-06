@@ -1,11 +1,9 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-const fs = require('fs');
-const path = require('path');
+const pool = require('../db');
 
 const token = process.env.TELEGRAM_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
-const rutaArchivo = path.join(__dirname, '../data/productos.json');
 
 console.log("--- DIAGNÓSTICO DEL BOT ---");
 console.log("TOKEN:", token ? "✅ OK" : "❌ Faltante");
@@ -20,7 +18,7 @@ if (token) {
     console.log("🤖 Bot iniciado y escuchando...");
 
     // --- ESCUCHAR CLICS EN BOTONES ---
-    bot.on('callback_query', (query) => {
+    bot.on('callback_query', async (query) => {
         const idUsuario = query.message.chat.id;
         const data = query.data;
         
@@ -46,33 +44,30 @@ if (token) {
 
         // ACCIÓN: COMPRAR (REPONER STOCK)
         if (accion === 'buy') {
-            
-            if (fs.existsSync(rutaArchivo)) {
-                try {
-                    const datos = fs.readFileSync(rutaArchivo, 'utf-8');
-                    let productos = JSON.parse(datos);
-                    
-                    // Buscamos asegurando que ambos sean números
-                    const index = productos.findIndex(p => Number(p.id) === Number(idProducto));
+            try {
+                // Actualizamos stock directo en MySQL
+                const [result] = await pool.query(
+                    `UPDATE productos SET stock = stock + ? WHERE id = ?`,
+                    [cantidad, idProducto]
+                );
 
-                    if (index !== -1) {
-                        // Actualizamos stock
-                        productos[index].stock += cantidad;
-                        fs.writeFileSync(rutaArchivo, JSON.stringify(productos, null, 2));
-                        
-                        // Confirmamos al usuario
-                        bot.sendMessage(idUsuario, `✅ *¡LISTO!*\nSe sumaron ${cantidad} unidades.\nNuevo Stock: ${productos[index].stock}`, { parse_mode: 'Markdown' });
-                        
-                        // Borramos los botones
-                        bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: idUsuario, message_id: query.message.message_id });
-                        console.log(`✅ Stock actualizado: Producto ${idProducto} +${cantidad}`);
-                    } else {
-                        bot.sendMessage(idUsuario, "❌ Error: Producto no encontrado (ID inválido).");
-                    }
-                } catch (error) {
-                    console.error("❌ Error al actualizar JSON:", error);
-                    bot.sendMessage(idUsuario, "❌ Error interno del servidor.");
+                if (result.affectedRows > 0) {
+                    // Consultamos el nuevo stock para mostrárselo
+                    const [rows] = await pool.query(`SELECT stock FROM productos WHERE id = ?`, [idProducto]);
+                    const nuevoStock = rows[0].stock;
+
+                    // Confirmamos al usuario
+                    bot.sendMessage(idUsuario, `✅ *¡LISTO!*\nSe sumaron ${cantidad} unidades en la Base de Datos.\nNuevo Stock: ${nuevoStock}`, { parse_mode: 'Markdown' });
+                    
+                    // Borramos los botones
+                    bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: idUsuario, message_id: query.message.message_id });
+                    console.log(`✅ Stock actualizado en DB: Producto ${idProducto} +${cantidad}`);
+                } else {
+                    bot.sendMessage(idUsuario, "❌ Error: Producto no encontrado en la Base de Datos.");
                 }
+            } catch (error) {
+                console.error("❌ Error al actualizar en MySQL:", error);
+                bot.sendMessage(idUsuario, "❌ Error interno del servidor.");
             }
         }
     });

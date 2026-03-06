@@ -208,6 +208,32 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
+  // ✅ NUEVO: ELIMINAR CATEGORÍA
+  const eliminarCategoria = async (id, nombreCategoria) => {
+    const ok = window.confirm(`¿Seguro que quieres eliminar la categoría "${nombreCategoria}"? ¡Se borrarán TODOS los productos que le pertenezcan!`)
+    if (!ok) return
+
+    try {
+      const res = await fetch(`/api/categorias/${id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || 'No se pudo eliminar la categoría')
+      }
+
+      // 1. Actualizamos la lista de categorías en la vista
+      setCategorias(prev => prev.filter(c => c.id !== id))
+      
+      // 2. FUNDAMENTAL: Recargamos los productos para que desaparezcan los borrados
+      await cargarProductos()
+
+      alert('✅ Categoría y productos asociados eliminados')
+    } catch (e) {
+      console.error(e)
+      alert(e?.message || 'Error eliminando la categoría')
+    }
+  }
+
   // --- DATOS PARA GRAFICOS ---
   const dataCategoriasGraf = productos.reduce((acc, curr) => {
     const cat = acc.find(item => item.name === curr.categoria)
@@ -442,6 +468,26 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             <div className="section-header">
               <h3>Categorías</h3>
             </div>
+
+            {categorias.length === 0 ? (
+                    <tr><td style={{ padding: 20, textAlign: 'center' }}>No hay categorías todavía</td></tr>
+                  ) : (
+                    categorias.map(c => (
+                      <tr key={c.id}>
+                        <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
+                        {/* 👇 Agregamos esta celda con el botón */}
+                        <td style={{ textAlign: 'right' }}>
+                          <button 
+                            className="btn-add" 
+                            style={{ background: '#ef4444', padding: '5px 10px', fontSize: '0.8rem' }} 
+                            onClick={() => eliminarCategoria(c.id, c.nombre)}
+                          >
+                            🗑 Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
 
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 15 }}>
               <input

@@ -76,7 +76,7 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
             await onConfirmar(orden, true); 
 
             // 2. Pedimos la preferencia al Backend
-            const response = await fetch('/api/pagos/crear-orden', {
+            const response = await fetch('/api/pagos/crear-preferencia', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // 👇 Enviamos el idPedido al backend

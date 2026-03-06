@@ -41,3 +41,43 @@ module.exports = {
   getCategorias,
   createCategoria
 };
+
+// NUEVO: Eliminar categoría y sus productos en cascada
+const deleteCategoria = async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const id = Number(req.params.id);
+    await conn.beginTransaction();
+
+    // 1. Obtener el nombre de la categoría antes de borrarla
+    const [catRows] = await conn.query(`SELECT nombre FROM categorias WHERE id = ?`, [id]);
+    
+    if (catRows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: 'Categoría no encontrada' });
+    }
+    
+    const nombreCategoria = catRows[0].nombre;
+
+    // 2. Eliminar todos los productos que tengan esa categoría asignada
+    await conn.query(`DELETE FROM productos WHERE categoria = ?`, [nombreCategoria]);
+
+    // 3. Finalmente, eliminar la categoría
+    await conn.query(`DELETE FROM categorias WHERE id = ?`, [id]);
+
+    await conn.commit();
+    return res.json({ success: true, message: `Categoría '${nombreCategoria}' y sus productos eliminados.` });
+  } catch (err) {
+    try { await conn.rollback(); } catch {}
+    console.error('ERROR ELIMINANDO CATEGORÍA:', err);
+    return res.status(500).json({ success: false, message: 'Error eliminando categoría', detail: err.message });
+  } finally {
+    conn.release();
+  }
+};
+
+module.exports = {
+  getCategorias,
+  createCategoria,
+  deleteCategoria // <-- No olvides exportarla
+};

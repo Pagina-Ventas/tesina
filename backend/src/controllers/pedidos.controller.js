@@ -112,7 +112,7 @@ const createPedido = async (req, res) => {
   }
 };
 
-// 3. ACTUALIZAR ESTADO (descontar stock + alertas al pasar a PAGADO)
+// 3. ACTUALIZAR ESTADO (descontar stock + alertas al pasar a PAGADO, devolver al CANCELAR)
 const updatePedido = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -138,11 +138,10 @@ const updatePedido = async (req, res) => {
 
     const estadoAnterior = pRows[0].estado;
 
-    // Si se confirma (PAGADO) y antes NO estaba pagado → descontar stock
+    // A) Si se confirma (PAGADO) y antes NO estaba pagado → descontar stock
     if (estado === 'PAGADO' && estadoAnterior !== 'PAGADO') {
       console.log('✅ Confirmando pedido... Descontando stock y verificando alertas.');
 
-      // Traemos items del pedido
       const [items] = await conn.query(
         `SELECT producto_id AS productoId, nombre, cantidad
          FROM pedido_items
@@ -150,12 +149,10 @@ const updatePedido = async (req, res) => {
         [id]
       );
 
-      // Recorremos items y actualizamos stock
       for (const item of items) {
         const productoId = item.productoId;
         if (!productoId) continue;
 
-        // Bloqueamos el producto para evitar carreras
         const [prodRows] = await conn.query(
           `SELECT id, nombre, stock, stock_minimo AS stockMinimo
            FROM productos
@@ -173,21 +170,15 @@ const updatePedido = async (req, res) => {
         if (nuevoStock < 0) nuevoStock = 0;
 
         await conn.query(`UPDATE productos SET stock = ? WHERE id = ?`, [nuevoStock, prod.id]);
-
-        // Guardamos para alerta post-commit
         item._alerta = { ...prod, stock: nuevoStock, stockMinimo: Number(prod.stockMinimo) };
       }
 
-      // Actualizamos estado del pedido
       await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
-
       await conn.commit();
 
-      // Alertas después del commit
       for (const item of items) {
         if (!item._alerta) continue;
         const prod = item._alerta;
-
         if (prod.stock <= prod.stockMinimo) {
           console.log(`🚨 ALERTA: ${prod.nombre} bajó a ${prod.stock}`);
           try {
@@ -201,7 +192,30 @@ const updatePedido = async (req, res) => {
       return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
     }
 
-    // Si no es confirmación, solo cambiamos estado
+    // B) NUEVO: Si se CANCELA y antes estaba PAGADO → devolver stock
+    if (estado === 'CANCELADO' && estadoAnterior === 'PAGADO') {
+      console.log('🔄 Pedido cancelado. Devolviendo stock a los productos...');
+      
+      const [items] = await conn.query(
+        `SELECT producto_id, cantidad FROM pedido_items WHERE pedido_id = ?`,
+        [id]
+      );
+
+      for (const item of items) {
+        if (item.producto_id) {
+          await conn.query(
+            `UPDATE productos SET stock = stock + ? WHERE id = ?`, 
+            [item.cantidad, item.producto_id]
+          );
+        }
+      }
+
+      await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
+      await conn.commit();
+      return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
+    }
+
+    // C) Si no es confirmación ni cancelación de algo pagado, solo cambiamos estado
     await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
     await conn.commit();
 
