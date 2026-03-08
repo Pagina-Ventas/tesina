@@ -14,18 +14,24 @@ const crearPreferencia = async (req, res) => {
     const pid = Number(idPedido);
 
     if (!Number.isFinite(pid) || pid <= 0) {
-      return res.status(400).json({ success: false, message: 'idPedido inválido' });
+      return res.status(400).json({
+        success: false,
+        message: 'idPedido inválido'
+      });
     }
 
     if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ success: false, message: 'Items requeridos' });
+      return res.status(400).json({
+        success: false,
+        message: 'Items requeridos'
+      });
     }
 
-    const itemsMP = items.map(item => ({
-      title: item.nombre,
-      description: item.descripcion || item.nombre,
-      quantity: Number(item.cantidad),
-      unit_price: Number(item.precio),
+    const itemsMP = items.map((item) => ({
+      title: item.nombre || 'Producto',
+      description: item.descripcion || item.nombre || 'Producto',
+      quantity: Number(item.cantidad || 1),
+      unit_price: Number(item.precio || 0),
       currency_id: 'ARS'
     }));
 
@@ -54,9 +60,7 @@ const crearPreferencia = async (req, res) => {
       },
 
       auto_return: 'approved',
-
       external_reference: String(pid),
-
       notification_url: process.env.MP_NOTIFICATION_URL,
 
       payment_methods: {
@@ -76,7 +80,6 @@ const crearPreferencia = async (req, res) => {
       init_point: result.init_point,
       sandbox_init_point: result.sandbox_init_point
     });
-
   } catch (error) {
     console.error('ERROR CREANDO PREFERENCIA MP:', error);
     return res.status(500).json({
@@ -158,7 +161,6 @@ const recibirWebhook = async (req, res) => {
       }
 
       return res.status(200).send('OK');
-
     } catch (dbErr) {
       try { await conn.rollback(); } catch {}
       console.error('ERROR DB WEBHOOK MP:', dbErr);
@@ -166,7 +168,6 @@ const recibirWebhook = async (req, res) => {
     } finally {
       conn.release();
     }
-
   } catch (error) {
     console.error('ERROR WEBHOOK MP:', error);
     return res.status(200).send('OK');

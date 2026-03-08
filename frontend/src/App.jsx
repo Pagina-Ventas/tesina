@@ -38,7 +38,6 @@ function App() {
   const [mostrarCheckout, setMostrarCheckout] = useState(false)
 
   const ADMIN_SAN_JUAN = '5492644117588'
-  const ADMIN_BS_AS = '5491169734096'
 
   useEffect(() => {
     cargarProductos()
@@ -80,9 +79,7 @@ function App() {
     }
   }
 
-  // ✅ NUEVO: Reponer stock (Admin)
-  // Llama a: PUT /api/productos/:id/reponer  body: { cantidad }
-  // Devuelve el producto actualizado (si tu backend responde success:true, producto:{...})
+  // ✅ Reponer stock (Admin)
   const reponerProductoAdmin = async (idProducto, cantidad) => {
     const id = Number(idProducto)
     const cant = Number(cantidad)
@@ -112,7 +109,6 @@ function App() {
         return null
       }
 
-      // Actualizo el state de productos para reflejar stock en todo el front
       setProductos(prev =>
         prev.map(p => (p.id === data.producto.id ? { ...p, stock: data.producto.stock } : p))
       )
@@ -126,7 +122,7 @@ function App() {
     }
   }
 
-  // ✅ CONFIRMAR pedido (usa ID real)
+  // ✅ Confirmar pedido (admin)
   const confirmarPedidoAdmin = async (idPedido) => {
     const pid = Number(idPedido)
     const pedido = pedidos.find(p => (p.pedidoId ?? p.id) === pid)
@@ -158,7 +154,7 @@ function App() {
     }
   }
 
-  // ✅ ELIMINAR pedido (usa ID real)
+  // ✅ Eliminar pedido (admin)
   const eliminarPedidoAdmin = async (idPedido) => {
     const pid = Number(idPedido)
     const toastId = toast.loading('Eliminando pedido...')
@@ -233,7 +229,7 @@ function App() {
     })
   }
 
-  // ✅ CREAR PEDIDO: usa respuesta del BACKEND (id MySQL real)
+  // ✅ Crear pedido y DEVOLVER pedido real (clave para Mercado Pago)
   const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => {
     try {
       const respuesta = await fetch('/api/pedidos', {
@@ -246,7 +242,7 @@ function App() {
 
       if (!respuesta.ok || !data?.success) {
         toast.error(data?.message || data?.error || 'Error al guardar el pedido')
-        return
+        return null
       }
 
       const pedidoDB = {
@@ -270,16 +266,20 @@ function App() {
           `Espero confirmación para abonar. ¡Gracias!`
         )
 
-        const telefonoDestino = ADMIN_SAN_JUAN
-        window.open(`https://wa.me/${telefonoDestino}?text=${mensajeEncoded}`, '_blank')
+        window.open(`https://wa.me/${ADMIN_SAN_JUAN}?text=${mensajeEncoded}`, '_blank')
 
         toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
       } else {
         console.log('Orden guardada antes de ir a MP. Esperando pago...')
       }
+
+      // ✅ IMPORTANTE: devolver pedido real para usar su ID en Mercado Pago
+      return pedidoDB
+
     } catch (error) {
       console.error(error)
       toast.error('Error al guardar el pedido')
+      return null
     }
   }
 
@@ -309,16 +309,44 @@ function App() {
             APOLO<span>MATE</span>
           </Link>
 
-          <Link to="/admin" style={{ color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Link
+            to="/admin"
+            style={{
+              color: '#a0a0a0',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px'
+            }}
+          >
             👤 LOGIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{ color: '#ff4444' }}>•</span>}
           </Link>
 
           <input type="text" placeholder="Buscar..." className="search-bar" />
 
           <Link to="/carrito" style={{ textDecoration: 'none' }}>
-            <div style={{ color: '#c5a059', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div
+              style={{
+                color: '#c5a059',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'center'
+              }}
+            >
               <span>🛒 TU MATE</span>
-              <span style={{ background: '#c5a059', color: '#000', padding: '2px 8px', borderRadius: '10px', fontSize: '0.9rem' }}>
+              <span
+                style={{
+                  background: '#c5a059',
+                  color: '#000',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  fontSize: '0.9rem'
+                }}
+              >
                 {totalItems}
               </span>
             </div>
@@ -326,47 +354,59 @@ function App() {
         </header>
 
         <Routes>
-          <Route path="/" element={
-            <Tienda
-              productos={productos}
-              agregarAlCarrito={agregarAlCarrito}
-              categorias={categorias}
-              categoriaSeleccionada={categoriaSeleccionada}
-              setCategoriaSeleccionada={setCategoriaSeleccionada}
-            />
-          } />
+          <Route
+            path="/"
+            element={
+              <Tienda
+                productos={productos}
+                agregarAlCarrito={agregarAlCarrito}
+                categorias={categorias}
+                categoriaSeleccionada={categoriaSeleccionada}
+                setCategoriaSeleccionada={setCategoriaSeleccionada}
+              />
+            }
+          />
 
-          <Route path="/producto/:id" element={
-            <ProductoDetalle
-              productos={productos}
-              agregarAlCarrito={agregarAlCarrito}
-            />
-          } />
+          <Route
+            path="/producto/:id"
+            element={
+              <ProductoDetalle
+                productos={productos}
+                agregarAlCarrito={agregarAlCarrito}
+              />
+            }
+          />
 
-          <Route path="/carrito" element={
-            <Carrito
-              carrito={carrito}
-              eliminarDelCarrito={eliminarDelCarrito}
-              finalizarCompra={() => setMostrarCheckout(true)}
-              modificarCantidad={modificarCantidad}
-            />
-          } />
+          <Route
+            path="/carrito"
+            element={
+              <Carrito
+                carrito={carrito}
+                eliminarDelCarrito={eliminarDelCarrito}
+                finalizarCompra={() => setMostrarCheckout(true)}
+                modificarCantidad={modificarCantidad}
+              />
+            }
+          />
 
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
           <Route path="/exito" element={<Exito vaciarCarrito={() => setCarrito([])} />} />
 
-          <Route path="/admin" element={
-            <RutaProtegida>
-              <AdminPanel
-                pedidos={pedidos}
-                confirmarPedidoAdmin={confirmarPedidoAdmin}
-                eliminarPedidoAdmin={eliminarPedidoAdmin}
-                crearProducto={crearProducto}
-                reponerProductoAdmin={reponerProductoAdmin}
-              />
-            </RutaProtegida>
-          } />
+          <Route
+            path="/admin"
+            element={
+              <RutaProtegida>
+                <AdminPanel
+                  pedidos={pedidos}
+                  confirmarPedidoAdmin={confirmarPedidoAdmin}
+                  eliminarPedidoAdmin={eliminarPedidoAdmin}
+                  crearProducto={crearProducto}
+                  reponerProductoAdmin={reponerProductoAdmin}
+                />
+              </RutaProtegida>
+            }
+          />
         </Routes>
       </div>
     </BrowserRouter>

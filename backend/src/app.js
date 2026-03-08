@@ -6,8 +6,8 @@ const path = require('path');
 const productosRoutes = require('./routes/productos.routes');
 const pedidosRoutes = require('./routes/pedidos.routes');
 const authRoutes = require('./routes/auth.routes');
-const paymentRoutes = require('./routes/payment.routes'); // 👈 La ruta de pagos
-const categoriasRoutes = require('./routes/categorias.routes'); // ✅ NUEVO
+const paymentRoutes = require('./routes/payment.routes');
+const categoriasRoutes = require('./routes/categorias.routes');
 
 // DB pool
 const pool = require('./db');
@@ -42,15 +42,15 @@ app.get('/api/db/ping', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/pedidos', pedidosRoutes);
-app.use('/api/pagos', paymentRoutes); // 👈 Activamos pagos
-app.use('/api/categorias', categoriasRoutes); // ✅ NUEVO
+app.use('/api/pagos', paymentRoutes);
+app.use('/api/categorias', categoriasRoutes);
 
-// --- 404 JSON (para que el frontend no reciba HTML) ---
+// --- 404 JSON ---
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Ruta no encontrada' });
 });
 
-// --- MANEJO DE ERRORES JSON (evita respuestas HTML tipo <!DOCTYPE) ---
+// --- MANEJO DE ERRORES JSON ---
 app.use((err, req, res, next) => {
   console.error('EXPRESS ERROR:', err);
   res.status(500).json({
