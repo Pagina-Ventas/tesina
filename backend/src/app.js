@@ -15,7 +15,14 @@ const pool = require('./db');
 const app = express();
 
 // --- MIDDLEWARES ---
-app.use(cors());
+// CORRECCIÓN: Configuramos CORS para producción y desarrollo
+const corsOptions = {
+  origin: process.env.FRONT_URL || 'http://localhost:5173', // Solo permitimos peticiones de tu frontend
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
 
 // Aumentamos límite para fotos pesadas
 app.use(express.json({ limit: '50mb' }));

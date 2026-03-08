@@ -73,14 +73,18 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
         // 1) Guardar pedido y recibir el pedido REAL desde backend
         const pedidoCreado = await onConfirmar(orden, true)
 
-        if (!pedidoCreado || !pedidoCreado.id) {
+        // CORRECCIÓN: Asegurarnos de obtener el ID real sin importar la estructura exacta de la respuesta
+        const idReal = pedidoCreado?.id || pedidoCreado?.pedido?.id || pedidoCreado?.pedidoId;
+
+        if (!idReal) {
           alert('No se pudo guardar el pedido antes de iniciar el pago.')
           setProcesando(false)
           return
         }
 
         // 2) Crear preferencia usando el ID REAL del pedido
-        const response = await fetch('/api/pagos/crear-preferencia', {
+        // CORRECCIÓN: Ruta absoluta apuntando al backend en el puerto 3000
+        const response = await fetch('http://localhost:3000/api/pagos/crear-preferencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -97,7 +101,7 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
               cp: '',
               ciudad: datos.ciudad
             },
-            idPedido: pedidoCreado.id
+            idPedido: idReal // CORRECCIÓN: Usamos la variable segura
           })
         })
 

@@ -16,6 +16,9 @@ import { Exito } from './pages/Exito'
 import './style/App.css'
 import './style/Admin.css'
 
+// CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('adminToken')
   return token ? children : <Login />
@@ -45,14 +48,16 @@ function App() {
   }, [])
 
   const cargarProductos = () => {
-    fetch('/api/productos')
+    // CORRECCIÓN: Usamos la URL absoluta
+    fetch(`${API_URL}/api/productos`)
       .then(res => res.json())
       .then(data => setProductos(data))
       .catch(err => console.error(err))
   }
 
   const cargarPedidos = () => {
-    fetch('/api/pedidos')
+    // CORRECCIÓN: Usamos la URL absoluta
+    fetch(`${API_URL}/api/pedidos`)
       .then(res => res.json())
       .then(data => setPedidos(normalizarPedidos(data)))
       .catch(err => console.error(err))
@@ -60,7 +65,8 @@ function App() {
 
   const crearProducto = async (productoFormData) => {
     try {
-      const respuesta = await fetch('/api/productos', {
+      // CORRECCIÓN: Usamos la URL absoluta
+      const respuesta = await fetch(`${API_URL}/api/productos`, {
         method: 'POST',
         body: productoFormData
       })
@@ -96,7 +102,8 @@ function App() {
     const toastId = toast.loading('Reponiendo stock...')
 
     try {
-      const res = await fetch(`/api/productos/${id}/reponer`, {
+      // CORRECCIÓN: Usamos la URL absoluta
+      const res = await fetch(`${API_URL}/api/productos/${id}/reponer`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cantidad: cant })
@@ -131,7 +138,8 @@ function App() {
     const toastId = toast.loading('Procesando pago y stock...')
 
     try {
-      const respuesta = await fetch(`/api/pedidos/${pid}`, {
+      // CORRECCIÓN: Usamos la URL absoluta
+      const respuesta = await fetch(`${API_URL}/api/pedidos/${pid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'PAGADO' })
@@ -160,7 +168,8 @@ function App() {
     const toastId = toast.loading('Eliminando pedido...')
 
     try {
-      const respuesta = await fetch(`/api/pedidos/${pid}`, {
+      // CORRECCIÓN: Usamos la URL absoluta
+      const respuesta = await fetch(`${API_URL}/api/pedidos/${pid}`, {
         method: 'DELETE'
       })
 
@@ -232,7 +241,8 @@ function App() {
   // ✅ Crear pedido y DEVOLVER pedido real (clave para Mercado Pago)
   const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => {
     try {
-      const respuesta = await fetch('/api/pedidos', {
+      // CORRECCIÓN: Usamos la URL absoluta
+      const respuesta = await fetch(`${API_URL}/api/pedidos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ordenData)
