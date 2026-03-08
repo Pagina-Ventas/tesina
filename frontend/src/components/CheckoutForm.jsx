@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import '../style/App.css'
 
+// CORRECCIÓN: Usamos la misma lógica de URL que en App.jsx
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar }) {
   const [datos, setDatos] = useState({
     nombre: '',
@@ -65,15 +68,13 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
       fecha: new Date().toLocaleString()
     }
 
-    // --- MERCADO PAGO ---
     if (datos.metodoPago === 'MercadoPago') {
       try {
         setProcesando(true)
 
-        // 1) Guardar pedido y recibir el pedido REAL desde backend
+        // 1) Guardar pedido
         const pedidoCreado = await onConfirmar(orden, true)
 
-        // CORRECCIÓN: Asegurarnos de obtener el ID real sin importar la estructura exacta de la respuesta
         const idReal = pedidoCreado?.id || pedidoCreado?.pedido?.id || pedidoCreado?.pedidoId;
 
         if (!idReal) {
@@ -82,9 +83,8 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
           return
         }
 
-        // 2) Crear preferencia usando el ID REAL del pedido
-        // CORRECCIÓN: Ruta absoluta apuntando al backend en el puerto 3000
-        const response = await fetch('http://localhost:3000/api/pagos/crear-preferencia', {
+        // 2) Crear preferencia usando API_URL dinámica
+        const response = await fetch(`${API_URL}/api/pagos/crear-preferencia`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -101,30 +101,29 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
               cp: '',
               ciudad: datos.ciudad
             },
-            idPedido: idReal // CORRECCIÓN: Usamos la variable segura
+            idPedido: idReal
           })
         })
 
         const data = await response.json().catch(() => ({}))
 
         if (!response.ok || !data?.init_point) {
-          alert(data?.message || 'Error al generar el pago. Intenta nuevamente.')
+          // Si el servidor responde 500, mostramos el detalle si existe
+          alert(data?.message || data?.detail || 'Error al generar el pago.')
           setProcesando(false)
           return
         }
 
-        // 3) Redirigir a Mercado Pago
+        // 3) Redirigir
         window.location.href = data.init_point
       } catch (error) {
         console.error('Error MP:', error)
         alert('Hubo un problema de conexión con Mercado Pago.')
         setProcesando(false)
       }
-
       return
     }
 
-    // --- TRANSFERENCIA / EFECTIVO ---
     try {
       setProcesando(true)
       await onConfirmar(orden, false)
@@ -135,6 +134,7 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     }
   }
 
+  // ... (El resto del renderizado es idéntico al tuyo)
   return (
     <div className="checkout-overlay">
       <div className="checkout-card">

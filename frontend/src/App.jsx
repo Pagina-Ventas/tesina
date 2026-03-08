@@ -48,7 +48,6 @@ function App() {
   }, [])
 
   const cargarProductos = () => {
-    // CORRECCIÓN: Usamos la URL absoluta
     fetch(`${API_URL}/api/productos`)
       .then(res => res.json())
       .then(data => setProductos(data))
@@ -56,18 +55,28 @@ function App() {
   }
 
   const cargarPedidos = () => {
-    // CORRECCIÓN: Usamos la URL absoluta
-    fetch(`${API_URL}/api/pedidos`)
+    // CORRECCIÓN: Solo intentamos cargar si hay un token de admin, para evitar el error 403 innecesario
+    const token = localStorage.getItem('adminToken')
+    if (!token) return
+
+    fetch(`${API_URL}/api/pedidos`, {
+      headers: { 'Authorization': `Bearer ${token}` } // 🔒 Enviamos el token
+    })
       .then(res => res.json())
-      .then(data => setPedidos(normalizarPedidos(data)))
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPedidos(normalizarPedidos(data))
+        }
+      })
       .catch(err => console.error(err))
   }
 
   const crearProducto = async (productoFormData) => {
+    const token = localStorage.getItem('adminToken')
     try {
-      // CORRECCIÓN: Usamos la URL absoluta
       const respuesta = await fetch(`${API_URL}/api/productos`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }, // 🔒 Enviamos el token
         body: productoFormData
       })
 
@@ -87,6 +96,7 @@ function App() {
 
   // ✅ Reponer stock (Admin)
   const reponerProductoAdmin = async (idProducto, cantidad) => {
+    const token = localStorage.getItem('adminToken')
     const id = Number(idProducto)
     const cant = Number(cantidad)
 
@@ -102,10 +112,12 @@ function App() {
     const toastId = toast.loading('Reponiendo stock...')
 
     try {
-      // CORRECCIÓN: Usamos la URL absoluta
       const res = await fetch(`${API_URL}/api/productos/${id}/reponer`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 🔒 Enviamos el token
+        },
         body: JSON.stringify({ cantidad: cant })
       })
 
@@ -131,6 +143,7 @@ function App() {
 
   // ✅ Confirmar pedido (admin)
   const confirmarPedidoAdmin = async (idPedido) => {
+    const token = localStorage.getItem('adminToken')
     const pid = Number(idPedido)
     const pedido = pedidos.find(p => (p.pedidoId ?? p.id) === pid)
     if (!pedido) return toast.error('Pedido no encontrado')
@@ -138,10 +151,12 @@ function App() {
     const toastId = toast.loading('Procesando pago y stock...')
 
     try {
-      // CORRECCIÓN: Usamos la URL absoluta
       const respuesta = await fetch(`${API_URL}/api/pedidos/${pid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 🔒 Enviamos el token
+        },
         body: JSON.stringify({ estado: 'PAGADO' })
       })
 
@@ -164,13 +179,14 @@ function App() {
 
   // ✅ Eliminar pedido (admin)
   const eliminarPedidoAdmin = async (idPedido) => {
+    const token = localStorage.getItem('adminToken')
     const pid = Number(idPedido)
     const toastId = toast.loading('Eliminando pedido...')
 
     try {
-      // CORRECCIÓN: Usamos la URL absoluta
       const respuesta = await fetch(`${API_URL}/api/pedidos/${pid}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` } // 🔒 Enviamos el token
       })
 
       const data = await respuesta.json().catch(() => ({}))
@@ -238,10 +254,8 @@ function App() {
     })
   }
 
-  // ✅ Crear pedido y DEVOLVER pedido real (clave para Mercado Pago)
   const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => {
     try {
-      // CORRECCIÓN: Usamos la URL absoluta
       const respuesta = await fetch(`${API_URL}/api/pedidos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -279,11 +293,8 @@ function App() {
         window.open(`https://wa.me/${ADMIN_SAN_JUAN}?text=${mensajeEncoded}`, '_blank')
 
         toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
-      } else {
-        console.log('Orden guardada antes de ir a MP. Esperando pago...')
       }
 
-      // ✅ IMPORTANTE: devolver pedido real para usar su ID en Mercado Pago
       return pedidoDB
 
     } catch (error) {
