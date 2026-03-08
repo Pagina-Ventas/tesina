@@ -1,6 +1,7 @@
 const { Router } = require('express')
 const router = Router()
 const controller = require('../controllers/productos.controller')
+const { verificarAdmin } = require('../middlewares/auth.middleware') // 👈 IMPORTANTE: Importamos el middleware
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
@@ -35,12 +36,13 @@ const upload = multer({
 
 // --- 3. RUTAS ---
 
-// Obtener productos
+// 🟢 PÚBLICA: Cualquier usuario puede ver los productos
 router.get('/', controller.getProductos)
 
-// Crear producto
+// 🔴 PROTEGIDA: Solo el administrador puede crear productos
 router.post(
   '/',
+  verificarAdmin, // 🔒 Se agrega la protección aquí
   (req, res, next) => {
     upload.single('imagen')(req, res, (err) => {
       if (err) return res.status(400).json({ success: false, message: err.message })
@@ -50,14 +52,14 @@ router.post(
   controller.createProducto
 )
 
-// Ruta de Venta
+// 🟢 PÚBLICA: Ruta necesaria para el flujo de ventas del local o bot
 router.get('/vender/:id/:cantidad', controller.venderProducto)
 
-// Reponer stock
-router.put('/:id/reponer', controller.reponerStock)
+// 🔴 PROTEGIDA: Solo el administrador puede reponer stock manualmente
+router.put('/:id/reponer', verificarAdmin, controller.reponerStock) // 🔒 Se agrega la protección aquí
 
-// 🆕 Eliminar producto
-router.delete('/:id', controller.eliminarProducto)
+// 🔴 PROTEGIDA: Solo el administrador puede eliminar productos
+router.delete('/:id', verificarAdmin, controller.eliminarProducto) // 🔒 Se agrega la protección aquí
 
 
 // 👇 RUTA DE PRUEBA (BOTÓN DE PÁNICO)

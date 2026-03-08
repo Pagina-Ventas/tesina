@@ -6,6 +6,9 @@ import {
 } from 'recharts'
 import '../style/Admin.css'
 
+// CORRECCIÓN: Definimos la URL base de la API
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 // Recibe desde App.jsx: pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin (si lo tenés)
 export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin }) {
   const [productos, setProductos] = useState([])
@@ -33,9 +36,12 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   // --- CATEGORIAS: crear ---
   const [nuevaCategoria, setNuevaCategoria] = useState('')
 
+  // CORRECCIÓN: Obtenemos el token de administrador para proteger las rutas
+  const token = localStorage.getItem('adminToken')
+
   const cargarProductos = async () => {
     try {
-      const res = await fetch('/api/productos')
+      const res = await fetch(`${API_URL}/api/productos`)
       const data = await res.json()
       setProductos(Array.isArray(data) ? data : [])
     } catch (err) {
@@ -46,7 +52,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   const cargarCategorias = async () => {
     try {
-      const res = await fetch('/api/categorias')
+      const res = await fetch(`${API_URL}/api/categorias`)
       const data = await res.json()
       setCategorias(Array.isArray(data) ? data : [])
     } catch (err) {
@@ -61,13 +67,17 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarModal, pedidos])
 
-  // ✅ eliminar pedido (tu lógica)
+  // ✅ eliminar pedido
   const eliminarPedidoAdmin = async (id) => {
     const ok = window.confirm(`¿Eliminar el pedido #${id}? Esta acción no se puede deshacer.`)
     if (!ok) return
 
     try {
-      const res = await fetch(`http://localhost:3000/api/pedidos/${id}`, { method: 'DELETE' })
+      // CORRECCIÓN: URL absoluta y envío de Token de seguridad
+      const res = await fetch(`${API_URL}/api/pedidos/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       const data = await res.json().catch(() => null)
 
       if (!res.ok) {
@@ -104,7 +114,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
     const formData = new FormData()
     formData.append('nombre', nuevoProd.nombre)
-    formData.append('categoria', nuevoProd.categoria) // compatible con tu backend actual
+    formData.append('categoria', nuevoProd.categoria)
     formData.append('precio', nuevoProd.precio)
     formData.append('stock', nuevoProd.stock)
     formData.append('stockMinimo', nuevoProd.stockMinimo)
@@ -116,14 +126,12 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     setNuevoProd({ nombre: '', categoria: '', precio: '', stock: '', stockMinimo: 5, imagen: null })
   }
 
-  // ✅ Abrir modal reponer
   const abrirReponer = (prod) => {
     setProductoAReponer(prod)
     setCantidadReponer(1)
     setMostrarModalReponer(true)
   }
 
-  // ✅ Confirmar reponer
   const confirmarReponer = async () => {
     if (!productoAReponer) return
 
@@ -142,9 +150,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           await cargarProductos()
         }
       } else {
-        const res = await fetch(`/api/productos/${productoAReponer.id}/reponer`, {
+        // CORRECCIÓN: URL absoluta y Token
+        const res = await fetch(`${API_URL}/api/productos/${productoAReponer.id}/reponer`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
           body: JSON.stringify({ cantidad: cant })
         })
         const data = await res.json().catch(() => ({}))
@@ -161,13 +173,17 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // ✅ ELIMINAR PRODUCTO (VOLVIÓ)
+  // ✅ ELIMINAR PRODUCTO
   const eliminarProductoAdmin = async (id) => {
     const ok = window.confirm('¿Eliminar este producto del catálogo?')
     if (!ok) return
 
     try {
-      const res = await fetch(`/api/productos/${id}`, { method: 'DELETE' })
+      // CORRECCIÓN: URL absoluta y envío de Token de seguridad
+      const res = await fetch(`${API_URL}/api/productos/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       const data = await res.json().catch(() => ({}))
 
       if (!res.ok || !data?.success) {
@@ -187,9 +203,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     if (!nombre) return alert('Escribí un nombre de categoría')
 
     try {
-      const res = await fetch('/api/categorias', {
+      // CORRECCIÓN: URL absoluta y Token
+      const res = await fetch(`${API_URL}/api/categorias`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ nombre })
       })
       const data = await res.json().catch(() => ({}))
@@ -208,23 +228,24 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // ✅ NUEVO: ELIMINAR CATEGORÍA
+  // ✅ ELIMINAR CATEGORÍA
   const eliminarCategoria = async (id, nombreCategoria) => {
     const ok = window.confirm(`¿Seguro que quieres eliminar la categoría "${nombreCategoria}"? ¡Se borrarán TODOS los productos que le pertenezcan!`)
     if (!ok) return
 
     try {
-      const res = await fetch(`/api/categorias/${id}`, { method: 'DELETE' })
+      // CORRECCIÓN: URL absoluta y Token
+      const res = await fetch(`${API_URL}/api/categorias/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       const data = await res.json().catch(() => ({}))
 
       if (!res.ok || !data?.success) {
         throw new Error(data?.message || 'No se pudo eliminar la categoría')
       }
 
-      // 1. Actualizamos la lista de categorías en la vista
       setCategorias(prev => prev.filter(c => c.id !== id))
-      
-      // 2. FUNDAMENTAL: Recargamos los productos para que desaparezcan los borrados
       await cargarProductos()
 
       alert('✅ Categoría y productos asociados eliminados')
@@ -294,7 +315,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             📦 Inventario
           </button>
 
-          {/* ✅ NUEVA SOLAPA */}
           <button className={`menu-item ${vistaActiva === 'categorias' ? 'active' : ''}`} onClick={() => setVistaActiva('categorias')}>
             📁 Categorías
           </button>
@@ -426,7 +446,8 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                       <td>
                         {prod.imagen ? (
                           <img
-                            src={`http://localhost:3000${prod.imagen}`}
+                            // CORRECCIÓN: Usamos la URL absoluta de la API
+                            src={`${API_URL}${prod.imagen}`}
                             alt="mini"
                             style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
                           />
@@ -444,7 +465,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                         </span>
                       </td>
 
-                      {/* ✅ REPONER + ELIMINAR */}
                       <td style={{ display: 'flex', gap: 10 }}>
                         <button className="btn-add" style={{ background: '#3b82f6' }} onClick={() => abrirReponer(prod)}>
                           ➕ Reponer
@@ -462,7 +482,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
-        {/* ✅ CATEGORIAS */}
+        {/* CATEGORIAS */}
         {vistaActiva === 'categorias' && (
           <section className="recent-orders">
             <div className="section-header">
@@ -470,24 +490,23 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             </div>
 
             {categorias.length === 0 ? (
-                    <tr><td style={{ padding: 20, textAlign: 'center' }}>No hay categorías todavía</td></tr>
-                  ) : (
-                    categorias.map(c => (
-                      <tr key={c.id}>
-                        <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
-                        {/* 👇 Agregamos esta celda con el botón */}
-                        <td style={{ textAlign: 'right' }}>
-                          <button 
-                            className="btn-add" 
-                            style={{ background: '#ef4444', padding: '5px 10px', fontSize: '0.8rem' }} 
-                            onClick={() => eliminarCategoria(c.id, c.nombre)}
-                          >
-                            🗑 Eliminar
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  <tr><td style={{ padding: 20, textAlign: 'center' }}>No hay categorías todavía</td></tr>
+                ) : (
+                  categorias.map(c => (
+                    <tr key={c.id}>
+                      <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button 
+                          className="btn-add" 
+                          style={{ background: '#ef4444', padding: '5px 10px', fontSize: '0.8rem' }} 
+                          onClick={() => eliminarCategoria(c.id, c.nombre)}
+                        >
+                          🗑 Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
 
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 15 }}>
               <input
@@ -584,7 +603,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                 <input type="text" name="nombre" required className="form-input" onChange={handleInputChange} value={nuevoProd.nombre} />
               </div>
 
-              {/* ✅ SELECT DINAMICO DESDE CATEGORIAS */}
               <div className="form-group">
                 <label className="form-label">Categoría</label>
                 <select
