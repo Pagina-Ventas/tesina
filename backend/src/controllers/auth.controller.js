@@ -1,18 +1,6 @@
 const jwt = require('jsonwebtoken');
-const fs = require('fs');
-const path = require('path');
 const bcrypt = require('bcryptjs');
-
-const rutaUsuarios = path.join(__dirname, '../data/users.json');
-
-const leerUsuarios = () => {
-  if (!fs.existsSync(rutaUsuarios)) return [];
-  const data = fs.readFileSync(rutaUsuarios, 'utf-8');
-  return JSON.parse(data);
-};
-
-const guardarUsuarios = (data) =>
-  fs.writeFileSync(rutaUsuarios, JSON.stringify(data, null, 2));
+const pool = require('../db'); // 👈 Importamos la conexión a MySQL
 
 // 1. LOGIN (Admin o Usuario)
 const login = async (req, res) => {
@@ -20,63 +8,41 @@ const login = async (req, res) => {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Faltan credenciales (username/password)',
-      });
+      return res.status(400).json({ success: false, message: 'Faltan credenciales (username/password)' });
     }
 
-    // Si no hay JWT_SECRET, no firmes nada (evita 500)
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-      return res.status(500).json({
-        success: false,
-        message: 'Falta JWT_SECRET en el .env',
-      });
+      return res.status(500).json({ success: false, message: 'Falta JWT_SECRET en el .env' });
     }
 
-    // A) ADMIN
-    if (
-      username === process.env.ADMIN_USER &&
-      password === process.env.ADMIN_PASSWORD
-    ) {
-      const token = jwt.sign(
-        { role: 'admin', username },
-        jwtSecret,
-        { expiresIn: '4h' }
-      );
+    // A) LOGIN ADMIN (Sigue usando las variables de entorno)
+    if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
+      const token = jwt.sign({ role: 'admin', username }, jwtSecret, { expiresIn: '4h' });
       return res.json({ success: true, token, role: 'admin' });
     }
 
-    // B) CLIENTE
-    const usuarios = leerUsuarios();
-    const usuarioEncontrado = usuarios.find((u) => u.username === username);
-
-    if (usuarioEncontrado) {
+    // B) LOGIN CLIENTE (Busca en MySQL)
+    const [rows] = await pool.query(`SELECT * FROM usuarios WHERE username = ?`, [username]);
+    
+    if (rows.length > 0) {
+      const usuarioEncontrado = rows[0];
       const passGuardada = String(usuarioEncontrado.password || '');
 
       const coincide = passGuardada.startsWith('$2a$') || passGuardada.startsWith('$2b$')
         ? await bcrypt.compare(password, passGuardada)
-        : passGuardada === password;
+        : passGuardada === password; // Por si hay contraseñas viejas sin hashear
 
       if (coincide) {
-        const token = jwt.sign(
-          { role: 'client', id: usuarioEncontrado.id, username },
-          jwtSecret,
-          { expiresIn: '4h' }
-        );
-        return res.json({
-          success: true,
-          token,
-          role: 'client',
-          user: usuarioEncontrado,
-        });
+        // Quitamos la contraseña del objeto antes de enviarlo al frontend por seguridad
+        delete usuarioEncontrado.password; 
+        
+        const token = jwt.sign({ role: 'client', id: usuarioEncontrado.id, username }, jwtSecret, { expiresIn: '4h' });
+        return res.json({ success: true, token, role: 'client', user: usuarioEncontrado });
       }
     }
 
-    return res
-      .status(401)
-      .json({ success: false, message: 'Credenciales incorrectas ⛔' });
+    return res.status(401).json({ success: false, message: 'Credenciales incorrectas ⛔' });
   } catch (err) {
     console.error('LOGIN ERROR:', err);
     return res.status(500).json({ success: false, message: err.message });
@@ -89,36 +55,25 @@ const register = async (req, res) => {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Faltan datos (username/password)',
-      });
+      return res.status(400).json({ success: false, message: 'Faltan datos (username/password)' });
     }
 
-    const usuarios = leerUsuarios();
-
-    if (usuarios.find((u) => u.username === username)) {
-      return res
-        .status(400)
-        .json({ success: false, message: 'El usuario ya existe' });
+    // 1. Verificar si ya existe en MySQL
+    const [existentes] = await pool.query(`SELECT id FROM usuarios WHERE username = ?`, [username]);
+    
+    if (existentes.length > 0) {
+      return res.status(400).json({ success: false, message: 'El usuario ya existe' });
     }
 
+    // 2. Hashear la contraseña
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const nuevoUsuario = {
-      id: Date.now(),
-      username,
-      password: passwordHash,
-      nombre: '',
-      telefono: '',
-      provincia: '',
-      ciudad: '',
-      direccion: '',
-      dni: '',
-    };
-
-    usuarios.push(nuevoUsuario);
-    guardarUsuarios(usuarios);
+    // 3. Insertar el nuevo usuario en la base de datos
+    await pool.query(
+      `INSERT INTO usuarios (username, password, nombre, telefono, provincia, ciudad, direccion, dni) 
+       VALUES (?, ?, '', '', '', '', '', '')`,
+      [username, passwordHash]
+    );
 
     return res.json({ success: true, message: 'Usuario creado con éxito' });
   } catch (err) {
@@ -128,24 +83,36 @@ const register = async (req, res) => {
 };
 
 // 3. ACTUALIZAR PERFIL
-const updateProfile = (req, res) => {
+const updateProfile = async (req, res) => {
   try {
     const { username, datos } = req.body || {};
 
     if (!username || !datos) {
-      return res.status(400).json({
-        success: false,
-        message: 'Faltan datos (username/datos)',
-      });
+      return res.status(400).json({ success: false, message: 'Faltan datos (username/datos)' });
     }
 
-    const usuarios = leerUsuarios();
-    const index = usuarios.findIndex((u) => u.username === username);
+    // Actualizamos los campos en la base de datos
+    const [result] = await pool.query(
+      `UPDATE usuarios SET 
+       nombre = ?, telefono = ?, provincia = ?, ciudad = ?, direccion = ?, dni = ? 
+       WHERE username = ?`,
+      [
+        datos.nombre || '', 
+        datos.telefono || '', 
+        datos.provincia || '', 
+        datos.ciudad || '', 
+        datos.direccion || '', 
+        datos.dni || '', 
+        username
+      ]
+    );
 
-    if (index !== -1) {
-      usuarios[index] = { ...usuarios[index], ...datos };
-      guardarUsuarios(usuarios);
-      return res.json({ success: true, user: usuarios[index] });
+    if (result.affectedRows > 0) {
+      // Devolvemos los datos actualizados buscando al usuario de nuevo
+      const [usuarioActualizado] = await pool.query(`SELECT * FROM usuarios WHERE username = ?`, [username]);
+      delete usuarioActualizado[0].password; // No enviar el hash al frontend
+      
+      return res.json({ success: true, user: usuarioActualizado[0] });
     }
 
     return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
