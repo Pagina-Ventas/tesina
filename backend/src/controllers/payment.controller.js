@@ -44,12 +44,14 @@ const crearPreferencia = async (req, res) => {
         email: cliente?.email || 'test_user@test.com',
         phone: {
           area_code: '264',
-          number: Number(cliente?.telefono || 0)
+          // CORRECCIÓN: Limpiamos el texto para dejar solo números y lo enviamos como String
+          number: String(cliente?.telefono || '').replace(/\D/g, '')
         },
         address: {
           zip_code: entrega?.cp || '',
           street_name: entrega?.calle || '',
-          street_number: Number(entrega?.numeracion || 0)
+          // CORRECCIÓN: Aseguramos que sea un número válido o 0 para evitar NaN
+          street_number: parseInt(entrega?.numeracion) || 0
         }
       },
 
@@ -90,7 +92,7 @@ const crearPreferencia = async (req, res) => {
   }
 };
 
-// 2. WEBHOOK
+// 2. WEBHOOK (Sin cambios, estaba correcto)
 const recibirWebhook = async (req, res) => {
   try {
     const paymentId = req.query.id || req.body?.data?.id;
