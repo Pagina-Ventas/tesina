@@ -1,178 +1,69 @@
-const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 const pool = require('../db');
 const { enviarCorreoCompra } = require('../services/mail.service');
+const mpService = require('../services/mercadopago.service');
 
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN
-});
-
-// 1. CREAR PREFERENCIA
 const crearPreferencia = async (req, res) => {
   try {
-    const { items, cliente, entrega, idPedido } = req.body || {};
-
+    const { items, cliente, idPedido } = req.body || {};
     const pid = Number(idPedido);
 
-    if (!Number.isFinite(pid) || pid <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'idPedido inválido'
-      });
-    }
+    if (!Number.isFinite(pid) || pid <= 0) return res.status(400).json({ success: false, message: 'idPedido inválido' });
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Items requeridos'
-      });
-    }
+    // Limpieza de URLs
+    const baseURL = (process.env.FRONT_URL || 'http://localhost:5173').trim().replace(/\/$/, '');
+    const notificationURL = (process.env.MP_NOTIFICATION_URL && !process.env.MP_NOTIFICATION_URL.includes('localhost')) 
+      ? process.env.MP_NOTIFICATION_URL 
+      : null;
 
-    const itemsMP = items.map((item) => ({
-      title: item.nombre || 'Producto',
-      description: item.descripcion || item.nombre || 'Producto',
-      quantity: Number(item.cantidad || 1),
-      unit_price: Number(item.precio || 0),
-      currency_id: 'ARS'
-    }));
-
-    const body = {
-      items: itemsMP,
-
-      payer: {
-        name: cliente?.nombre || '',
-        surname: cliente?.apellido || '',
-        email: cliente?.email || 'test_user@test.com',
-        phone: {
-          area_code: '264',
-          // ✅ CORRECCIÓN: Limpiamos el texto para dejar solo números y lo enviamos como String
-          number: String(cliente?.telefono || '').replace(/\D/g, '')
-        },
-        address: {
-          zip_code: entrega?.cp || '',
-          street_name: entrega?.calle || '',
-          // ✅ CORRECCIÓN: Usamos parseInt y aseguramos que no sea NaN
-          street_number: parseInt(entrega?.numeracion) || 0
-        }
-      },
-
-      back_urls: {
-        success: `${process.env.FRONT_URL || 'http://localhost:5173'}/exito`,
-        failure: `${process.env.FRONT_URL || 'http://localhost:5173'}/carrito`,
-        pending: `${process.env.FRONT_URL || 'http://localhost:5173'}/carrito`
-      },
-
-      auto_return: 'approved',
-      external_reference: String(pid),
-      notification_url: process.env.MP_NOTIFICATION_URL,
-
-      payment_methods: {
-        excluded_payment_types: [
-          { id: 'ticket' }
-        ],
-        installments: 6
-      }
-    };
-
-    const preference = new Preference(client);
-    const result = await preference.create({ body });
+    const result = await mpService.crearPreferenciaPago(items, pid, cliente, baseURL, notificationURL);
 
     return res.json({
       success: true,
       id: result.id,
-      init_point: result.init_point,
       sandbox_init_point: result.sandbox_init_point
     });
   } catch (error) {
-    console.error('ERROR CREANDO PREFERENCIA MP:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error al crear pago con Mercado Pago',
-      detail: error.message
-    });
+    console.error('ERROR MP:', error);
+    res.status(500).json({ success: false, message: 'Error al procesar pago', detail: error.message });
   }
 };
 
-// 2. WEBHOOK
 const recibirWebhook = async (req, res) => {
-  // ... (tu código del webhook estaba perfecto, no hace falta cambiarlo)
   try {
     const paymentId = req.query.id || req.body?.data?.id;
     const type = req.query.type || req.body?.type;
 
-    if (!paymentId || type !== 'payment') {
-      return res.status(200).send('OK');
-    }
+    if (!paymentId || type !== 'payment') return res.status(200).send('OK');
 
-    const payment = new Payment(client);
-    const pagoInfo = await payment.get({ id: paymentId });
-
-    if (pagoInfo.status !== 'approved') {
-      return res.status(200).send('OK');
-    }
+    const pagoInfo = await mpService.consultarPago(paymentId);
+    if (pagoInfo.status !== 'approved') return res.status(200).send('OK');
 
     const idPedido = Number(pagoInfo.external_reference);
-
-    if (!Number.isFinite(idPedido) || idPedido <= 0) {
-      return res.status(200).send('OK');
-    }
-
     const conn = await pool.getConnection();
 
     try {
       await conn.beginTransaction();
-
-      const [rows] = await conn.query(
-        `SELECT id, estado, total, cliente_nombre, cliente_email
-         FROM pedidos
-         WHERE id = ?
-         FOR UPDATE`,
-        [idPedido]
-      );
-
-      if (rows.length === 0) {
-        await conn.rollback();
-        return res.status(200).send('OK');
-      }
-
-      const pedido = rows[0];
-
-      if (pedido.estado === 'PAGADO') {
+      // Lógica de DB original
+      const [rows] = await conn.query(`SELECT * FROM pedidos WHERE id = ? FOR UPDATE`, [idPedido]);
+      
+      if (rows.length > 0 && rows[0].estado !== 'PAGADO') {
+        await conn.query(`UPDATE pedidos SET estado = 'PAGADO' WHERE id = ?`, [idPedido]);
         await conn.commit();
-        return res.status(200).send('OK');
-      }
-
-      await conn.query(
-        `UPDATE pedidos
-         SET estado = 'PAGADO'
-         WHERE id = ?`,
-        [idPedido]
-      );
-
-      await conn.commit();
-
-      try {
-        if (pedido.cliente_email) {
-          await enviarCorreoCompra(
-            pedido.cliente_email,
-            pedido.cliente_nombre,
-            pedido.id,
-            Number(pedido.total || 0).toLocaleString()
-          );
+        if (rows[0].cliente_email) {
+          await enviarCorreoCompra(rows[0].cliente_email, rows[0].cliente_nombre, rows[0].id, rows[0].total);
         }
-      } catch (mailErr) {
-        console.error('ERROR ENVIANDO MAIL:', mailErr);
+      } else {
+        await conn.commit();
       }
-
-      return res.status(200).send('OK');
     } catch (dbErr) {
-      try { await conn.rollback(); } catch {}
-      console.error('ERROR DB WEBHOOK MP:', dbErr);
-      return res.status(200).send('OK');
+      await conn.rollback();
+      throw dbErr;
     } finally {
       conn.release();
     }
+    return res.status(200).send('OK');
   } catch (error) {
-    console.error('ERROR WEBHOOK MP:', error);
+    console.error('WEBHOOK ERROR:', error);
     return res.status(200).send('OK');
   }
 };

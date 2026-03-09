@@ -9,7 +9,7 @@ import { Inventario as AdminPanel } from './pages/AdminPanel'
 import { ProductoDetalle } from './pages/ProductoDetalle'
 import { Login } from './pages/Login'
 import { PerfilUsuario } from './pages/PerfilUsuario'
-import { CheckoutForm } from './components/CheckoutForm'
+import { CheckoutForm } from './components/Checkout/CheckoutForm'
 import { Exito } from './pages/Exito'
 
 // --- IMPORTACIONES DE ESTILOS ---
@@ -50,8 +50,20 @@ function App() {
   const cargarProductos = () => {
     fetch(`${API_URL}/api/productos`)
       .then(res => res.json())
-      .then(data => setProductos(data))
-      .catch(err => console.error(err))
+      .then(data => {
+        // ✅ VALIDACIÓN CRÍTICA: Solo guardamos si es una lista (array)
+        if (Array.isArray(data)) {
+          setProductos(data);
+        } else {
+          // Si el servidor manda un error 500, 'data' suele ser un objeto con el mensaje
+          console.error("El servidor no envió una lista de productos:", data);
+          setProductos([]); // Limpiamos para que la UI no explote
+        }
+      })
+      .catch(err => {
+        console.error("Error de conexión con la API:", err);
+        setProductos([]); 
+      });
   }
 
   const cargarPedidos = () => {

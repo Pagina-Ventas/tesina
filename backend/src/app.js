@@ -17,7 +17,8 @@ const app = express();
 // --- MIDDLEWARES ---
 // CORRECCIÓN: Configuramos CORS para producción y desarrollo
 const corsOptions = {
-  origin: process.env.FRONT_URL || 'http://localhost:5173', // Solo permitimos peticiones de tu frontend
+  // ✅ CORRECCIÓN: Limpiamos la URL quitando espacios y barras finales
+  origin: (process.env.FRONT_URL || 'http://localhost:5173').trim().replace(/\/$/, ''),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
