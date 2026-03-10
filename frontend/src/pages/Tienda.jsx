@@ -1,7 +1,12 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import Hero from '../components/Hero'
-import '../style/App.css'
+
+// --- IMPORTAMOS SOLO LOS ESTILOS DE LA TIENDA ---
+import '../style/tienda.css'
+
+// Definimos la URL base para las imágenes (igual que en App.jsx)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSeleccionada, setCategoriaSeleccionada }) {
   
@@ -61,7 +66,7 @@ export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSelec
                     {prod.imagen ? (
                         // 1. SI HAY FOTO REAL:
                         <img 
-                            src={`http://localhost:3000${prod.imagen}`} 
+                            src={`${API_URL}${prod.imagen}`} 
                             alt={prod.nombre} 
                             style={{
                                 width: '100%', 

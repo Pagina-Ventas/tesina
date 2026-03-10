@@ -12,9 +12,9 @@ import { PerfilUsuario } from './pages/PerfilUsuario'
 import { CheckoutForm } from './components/Checkout/CheckoutForm'
 import { Exito } from './pages/Exito'
 
-// --- IMPORTACIONES DE ESTILOS ---
-import './style/App.css'
-import './style/Admin.css'
+// --- IMPORTACIONES DE ESTILOS NUEVAS ---
+import './style/base.css' // Ojo: asegúrate de que sea "styles" o "style" según el nombre final de tu carpeta
+import './style/layout.css'
 
 // CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -51,13 +51,11 @@ function App() {
     fetch(`${API_URL}/api/productos`)
       .then(res => res.json())
       .then(data => {
-        // ✅ VALIDACIÓN CRÍTICA: Solo guardamos si es una lista (array)
         if (Array.isArray(data)) {
           setProductos(data);
         } else {
-          // Si el servidor manda un error 500, 'data' suele ser un objeto con el mensaje
           console.error("El servidor no envió una lista de productos:", data);
-          setProductos([]); // Limpiamos para que la UI no explote
+          setProductos([]); 
         }
       })
       .catch(err => {
@@ -67,12 +65,11 @@ function App() {
   }
 
   const cargarPedidos = () => {
-    // CORRECCIÓN: Solo intentamos cargar si hay un token de admin, para evitar el error 403 innecesario
     const token = localStorage.getItem('adminToken')
     if (!token) return
 
     fetch(`${API_URL}/api/pedidos`, {
-      headers: { 'Authorization': `Bearer ${token}` } // 🔒 Enviamos el token
+      headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
@@ -88,7 +85,7 @@ function App() {
     try {
       const respuesta = await fetch(`${API_URL}/api/productos`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }, // 🔒 Enviamos el token
+        headers: { 'Authorization': `Bearer ${token}` },
         body: productoFormData
       })
 
@@ -106,7 +103,6 @@ function App() {
     }
   }
 
-  // ✅ Reponer stock (Admin)
   const reponerProductoAdmin = async (idProducto, cantidad) => {
     const token = localStorage.getItem('adminToken')
     const id = Number(idProducto)
@@ -128,7 +124,7 @@ function App() {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // 🔒 Enviamos el token
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ cantidad: cant })
       })
@@ -153,7 +149,6 @@ function App() {
     }
   }
 
-  // ✅ Confirmar pedido (admin)
   const confirmarPedidoAdmin = async (idPedido) => {
     const token = localStorage.getItem('adminToken')
     const pid = Number(idPedido)
@@ -167,7 +162,7 @@ function App() {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // 🔒 Enviamos el token
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ estado: 'PAGADO' })
       })
@@ -189,7 +184,6 @@ function App() {
     }
   }
 
-  // ✅ Eliminar pedido (admin)
   const eliminarPedidoAdmin = async (idPedido) => {
     const token = localStorage.getItem('adminToken')
     const pid = Number(idPedido)
@@ -198,7 +192,7 @@ function App() {
     try {
       const respuesta = await fetch(`${API_URL}/api/pedidos/${pid}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` } // 🔒 Enviamos el token
+        headers: { 'Authorization': `Bearer ${token}` }
       })
 
       const data = await respuesta.json().catch(() => ({}))
@@ -227,16 +221,6 @@ function App() {
         window.location.href = '/login'
       }, 1500)
       return
-    }
-
-    const usuarioData = localStorage.getItem('usuarioData')
-    if (token && !localStorage.getItem('adminToken') && usuarioData) {
-      const user = JSON.parse(usuarioData)
-      if (!user.nombre || !user.direccion) {
-        toast.warning('⚠️ Por favor completa tus datos de envío antes de comprar')
-        setTimeout(() => window.location.href = '/perfil', 1500)
-        return
-      }
     }
 
     const existe = carrito.find(item => item.id === producto.id)
@@ -337,53 +321,59 @@ function App() {
       )}
 
       <div className="dashboard-container">
+        
+        {/* --- HEADER NUEVO CON LÓGICA DE SESIÓN --- */}
         <header className="header">
           <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
             APOLO<span>MATE</span>
           </Link>
 
-          <Link
-            to="/admin"
-            style={{
-              color: '#a0a0a0',
-              textDecoration: 'none',
-              fontWeight: 'bold',
-              fontSize: '0.9rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            👤 LOGIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{ color: '#ff4444' }}>•</span>}
-          </Link>
-
           <input type="text" placeholder="Buscar..." className="search-bar" />
 
-          <Link to="/carrito" style={{ textDecoration: 'none' }}>
-            <div
-              style={{
-                color: '#c5a059',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center'
-              }}
-            >
-              <span>🛒 TU MATE</span>
-              <span
-                style={{
-                  background: '#c5a059',
-                  color: '#000',
-                  padding: '2px 8px',
-                  borderRadius: '10px',
-                  fontSize: '0.9rem'
-                }}
-              >
-                {totalItems}
-              </span>
-            </div>
-          </Link>
+          {/* MENÚ DERECHO */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            
+            {/* Lógica de Sesión */}
+            {(localStorage.getItem('token') || localStorage.getItem('adminToken')) ? (
+              <>
+                <Link to="/perfil" style={{ color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  👤 MI PERFIL
+                </Link>
+                
+                {localStorage.getItem('adminToken') && (
+                  <Link to="/admin" style={{ color: '#c5a059', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                    ⚙️ PANEL ADMIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{ color: '#ff4444' }}>•</span>}
+                  </Link>
+                )}
+                
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('usuarioData');
+                    window.location.href = '/login'; 
+                  }} 
+                  style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                >
+                  SALIR
+                </button>
+              </>
+            ) : (
+              <Link to="/login" style={{ color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                👤 INGRESAR
+              </Link>
+            )}
+
+            {/* CARRITO */}
+            <Link to="/carrito" style={{ textDecoration: 'none' }}>
+              <div style={{ color: '#c5a059', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <span>🛒</span>
+                <span style={{ background: '#c5a059', color: '#000', padding: '2px 8px', borderRadius: '10px', fontSize: '0.9rem' }}>
+                  {totalItems}
+                </span>
+              </div>
+            </Link>
+          </div>
         </header>
 
         <Routes>

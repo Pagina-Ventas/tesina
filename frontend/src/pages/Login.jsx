@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import '../style/Admin.css' 
+
+// --- IMPORTAMOS SOLO EL CSS DE AUTENTICACIÓN ---
+import '../style/auth.css' 
 
 export function Login() {
   const [esRegistro, setEsRegistro] = useState(false) // Estado para alternar entre Login y Registro

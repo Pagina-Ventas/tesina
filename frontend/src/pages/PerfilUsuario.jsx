@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { useNavigate } from 'react-router-dom' // <--- IMPORTANTE: Para navegar
-import '../style/Admin.css' 
+import { useNavigate } from 'react-router-dom'
+
+// --- IMPORTAMOS EL CSS MODULAR ---
+import '../style/auth.css' 
 
 export function PerfilUsuario() {
-    const navigate = useNavigate() // <--- Hook de navegación
+    const navigate = useNavigate()
     const [usuario, setUsuario] = useState(null)
     const [datos, setDatos] = useState({
         nombre: '',
@@ -53,13 +55,10 @@ export function PerfilUsuario() {
                 // 1. Actualizamos localStorage con los nuevos datos
                 localStorage.setItem('usuarioData', JSON.stringify(data.user))
                 
-                toast.success('¡Datos actualizados! 💾', { id: toastId })
-                toast.message('Redirigiendo al carrito...', { description: 'Ya puedes finalizar tu compra 🛒' })
-
-                // 2. REDIRECCIÓN AUTOMÁTICA (La clave del flujo)
-                setTimeout(() => {
-                    navigate('/carrito')
-                }, 1500)
+                toast.success('¡Datos actualizados correctamente! 💾', { id: toastId })
+                
+                // NOTA: Ya no hay redirección forzada al carrito.
+                // El usuario decide si quiere ir al carrito o seguir navegando.
             } else {
                 toast.error('Error al guardar datos', { id: toastId })
             }
@@ -74,16 +73,16 @@ export function PerfilUsuario() {
             <div className="checkout-card" style={{ maxWidth: '600px', width: '100%' }}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #444', paddingBottom: '15px', marginBottom: '20px'}}>
                     <h2 style={{ color: '#c5a059', margin: 0 }}>
-                        📝 Mis Datos de Envío
+                        👤 Mi Perfil
                     </h2>
-                    {/* Botón para volver si se arrepiente */}
-                    <button onClick={() => navigate('/carrito')} style={{background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '1.2rem'}}>
+                    {/* Botón para volver al inicio */}
+                    <button onClick={() => navigate('/')} style={{background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '1.2rem'}}>
                         ✕
                     </button>
                 </div>
                 
                 <p style={{ color: '#aaa', marginBottom: '20px', fontSize: '0.9rem' }}>
-                    Por favor completa esta información obligatoria para poder procesar y enviar tus pedidos correctamente.
+                    Tus datos de envío predeterminados. Podés actualizarlos en cualquier momento.
                 </p>
 
                 <form onSubmit={guardarDatos}>
@@ -120,7 +119,12 @@ export function PerfilUsuario() {
                     </div>
 
                     <button type="submit" className="btn-whatsapp" style={{ width: '100%', marginTop: '25px', padding: '15px', fontSize: '1rem' }}>
-                        GUARDAR Y VOLVER AL CARRITO 🛒
+                        GUARDAR CAMBIOS 💾
+                    </button>
+
+                    {/* Botón opcional para ir al carrito */}
+                    <button type="button" onClick={() => navigate('/carrito')} className="btn-cancel" style={{marginTop: '10px'}}>
+                        Ir a mi carrito 🛒
                     </button>
                 </form>
             </div>

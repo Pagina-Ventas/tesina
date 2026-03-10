@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react'
-// ✅ CORRECCIÓN: Subimos dos niveles (../../) para llegar a src y luego entrar a style
-import '../../style/App.css' 
-
-// ✅ CORRECCIÓN: También ajustamos la ruta del hook, ya que está en src/hooks
+import "../../style/auth.css";
 import { useMercadoPago } from '../../hooks/useMercadoPago'
 
 export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar }) {
@@ -23,6 +20,26 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
 
   // Combinamos ambos estados de carga para bloquear la UI si algo está pasando
   const procesandoTotal = procesandoManual || pagandoMP
+
+  // 👉 EL TRUCO ESTÁ ACÁ: Autocompletamos los datos del perfil
+  useEffect(() => {
+    const userStr = localStorage.getItem('usuarioData')
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        setDatos(prev => ({
+          ...prev,
+          nombre: user.nombre || '',
+          telefono: user.telefono || '',
+          direccion: user.direccion || '',
+          // Juntamos ciudad y provincia para que quede bien en el campo "Ciudad / Provincia"
+          ciudad: user.ciudad ? `${user.ciudad}${user.provincia ? `, ${user.provincia}` : ''}` : ''
+        }))
+      } catch (error) {
+        console.error('Error leyendo datos del usuario', error)
+      }
+    }
+  }, []) // El array vacío hace que solo se ejecute al abrir el modal
 
   const DATOS_BANCO = {
     cbu: '0000003100000000000000',

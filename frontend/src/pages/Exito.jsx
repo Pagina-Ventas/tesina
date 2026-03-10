@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import '../style/App.css'
+
+// --- ACTUALIZAMOS EL IMPORT AL NUEVO CSS ---
+import '../style/tienda.css'
 
 export function Exito({ vaciarCarrito }) {
   const [searchParams] = useSearchParams()

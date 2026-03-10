@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import '../style/App.css'
+
+// --- IMPORTAMOS LOS ESTILOS MODULARES ---
+import '../style/producto.css' 
+import '../style/tienda.css' // Lo necesitamos para la grilla de productos relacionados
+
+// Definimos la URL base para las imágenes
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 export function ProductoDetalle({ productos, agregarAlCarrito }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -31,18 +38,26 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
   return (
     <div className="dashboard-container">
       
-      {/* Botón Volver */}
-      <button onClick={() => navigate(-1)} className="btn-back" style={{background:'transparent', border:'none', color:'#a0a0a0', cursor:'pointer', marginBottom:'20px', fontSize:'1rem'}}>
+      {/* Botón Volver (El estilo .btn-back está en layout.css) */}
+      <button onClick={() => navigate(-1)} className="btn-back">
         ← Volver
       </button>
 
       <div className="detail-container">
         
         {/* COLUMNA IZQUIERDA: IMAGEN */}
-        <div className="detail-image-box">
-           <span style={{fontSize: '8rem'}}>
-             {producto.categoria === 'Termos' ? '⚱️' : producto.categoria === 'Bombillas' ? '🧪' : producto.categoria === 'Kits' ? '💼' : '🧉'}
-           </span>
+        <div className="detail-image-box" style={{overflow: 'hidden'}}>
+            {producto.imagen ? (
+                <img 
+                    src={`${API_URL}${producto.imagen}`} 
+                    alt={producto.nombre} 
+                    style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                />
+            ) : (
+                <span style={{fontSize: '8rem'}}>
+                    {producto.categoria === 'Termos' ? '⚱️' : producto.categoria === 'Bombillas' ? '🧪' : producto.categoria === 'Kits' ? '💼' : '🧉'}
+                </span>
+            )}
         </div>
 
         {/* COLUMNA DERECHA: INFO */}
@@ -80,17 +95,30 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
           <div className="related-section">
             <h3 className="section-title">También te puede interesar...</h3>
             <div className="grid">
-                {relacionados.map(rel => (
-                    <Link to={`/producto/${rel.id}`} key={rel.id} className="card" style={{textDecoration:'none'}}>
-                        <div className="card-image-box" style={{height:'150px', fontSize:'3rem'}}>
-                            {rel.categoria === 'Termos' ? '⚱️' : rel.categoria === 'Bombillas' ? '🧪' : '🧉'}
+                {relacionados.map(rel => {
+                    const esCriticoRel = rel.stock > 0 && rel.stock <= rel.stockMinimo;
+                    return (
+                    <div key={rel.id} className="card">
+                        <div className="category-tag">{rel.categoria}</div>
+                        <div className={`badge-stock ${rel.stock === 0 ? 'out' : esCriticoRel ? 'low' : 'ok'}`}>
+                          {rel.stock === 0 ? 'AGOTADO' : 'STOCK'}
                         </div>
-                        <div className="card-body">
-                            <h4 style={{color:'#fff', fontSize:'1rem'}}>{rel.nombre}</h4>
-                            <p style={{color:'#c5a059', fontWeight:'bold'}}>${rel.precio.toLocaleString()}</p>
-                        </div>
-                    </Link>
-                ))}
+                        
+                        <Link to={`/producto/${rel.id}`} style={{textDecoration:'none', display: 'block'}}>
+                            <div className="card-image-box" style={{height:'150px', fontSize:'3rem', overflow: 'hidden'}}>
+                                {rel.imagen ? (
+                                    <img src={`${API_URL}${rel.imagen}`} alt={rel.nombre} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                                ) : (
+                                    <span>{rel.categoria === 'Termos' ? '⚱️' : rel.categoria === 'Bombillas' ? '🧪' : '🧉'}</span>
+                                )}
+                            </div>
+                            <div className="card-body">
+                                <h4 style={{color:'#fff', fontSize:'1rem', margin: '0 0 10px 0'}}>{rel.nombre}</h4>
+                                <p style={{color:'#c5a059', fontWeight:'bold', margin: 0}}>${rel.precio.toLocaleString()}</p>
+                            </div>
+                        </Link>
+                    </div>
+                )})}
             </div>
           </div>
       )}
