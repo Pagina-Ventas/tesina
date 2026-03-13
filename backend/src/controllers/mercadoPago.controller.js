@@ -1,7 +1,9 @@
-import { Preference } from 'mercadopago';
-import { mpClient } from '../config/mercadoPago.js';
+const { Preference } = require('mercadopago');
 
-export const crearPreferencia = async (req, res) => {
+// Apuntamos al archivo correcto que tienes en tu carpeta config
+const { mpClient } = require('../config/mercadopago.config.js'); 
+
+const crearPreferencia = async (req, res) => {
   try {
     const { items, pedidoId } = req.body;
 
@@ -37,3 +39,5 @@ export const crearPreferencia = async (req, res) => {
     });
   }
 };
+
+module.exports = { crearPreferencia };
