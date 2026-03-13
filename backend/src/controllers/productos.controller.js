@@ -1,6 +1,9 @@
 const pool = require('../db');
 const { enviarAlerta } = require('../services/bot.service');
 
+// 👇 IMPORTAMOS LA FUNCIÓN PARA GUARDAR LOGS
+const { registrarLog } = require('./logs.controller'); 
+
 // 1. Obtener productos
 const getProductos = async (req, res) => {
   try {
@@ -44,6 +47,9 @@ const createProducto = async (req, res) => {
       ]
     );
 
+    // 📝 REGISTRAMOS LA CREACIÓN DEL PRODUCTO
+    await registrarLog('Administrador', 'CREAR_PRODUCTO', `Se creó el producto "${nombre}" (ID: ${result.insertId}) con ${stock || 0} de stock inicial.`);
+
     res.json({
       success: true,
       producto: {
@@ -62,7 +68,7 @@ const createProducto = async (req, res) => {
   }
 };
 
-// ✅ 3. Reponer stock
+// 3. Reponer stock
 const reponerStock = async (req, res) => {
   const idProd = Number(req.params.id);
   const cantidad = Number(req.body?.cantidad);
@@ -99,6 +105,9 @@ const reponerStock = async (req, res) => {
 
     await conn.commit();
 
+    // 📝 REGISTRAMOS LA REPOSICIÓN DE STOCK
+    await registrarLog('Administrador', 'REPONER_STOCK', `Se agregaron ${cantidad} unidades al producto "${prod.nombre}". Stock anterior: ${stockActual}, Nuevo stock: ${nuevoStock}.`);
+
     return res.json({
       success: true,
       producto: {
@@ -117,7 +126,7 @@ const reponerStock = async (req, res) => {
   }
 };
 
-// ✅ 4. Eliminar producto (NUEVO)
+// 4. Eliminar producto
 const eliminarProducto = async (req, res) => {
   const idProd = Number(req.params.id);
 
@@ -126,11 +135,18 @@ const eliminarProducto = async (req, res) => {
   }
 
   try {
+    // Primero buscamos el nombre del producto para guardarlo en el log (antes de borrarlo)
+    const [prodRows] = await pool.query(`SELECT nombre FROM productos WHERE id = ?`, [idProd]);
+    const nombreProducto = prodRows.length > 0 ? prodRows[0].nombre : `ID ${idProd}`;
+
     const [result] = await pool.query(`DELETE FROM productos WHERE id = ?`, [idProd]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Producto no encontrado' });
     }
+
+    // 📝 REGISTRAMOS LA ELIMINACIÓN
+    await registrarLog('Administrador', 'ELIMINAR_PRODUCTO', `Se eliminó el producto "${nombreProducto}" del catálogo.`);
 
     return res.json({ success: true, deletedId: idProd });
   } catch (err) {
@@ -139,7 +155,7 @@ const eliminarProducto = async (req, res) => {
   }
 };
 
-// 5. Vender producto
+// 5. Vender producto (Venta manual o endpoint de prueba)
 const venderProducto = async (req, res) => {
   const idProd = Number(req.params.id);
   const cantidadVenta = Number(req.params.cantidad);
@@ -185,9 +201,11 @@ const venderProducto = async (req, res) => {
 
     await conn.commit();
 
+    // 📝 REGISTRAMOS LA VENTA MANUAL
+    await registrarLog('Sistema', 'VENTA_MANUAL', `Se descontaron ${cantidadVenta} unidades de "${prod.nombre}".`);
+
     let mensajeRespuesta = `✅ ¡Venta Exitosa! Se vendieron ${cantidadVenta} de ${prod.nombre}. Stock restante: ${nuevoStock}.`;
 
-    console.log(`🔎 Verificando alerta: ¿${nuevoStock} <= ${stockMin}?`);
     if (nuevoStock <= stockMin) {
       console.log("🚨 CONDICIÓN DE ALERTA CUMPLIDA. Enviando mensaje...");
       try {
@@ -196,8 +214,6 @@ const venderProducto = async (req, res) => {
       } catch (error) {
         console.error("❌ Error enviando alerta:", error);
       }
-    } else {
-      console.log("👍 Stock saludable, no se envía alerta.");
     }
 
     res.send(mensajeRespuesta);
@@ -239,7 +255,7 @@ module.exports = {
   getProductos,
   createProducto,
   reponerStock,
-  eliminarProducto, // ✅ NUEVO
+  eliminarProducto,
   venderProducto,
   verificarStock
 };

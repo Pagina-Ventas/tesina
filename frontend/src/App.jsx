@@ -20,6 +20,9 @@ import './style/layout.css'
 // ✅ Inicializar Mercado Pago UNA sola vez en toda la app
 initMercadoPago('APP_USR-76524e58-7401-4687-acc5-ddb10e609cb9')
 
+// --- IMPORTACIÓN DEL BOTÓN DE WHATSAPP ---
+import { BotonWhatsApp } from './components/BotonWhatsApp';
+
 // CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -429,6 +432,10 @@ function App() {
           />
         </Routes>
       </div>
+      
+      {/* 🚀 EL BOTÓN SE AGREGA AQUÍ AL FINAL, FUERA DE LAS RUTAS PERO DENTRO DEL ROUTER */}
+      <BotonWhatsApp />
+      
     </BrowserRouter>
   )
 }

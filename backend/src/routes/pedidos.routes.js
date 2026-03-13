@@ -1,21 +1,37 @@
 const { Router } = require('express');
 const router = Router();
 const controller = require('../controllers/pedidos.controller');
-const { verificarAdmin } = require('../middlewares/auth.middleware'); // 👈 IMPORTADO
 
-// 🔴 PROTEGIDA: Solo admin ve todos los pedidos
-router.get('/', verificarAdmin, controller.getPedidos); // 🔒
+// 👈 IMPORTAMOS verificarToken (para clientes) y verificarAdmin (para admins)
+const { verificarToken, verificarAdmin } = require('../middlewares/auth.middleware'); 
 
-// 🔴 PROTEGIDA: Detalle de pedido
-router.get('/:id', verificarAdmin, controller.getPedidoById); // 🔒
+// ==========================================
+// RUTAS PARA CLIENTES Y PÚBLICAS
+// ==========================================
 
-// 🟢 PÚBLICA: El cliente debe poder crear el pedido
+// 🟢 PÚBLICA/CLIENTE: Crear el pedido
 router.post('/', controller.createPedido);
 
-// 🔴 PROTEGIDA: Cambios de estado manuales
-router.put('/:id', verificarAdmin, controller.updatePedido); // 🔒
+// 🟡 PROTEGIDA (CLIENTE): El usuario ve su propio historial
+// ⚠️ IMPORTANTE: Debe ir ANTES de '/:id'
+router.get('/mis-pedidos', verificarToken, controller.getMisPedidos);
+
+// 🟡 PROTEGIDA (CLIENTE/ADMIN): Ver el detalle de un pedido específico.
+// Lo bajamos a 'verificarToken' para que el cliente pueda ver su propio recibo.
+router.get('/:id', verificarToken, controller.getPedidoById); 
+
+
+// ==========================================
+// RUTAS EXCLUSIVAS DE ADMINISTRADOR
+// ==========================================
+
+// 🔴 PROTEGIDA: Solo admin ve TODOS los pedidos del sistema
+router.get('/', verificarAdmin, controller.getPedidos);
+
+// 🔴 PROTEGIDA: Cambios de estado manuales (PAGADO, ENVIADO, CANCELADO)
+router.put('/:id', verificarAdmin, controller.updatePedido);
 
 // 🔴 PROTEGIDA: Eliminar pedido
-router.delete('/:id', verificarAdmin, controller.deletePedido); // 🔒
+router.delete('/:id', verificarAdmin, controller.deletePedido);
 
 module.exports = router;

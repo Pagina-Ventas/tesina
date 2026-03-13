@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const pool = require('../db'); // 👈 Importamos la conexión a MySQL
+const pool = require('../db'); 
+
+// 👇 IMPORTAMOS LA FUNCIÓN PARA GUARDAR LOGS
+const { registrarLog } = require('./logs.controller'); 
 
 // 1. LOGIN (Admin o Usuario)
 const login = async (req, res) => {
@@ -16,9 +19,13 @@ const login = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Falta JWT_SECRET en el .env' });
     }
 
-    // A) LOGIN ADMIN (Sigue usando las variables de entorno)
+    // A) LOGIN ADMIN
     if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
       const token = jwt.sign({ role: 'admin', username }, jwtSecret, { expiresIn: '4h' });
+      
+      // 📝 REGISTRAMOS LA ACCIÓN DEL ADMIN
+      await registrarLog('Administrador', 'LOGIN', 'El administrador inició sesión en el panel.');
+
       return res.json({ success: true, token, role: 'admin' });
     }
 
@@ -31,16 +38,22 @@ const login = async (req, res) => {
 
       const coincide = passGuardada.startsWith('$2a$') || passGuardada.startsWith('$2b$')
         ? await bcrypt.compare(password, passGuardada)
-        : passGuardada === password; // Por si hay contraseñas viejas sin hashear
+        : passGuardada === password; 
 
       if (coincide) {
-        // Quitamos la contraseña del objeto antes de enviarlo al frontend por seguridad
         delete usuarioEncontrado.password; 
         
         const token = jwt.sign({ role: 'client', id: usuarioEncontrado.id, username }, jwtSecret, { expiresIn: '4h' });
+        
+        // 📝 REGISTRAMOS LA ACCIÓN DEL CLIENTE
+        await registrarLog(username, 'LOGIN', 'El cliente inició sesión en la tienda.');
+
         return res.json({ success: true, token, role: 'client', user: usuarioEncontrado });
       }
     }
+
+    // Si alguien intenta entrar y falla, también lo podemos registrar (opcional, pero útil para seguridad)
+    await registrarLog(username || 'Desconocido', 'LOGIN_FALLIDO', 'Intento de inicio de sesión fallido.');
 
     return res.status(401).json({ success: false, message: 'Credenciales incorrectas ⛔' });
   } catch (err) {
@@ -58,22 +71,22 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Faltan datos (username/password)' });
     }
 
-    // 1. Verificar si ya existe en MySQL
     const [existentes] = await pool.query(`SELECT id FROM usuarios WHERE username = ?`, [username]);
     
     if (existentes.length > 0) {
       return res.status(400).json({ success: false, message: 'El usuario ya existe' });
     }
 
-    // 2. Hashear la contraseña
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 3. Insertar el nuevo usuario en la base de datos
     await pool.query(
       `INSERT INTO usuarios (username, password, nombre, telefono, provincia, ciudad, direccion, dni) 
        VALUES (?, ?, '', '', '', '', '', '')`,
       [username, passwordHash]
     );
+
+    // 📝 REGISTRAMOS EL NUEVO USUARIO
+    await registrarLog(username, 'REGISTRO', 'Un nuevo usuario se ha registrado en la tienda.');
 
     return res.json({ success: true, message: 'Usuario creado con éxito' });
   } catch (err) {
@@ -91,7 +104,6 @@ const updateProfile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Faltan datos (username/datos)' });
     }
 
-    // Actualizamos los campos en la base de datos
     const [result] = await pool.query(
       `UPDATE usuarios SET 
        nombre = ?, telefono = ?, provincia = ?, ciudad = ?, direccion = ?, dni = ? 
@@ -108,10 +120,12 @@ const updateProfile = async (req, res) => {
     );
 
     if (result.affectedRows > 0) {
-      // Devolvemos los datos actualizados buscando al usuario de nuevo
       const [usuarioActualizado] = await pool.query(`SELECT * FROM usuarios WHERE username = ?`, [username]);
-      delete usuarioActualizado[0].password; // No enviar el hash al frontend
+      delete usuarioActualizado[0].password; 
       
+      // 📝 REGISTRAMOS LA ACTUALIZACIÓN
+      await registrarLog(username, 'ACTUALIZAR_PERFIL', 'El usuario actualizó sus datos de envío/contacto.');
+
       return res.json({ success: true, user: usuarioActualizado[0] });
     }
 
