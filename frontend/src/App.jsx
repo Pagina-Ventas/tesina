@@ -47,8 +47,6 @@ function App() {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos')
   const [mostrarCheckout, setMostrarCheckout] = useState(false)
 
-  const ADMIN_SAN_JUAN = '5492644117588'
-
   useEffect(() => {
     cargarProductos()
     cargarPedidos()
@@ -107,6 +105,34 @@ function App() {
     } catch (error) {
       console.error(error)
       toast.error('Error de conexión o archivo muy pesado')
+    }
+  }
+
+  // 👇 NUEVA FUNCIÓN: EDITAR PRODUCTO COMPLETO (Foto, Precio, Stock, etc.)
+  const editarProductoAdmin = async (idProducto, productoFormData) => {
+    const token = localStorage.getItem('adminToken')
+    const toastId = toast.loading('Guardando cambios...')
+    try {
+      const respuesta = await fetch(`${API_URL}/api/productos/${idProducto}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: productoFormData
+      })
+
+      const data = await respuesta.json().catch(() => ({}))
+
+      if (respuesta.ok && data?.success) {
+        setProductos(prev => prev.map(p => p.id === data.producto.id ? data.producto : p))
+        toast.success('¡Producto actualizado correctamente! ✏️', { id: toastId })
+        return true
+      } else {
+        toast.error(`Error: ${data?.message || 'No se pudo editar el producto'}`, { id: toastId })
+        return false
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('Error de conexión', { id: toastId })
+      return false
     }
   }
 
@@ -284,16 +310,35 @@ function App() {
         setCarrito([])
         setMostrarCheckout(false)
 
+        // --- NUEVA LÓGICA DE WHATSAPP PARA ALEXIA ---
+        const TELEFONO_ALEXIA = '5491169734096'
+
+        // 1. Armar el detalle de los productos
+        const detalleProductos = ordenData.items.map(item =>
+          `• ${item.cantidad}x ${item.nombre} ($${(item.precio * item.cantidad).toLocaleString()})`
+        ).join('\n')
+
+        // 2. Lógica para la dirección según si es envío o retiro
+        let infoEntrega = `🚚 *Tipo de Entrega:* ${ordenData.tipoEntrega} ${ordenData.envio && ordenData.envio !== '-' ? `(${ordenData.envio})` : ''}\n`
+        
+        if (ordenData.tipoEntrega === 'Envio') {
+          infoEntrega += `📍 *Enviar a:* ${ordenData.direccion}\n`
+        } else {
+          infoEntrega += `📍 *Retirar en:* Nuestra sucursal (Dirección de venta)\n`
+        }
+
+        // 3. Armado final del mensaje
         const mensajeEncoded = encodeURIComponent(
-          `👋 Hola ImperioMate! Soy *${ordenData.cliente}*.\n` +
+          `👋 Hola Alexia! Soy *${ordenData.cliente}*.\n` +
           `Acabo de realizar el PEDIDO WEB #${pedidoDB.id}.\n\n` +
-          `💰 *Total a Pagar: $${Number(pedidoDB.total || ordenData.total || 0).toLocaleString()}*\n` +
-          `💳 Forma de Pago: ${ordenData.metodoPago}\n` +
-          `🚚 Entrega: ${ordenData.tipoEntrega} ${ordenData.envio ? `(${ordenData.envio})` : ''}\n\n` +
-          `Espero confirmación para abonar. ¡Gracias!`
+          `🛍️ *Detalle de mi compra:*\n${detalleProductos}\n\n` +
+          `💰 *Total a Pagar:* $${Number(pedidoDB.total || ordenData.total || 0).toLocaleString()}\n` +
+          `💳 *Forma de Pago:* ${ordenData.metodoPago}\n\n` +
+          `${infoEntrega}\n` +
+          `📸 *Te adjunto a continuación mi comprobante de pago/transferencia.* ¡Muchas gracias!`
         )
 
-        window.open(`https://wa.me/${ADMIN_SAN_JUAN}?text=${mensajeEncoded}`, '_blank')
+        window.open(`https://wa.me/${TELEFONO_ALEXIA}?text=${mensajeEncoded}`, '_blank')
 
         toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
       }
@@ -426,6 +471,7 @@ function App() {
                   eliminarPedidoAdmin={eliminarPedidoAdmin}
                   crearProducto={crearProducto}
                   reponerProductoAdmin={reponerProductoAdmin}
+                  editarProductoAdmin={editarProductoAdmin} // 👈 ¡AQUÍ ESTÁ LA NUEVA FUNCIÓN!
                 />
               </RutaProtegida>
             }

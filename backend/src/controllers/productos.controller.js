@@ -251,11 +251,67 @@ const verificarStock = async (req, res) => {
   }
 };
 
+// NUEVO: 7. Actualizar producto completo (Precio, Stock manual, Nombre, etc)
+const updateProducto = async (req, res) => {
+  const idProd = Number(req.params.id);
+  if (!Number.isFinite(idProd) || idProd <= 0) return res.status(400).json({ success: false, message: 'ID inválido' });
+
+  const conn = await pool.getConnection();
+  try {
+    const { nombre, precio, categoria, stock, stockMinimo } = req.body;
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query(`SELECT nombre, stock, precio FROM productos WHERE id = ? FOR UPDATE`, [idProd]);
+    if (rows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    }
+
+    const prodAnterior = rows[0];
+
+    let query = `UPDATE productos SET nombre = ?, precio = ?, categoria = ?, stock = ?, stock_minimo = ?`;
+    let params = [
+      nombre || prodAnterior.nombre, 
+      Number(precio || 0), 
+      categoria || null, 
+      Number(stock || 0), 
+      Number(stockMinimo || 0)
+    ];
+
+    if (req.file) {
+      query += `, imagen = ?`;
+      params.push(`/uploads/${req.file.filename}`);
+    }
+
+    query += ` WHERE id = ?`;
+    params.push(idProd);
+
+    await conn.query(query, params);
+    await conn.commit();
+
+    // 📝 REGISTRAMOS LA EDICIÓN
+    await registrarLog('Administrador', 'EDITAR_PRODUCTO', `Se editó "${nombre || prodAnterior.nombre}". Precio: $${precio || prodAnterior.precio}, Stock: ${stock || prodAnterior.stock}.`);
+
+    const [updatedRows] = await pool.query(
+      `SELECT id, nombre, precio, categoria, stock, stock_minimo AS stockMinimo, imagen FROM productos WHERE id = ?`, [idProd]
+    );
+
+    res.json({ success: true, producto: updatedRows[0] });
+  } catch (err) {
+    try { await conn.rollback(); } catch {}
+    console.error('ERROR EDITANDO:', err);
+    res.status(500).json({ success: false, message: 'Error editando producto', detail: err.message });
+  } finally {
+    conn.release();
+  }
+};
+
 module.exports = {
   getProductos,
   createProducto,
   reponerStock,
   eliminarProducto,
   venderProducto,
-  verificarStock
+  verificarStock,
+  updateProducto // <-- NUEVA FUNCIÓN EXPORTADA
 };

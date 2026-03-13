@@ -37,11 +37,6 @@ const createCategoria = async (req, res) => {
   }
 };
 
-module.exports = {
-  getCategorias,
-  createCategoria
-};
-
 // NUEVO: Eliminar categoría y sus productos en cascada
 const deleteCategoria = async (req, res) => {
   const conn = await pool.getConnection();
@@ -60,6 +55,7 @@ const deleteCategoria = async (req, res) => {
     const nombreCategoria = catRows[0].nombre;
 
     // 2. Eliminar todos los productos que tengan esa categoría asignada
+    // Nota: Mantenemos el borrado por nombre de categoría para no romper la estructura actual de tu BD.
     await conn.query(`DELETE FROM productos WHERE categoria = ?`, [nombreCategoria]);
 
     // 3. Finalmente, eliminar la categoría
@@ -76,8 +72,9 @@ const deleteCategoria = async (req, res) => {
   }
 };
 
+// Único punto de exportación al final del archivo
 module.exports = {
   getCategorias,
   createCategoria,
-  deleteCategoria // <-- No olvides exportarla
+  deleteCategoria
 };
