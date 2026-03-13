@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import "../../style/auth.css";
 import { useMercadoPago } from '../../hooks/useMercadoPago'
 
+// Usamos la misma URL que configuraste en App.jsx
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar }) {
   const [datos, setDatos] = useState({
     nombre: '',
@@ -14,6 +17,9 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     email: ''
   })
 
+  // Estado para guardar el porcentaje de recargo desde la base de datos
+  const [recargoTarjetaPorcentaje, setRecargoTarjetaPorcentaje] = useState(0)
+
   // Hook personalizado para Mercado Pago
   const { iniciarPago, cargando: pagandoMP } = useMercadoPago()
   const [procesandoManual, setProcesandoManual] = useState(false)
@@ -21,7 +27,23 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
   // Combinamos ambos estados de carga para bloquear la UI si algo está pasando
   const procesandoTotal = procesandoManual || pagandoMP
 
-  // 👉 EL TRUCO ESTÁ ACÁ: Autocompletamos los datos del perfil
+  // 1. Obtener la configuración de Mercado Pago (El % de recargo)
+  useEffect(() => {
+    const fetchConfiguracion = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/mercadopago/configuracion`)
+        const data = await res.json()
+        if (data && data.recargoMP !== undefined) {
+          setRecargoTarjetaPorcentaje(Number(data.recargoMP))
+        }
+      } catch (error) {
+        console.error('Error al cargar la configuración de pagos:', error)
+      }
+    }
+    fetchConfiguracion()
+  }, [])
+
+  // 2. Autocompletamos los datos del perfil
   useEffect(() => {
     const userStr = localStorage.getItem('usuarioData')
     if (userStr) {
@@ -59,7 +81,10 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
       ? COSTOS_ENVIO[datos.courier] || 0
       : 0
 
-  const totalFinal = totalProductos + costoEnvio
+  // Calculamos el recargo solo si eligió Mercado Pago
+  const subTotal = totalProductos + costoEnvio
+  const costoRecargoTarjeta = datos.metodoPago === 'MercadoPago' ? (subTotal * (recargoTarjetaPorcentaje / 100)) : 0
+  const totalFinal = subTotal + costoRecargoTarjeta
 
   useEffect(() => {
     if (datos.metodoPago === 'Efectivo') {
@@ -104,9 +129,34 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
           throw new Error('No se pudo generar el pedido en la base de datos.')
         }
 
-        // 2. Delegar el pago al Hook (él maneja la redirección al Sandbox)
+        // 👇 SOLUCIÓN: Construimos el array de "items" para que Mercado Pago los sume
+        const itemsParaMercadoPago = carrito.map(item => ({
+          title: item.nombre,
+          quantity: item.cantidad,
+          unit_price: item.precio
+        }));
+
+        // Si hay costo de envío, lo agregamos como un ítem más
+        if (costoEnvio > 0) {
+          itemsParaMercadoPago.push({
+            title: `Costo de Envío (${datos.courier})`,
+            quantity: 1,
+            unit_price: costoEnvio
+          });
+        }
+
+        // Si hay recargo por tarjeta, lo agregamos como un ítem más
+        if (costoRecargoTarjeta > 0) {
+          itemsParaMercadoPago.push({
+            title: `Recargo por pago con Tarjeta (${recargoTarjetaPorcentaje}%)`,
+            quantity: 1,
+            unit_price: Number(costoRecargoTarjeta.toFixed(2))
+          });
+        }
+
+        // 2. Delegar el pago al Hook con los ítems completos
         await iniciarPago({
-          items: carrito,
+          items: itemsParaMercadoPago,
           cliente: {
             nombre: datos.nombre,
             email: datos.email,
@@ -136,7 +186,7 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
 
   return (
     <div className="checkout-overlay">
-      <div className="checkout-card">
+      <div className="checkout-card" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <h2 className="checkout-title">Finalizar Compra</h2>
 
         <form onSubmit={handleSubmit}>
@@ -190,7 +240,7 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
               value={datos.metodoPago}
               disabled={procesandoTotal}
             >
-              <option value="Transferencia">Transferencia Bancaria</option>
+              <option value="Transferencia">Transferencia Bancaria (Sin recargo)</option>
               <option value="MercadoPago">Mercado Pago (Tarjetas / QR)</option>
               <option value="Efectivo">Efectivo (Solo retiro)</option>
             </select>
@@ -198,16 +248,19 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
 
           {datos.metodoPago === 'Transferencia' && (
             <div className="payment-info-box" style={{ background: '#1a1a2e', padding: '15px', borderRadius: '8px', border: '1px solid #3b82f6', marginBottom: '20px' }}>
-              <p style={{ color: '#3b82f6', fontWeight: 'bold' }}>Datos para transferir:</p>
-              <p style={{ fontSize: '0.9rem', color: '#fff' }}>Alias: <strong>{DATOS_BANCO.alias}</strong></p>
-              <p style={{ fontSize: '0.9rem', color: '#fff' }}>CBU: {DATOS_BANCO.cbu}</p>
+              <p style={{ color: '#3b82f6', fontWeight: 'bold', margin: '0 0 5px 0' }}>Datos para transferir:</p>
+              <p style={{ fontSize: '0.9rem', color: '#fff', margin: '2px 0' }}>Alias: <strong>{DATOS_BANCO.alias}</strong></p>
+              <p style={{ fontSize: '0.9rem', color: '#fff', margin: '2px 0' }}>CBU: {DATOS_BANCO.cbu}</p>
             </div>
           )}
 
+          {/* AVISO CLARO DE RECARGO DE MERCADO PAGO */}
           {datos.metodoPago === 'MercadoPago' && (
             <div className="payment-info-box" style={{ background: 'rgba(0, 158, 227, 0.1)', padding: '15px', borderRadius: '8px', border: '1px solid #009ee3', marginBottom: '20px', textAlign: 'center' }}>
-              <p style={{ color: '#009ee3', fontWeight: 'bold' }}>¡Estás a un paso!</p>
-              <p style={{ fontSize: '0.9rem', color: '#ccc' }}>Al confirmar, serás redirigido a la pasarela segura.</p>
+              <p style={{ color: '#009ee3', fontWeight: 'bold', margin: '0 0 5px 0' }}>Pago con Tarjeta / Mercado Pago</p>
+              <p style={{ fontSize: '0.9rem', color: '#fff', margin: '0' }}>
+                Se aplicará un recargo del <strong>{recargoTarjetaPorcentaje}%</strong> por costos de procesamiento.
+              </p>
             </div>
           )}
 
@@ -251,10 +304,31 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
             </div>
           )}
 
-          <div style={{ borderTop: '1px solid #333', paddingTop: '15px', marginTop: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', color: '#4caf50', fontWeight: '900' }}>
-              <span>TOTAL:</span>
-              <span>${totalFinal.toLocaleString()}</span>
+          <div style={{ borderTop: '1px solid #333', paddingTop: '15px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: '0.9rem' }}>
+              <span>Subtotal Productos:</span>
+              <span>${totalProductos.toLocaleString()}</span>
+            </div>
+            
+            {costoEnvio > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: '0.9rem' }}>
+                <span>Costo Envío:</span>
+                <span>+ ${costoEnvio.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* DETALLE DEL RECARGO EN EL TOTAL */}
+            {costoRecargoTarjeta > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#009ee3', fontSize: '0.9rem' }}>
+                <span>Recargo Tarjeta ({recargoTarjetaPorcentaje}%):</span>
+                <span>+ ${costoRecargoTarjeta.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', color: '#4caf50', fontWeight: '900', marginTop: '10px' }}>
+              <span>TOTAL FINAL:</span>
+              <span>${totalFinal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
           </div>
 
@@ -264,7 +338,8 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
             disabled={procesandoTotal}
             style={{
               background: datos.metodoPago === 'MercadoPago' ? '#009ee3' : '#25D366',
-              opacity: procesandoTotal ? 0.7 : 1
+              opacity: procesandoTotal ? 0.7 : 1,
+              marginTop: '20px'
             }}
           >
             {procesandoTotal ? '⏳ PROCESANDO...' : datos.metodoPago === 'MercadoPago' ? 'PAGAR CON MERCADO PAGO 💳' : 'ENVIAR PEDIDO A REVISIÓN 📨'}

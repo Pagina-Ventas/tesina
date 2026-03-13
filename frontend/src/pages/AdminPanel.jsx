@@ -16,6 +16,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   // Estado para guardar los logs
   const [logs, setLogs] = useState([])
 
+  // 👇 NUEVO: Estado para el recargo de Mercado Pago
+  const [recargoMP, setRecargoMP] = useState(20)
+
   const [busqueda, setBusqueda] = useState('')
   const [vistaActiva, setVistaActiva] = useState('dashboard')
 
@@ -85,10 +88,46 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
+  // 👇 NUEVA FUNCIÓN: Cargar Configuración del Recargo
+  const cargarConfiguracion = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/mercadopago/configuracion`)
+      const data = await res.json()
+      if (data && data.recargoMP !== undefined) {
+        setRecargoMP(data.recargoMP)
+      }
+    } catch (err) {
+      console.error('Error cargando configuracion:', err)
+    }
+  }
+
+  // 👇 NUEVA FUNCIÓN: Guardar Configuración del Recargo
+  const guardarConfiguracion = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/mercadopago/configuracion`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ recargoMP })
+      })
+      if (res.ok) {
+        alert('✅ Porcentaje de recargo actualizado correctamente.')
+      } else {
+        alert('❌ Error al guardar el recargo.')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Error de conexión')
+    }
+  }
+
   useEffect(() => {
     cargarProductos()
     cargarCategorias()
     cargarLogs() 
+    cargarConfiguracion() // 👈 Agregamos esto aquí
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarModal, mostrarModalEditar, pedidos]) // 👈 Se refresca también al cerrar el modal de edición
 
@@ -403,6 +442,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             📜 Historial
           </button>
 
+          {/* 👇 NUEVO BOTÓN DE AJUSTES EN EL SIDEBAR */}
+          <button className={`menu-item ${vistaActiva === 'ajustes' ? 'active' : ''}`} onClick={() => setVistaActiva('ajustes')}>
+            ⚙️ Ajustes
+          </button>
+
           <div className="separator"></div>
           <Link to="/" className="menu-item logout">← Volver a Tienda</Link>
         </nav>
@@ -705,6 +749,41 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                   )}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+
+        {/* 👇 NUEVA SECCIÓN DE AJUSTES EN EL PANEL PRINCIPAL */}
+        {vistaActiva === 'ajustes' && (
+          <section className="recent-orders">
+            <div className="section-header">
+              <h3>⚙️ Configuración General de la Tienda</h3>
+            </div>
+            
+            <div className="checkout-card" style={{ maxWidth: '400px', margin: '20px 0', border: '1px solid #333' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ color: '#009ee3', fontWeight: 'bold' }}>
+                  Recargo por Tarjeta / Mercado Pago (%)
+                </label>
+                <p style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '10px' }}>
+                  Este porcentaje se sumará al subtotal de la compra cuando el cliente elija Mercado Pago.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input 
+                    type="number" 
+                    className="form-input" 
+                    value={recargoMP} 
+                    onChange={(e) => setRecargoMP(e.target.value)} 
+                    min="0"
+                    style={{ flex: 1, fontSize: '1.2rem', textAlign: 'center' }}
+                  />
+                  <span style={{ fontSize: '1.2rem', color: '#fff' }}>%</span>
+                </div>
+              </div>
+
+              <button className="btn-whatsapp" style={{ background: '#3b82f6', marginTop: '10px' }} onClick={guardarConfiguracion}>
+                Guardar Configuración 💾
+              </button>
             </div>
           </section>
         )}
