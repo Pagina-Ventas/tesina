@@ -4,22 +4,43 @@ const mpService = require('../services/mercadopago.service');
 
 const crearPreferencia = async (req, res) => {
   try {
-    const { items, cliente, idPedido } = req.body || {};
-    const pid = Number(idPedido);
+    const { items, cliente, idPedido, pedidoId } = req.body || {};
+    const pid = Number(idPedido || pedidoId);
 
-    if (!Number.isFinite(pid) || pid <= 0) return res.status(400).json({ success: false, message: 'idPedido inválido' });
+    if (!Number.isFinite(pid) || pid <= 0) {
+      return res.status(400).json({ success: false, message: 'idPedido inválido' });
+    }
 
-    // Limpieza de URLs
-    const baseURL = (process.env.FRONT_URL || 'http://localhost:5173').trim().replace(/\/$/, '');
-    const notificationURL = (process.env.MP_NOTIFICATION_URL && !process.env.MP_NOTIFICATION_URL.includes('localhost')) 
-      ? process.env.MP_NOTIFICATION_URL 
-      : null;
+    // 👇 LIMPIEZA EXTREMA DE URL PARA EVITAR EL ERROR DE MERCADO PAGO
+    let baseURL = process.env.FRONT_URL ? process.env.FRONT_URL.trim() : '';
+    
+    // Si la URL está vacía, usamos el localhost por defecto
+    if (!baseURL) {
+      baseURL = 'http://localhost:5173';
+    } 
+    // Si en el .env se olvidaron de poner "http://", se lo agregamos a la fuerza
+    else if (!baseURL.startsWith('http')) {
+      baseURL = `http://${baseURL}`;
+    }
+    // Quitamos la barra diagonal final por si se coló alguna (ej: http://localhost:5173/)
+    baseURL = baseURL.replace(/\/$/, '');
+
+    // Limpieza también para la URL de notificaciones
+    let notificationURL = process.env.MP_NOTIFICATION_URL ? process.env.MP_NOTIFICATION_URL.trim() : null;
+    if (notificationURL && !notificationURL.startsWith('http')) {
+      notificationURL = `https://${notificationURL}`; 
+    }
+    // Mercado Pago no acepta webhooks en localhost, así que lo anulamos si estamos en desarrollo
+    if (notificationURL && notificationURL.includes('localhost')) {
+      notificationURL = null;
+    }
 
     const result = await mpService.crearPreferenciaPago(items, pid, cliente, baseURL, notificationURL);
 
     return res.json({
       success: true,
       id: result.id,
+      init_point: result.init_point,
       sandbox_init_point: result.sandbox_init_point
     });
   } catch (error) {
@@ -43,7 +64,6 @@ const recibirWebhook = async (req, res) => {
 
     try {
       await conn.beginTransaction();
-      // Lógica de DB original
       const [rows] = await conn.query(`SELECT * FROM pedidos WHERE id = ? FOR UPDATE`, [idPedido]);
       
       if (rows.length > 0 && rows[0].estado !== 'PAGADO') {
