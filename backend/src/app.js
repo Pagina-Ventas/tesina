@@ -9,6 +9,12 @@ const authRoutes = require('./routes/auth.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const categoriasRoutes = require('./routes/categorias.routes');
 
+// 👇 NUEVO: Importamos las rutas de Mercado Pago
+const mercadoPagoRoutes = require('./routes/mercadoPago.routes'); 
+
+// Importamos las rutas de logs
+const logsRoutes = require('./routes/logs.routes');
+
 // DB pool
 const pool = require('./db');
 
@@ -52,6 +58,12 @@ app.use('/api/productos', productosRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/pagos', paymentRoutes);
 app.use('/api/categorias', categoriasRoutes);
+
+// 👇 NUEVO: Conectamos la ruta de Mercado Pago
+app.use('/api/mercadopago', mercadoPagoRoutes);
+
+// Conectamos la ruta de logs
+app.use('/api/logs', logsRoutes);
 
 // --- 404 JSON ---
 app.use((req, res) => {

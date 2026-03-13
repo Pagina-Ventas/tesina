@@ -1,8 +1,7 @@
-const { MercadoPagoConfig } = require('mercadopago');
+import { MercadoPagoConfig } from 'mercadopago';
 
-// Inicializamos el cliente una sola vez para toda la app
-const client = new MercadoPagoConfig({
-  accessToken: (process.env.MP_ACCESS_TOKEN || '').trim()
+export const mpClient = new MercadoPagoConfig({
+  accessToken: process.env.MP_ACCESS_TOKEN,
 });
-
-module.exports = client;
+  
+  

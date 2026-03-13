@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { Toaster, toast } from 'sonner'
+import { initMercadoPago } from '@mercadopago/sdk-react'
 
 // --- IMPORTACIONES ORDENADAS ---
 import { Tienda } from './pages/Tienda'
@@ -13,8 +14,11 @@ import { CheckoutForm } from './components/Checkout/CheckoutForm'
 import { Exito } from './pages/Exito'
 
 // --- IMPORTACIONES DE ESTILOS NUEVAS ---
-import './style/base.css' // Ojo: asegúrate de que sea "styles" o "style" según el nombre final de tu carpeta
+import './style/base.css'
 import './style/layout.css'
+
+// ✅ Inicializar Mercado Pago UNA sola vez en toda la app
+initMercadoPago('APP_USR-76524e58-7401-4687-acc5-ddb10e609cb9')
 
 // CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -52,16 +56,16 @@ function App() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setProductos(data);
+          setProductos(data)
         } else {
-          console.error("El servidor no envió una lista de productos:", data);
-          setProductos([]); 
+          console.error('El servidor no envió una lista de productos:', data)
+          setProductos([])
         }
       })
       .catch(err => {
-        console.error("Error de conexión con la API:", err);
-        setProductos([]); 
-      });
+        console.error('Error de conexión con la API:', err)
+        setProductos([])
+      })
   }
 
   const cargarPedidos = () => {
@@ -122,7 +126,7 @@ function App() {
     try {
       const res = await fetch(`${API_URL}/api/productos/${id}/reponer`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -160,7 +164,7 @@ function App() {
     try {
       const respuesta = await fetch(`${API_URL}/api/pedidos/${pid}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -292,7 +296,6 @@ function App() {
       }
 
       return pedidoDB
-
     } catch (error) {
       console.error(error)
       toast.error('Error al guardar el pedido')
@@ -321,8 +324,6 @@ function App() {
       )}
 
       <div className="dashboard-container">
-        
-        {/* --- HEADER NUEVO CON LÓGICA DE SESIÓN --- */}
         <header className="header">
           <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
             APOLO<span>MATE</span>
@@ -330,29 +331,26 @@ function App() {
 
           <input type="text" placeholder="Buscar..." className="search-bar" />
 
-          {/* MENÚ DERECHO */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            
-            {/* Lógica de Sesión */}
             {(localStorage.getItem('token') || localStorage.getItem('adminToken')) ? (
               <>
                 <Link to="/perfil" style={{ color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
                   👤 MI PERFIL
                 </Link>
-                
+
                 {localStorage.getItem('adminToken') && (
                   <Link to="/admin" style={{ color: '#c5a059', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
                     ⚙️ PANEL ADMIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{ color: '#ff4444' }}>•</span>}
                   </Link>
                 )}
-                
-                <button 
+
+                <button
                   onClick={() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('adminToken');
-                    localStorage.removeItem('usuarioData');
-                    window.location.href = '/login'; 
-                  }} 
+                    localStorage.removeItem('token')
+                    localStorage.removeItem('adminToken')
+                    localStorage.removeItem('usuarioData')
+                    window.location.href = '/login'
+                  }}
                   style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
                 >
                   SALIR
@@ -364,7 +362,6 @@ function App() {
               </Link>
             )}
 
-            {/* CARRITO */}
             <Link to="/carrito" style={{ textDecoration: 'none' }}>
               <div style={{ color: '#c5a059', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <span>🛒</span>
