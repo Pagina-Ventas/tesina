@@ -1,5 +1,8 @@
 const nodemailer = require('nodemailer');
 
+// 👇 IMPORTAMOS LA FUNCIÓN PARA GUARDAR LOGS
+const { registrarLog } = require('../controllers/logs.controller'); 
+
 // 1. Configuramos el "transportador" (El cartero)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -45,8 +48,14 @@ const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) 
         await transporter.sendMail(mailOptions);
         console.log(`📧 Correo enviado exitosamente a: ${emailCliente}`);
         
+        // 📝 REGISTRAMOS EL ÉXITO EN EL HISTORIAL
+        await registrarLog('Sistema (Correo)', 'EMAIL_ENVIADO', `Se envió el recibo de compra al cliente ${nombreCliente} (${emailCliente}) por el pedido #${idPedido}.`);
+        
     } catch (error) {
         console.error("❌ Error enviando correo:", error);
+        
+        // 📝 REGISTRAMOS EL ERROR EN EL HISTORIAL
+        await registrarLog('Sistema (Correo)', 'ERROR_EMAIL', `No se pudo enviar el recibo al cliente ${nombreCliente} (${emailCliente}). Detalle: ${error.message}`);
     }
 };
 

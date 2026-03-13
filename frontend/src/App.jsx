@@ -13,8 +13,11 @@ import { CheckoutForm } from './components/Checkout/CheckoutForm'
 import { Exito } from './pages/Exito'
 
 // --- IMPORTACIONES DE ESTILOS NUEVAS ---
-import './style/base.css' // Ojo: asegúrate de que sea "styles" o "style" según el nombre final de tu carpeta
+import './style/base.css' 
 import './style/layout.css'
+
+// --- IMPORTACIÓN DEL BOTÓN DE WHATSAPP ---
+import { BotonWhatsApp } from './components/BotonWhatsApp';
 
 // CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -432,6 +435,10 @@ function App() {
           />
         </Routes>
       </div>
+      
+      {/* 🚀 EL BOTÓN SE AGREGA AQUÍ AL FINAL, FUERA DE LAS RUTAS PERO DENTRO DEL ROUTER */}
+      <BotonWhatsApp />
+      
     </BrowserRouter>
   )
 }

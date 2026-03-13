@@ -6,13 +6,14 @@ import {
 } from 'recharts'
 import '../style/Admin.css'
 
-// CORRECCIÓN: Definimos la URL base de la API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-// Recibe desde App.jsx: pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin (si lo tenés)
 export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin }) {
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
+  
+  // 👇 NUEVO: Estado para guardar los logs
+  const [logs, setLogs] = useState([])
 
   const [busqueda, setBusqueda] = useState('')
   const [vistaActiva, setVistaActiva] = useState('dashboard')
@@ -21,7 +22,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [mostrarModal, setMostrarModal] = useState(false)
   const [nuevoProd, setNuevoProd] = useState({
     nombre: '',
-    categoria: '', // ✅ ahora sale del listado de categorias
+    categoria: '', 
     precio: '',
     stock: '',
     stockMinimo: 5,
@@ -36,7 +37,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   // --- CATEGORIAS: crear ---
   const [nuevaCategoria, setNuevaCategoria] = useState('')
 
-  // CORRECCIÓN: Obtenemos el token de administrador para proteger las rutas
+  // --- MODAL DETALLE DE PEDIDO ---
+  const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false)
+  const [pedidoDetalle, setPedidoDetalle] = useState(null)
+  const [cargandoDetalle, setCargandoDetalle] = useState(false)
+
   const token = localStorage.getItem('adminToken')
 
   const cargarProductos = async () => {
@@ -61,11 +66,48 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
+  // 👇 NUEVA FUNCIÓN: Cargar Logs
+  const cargarLogs = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/logs`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await res.json()
+      setLogs(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Error cargando logs:', err)
+      setLogs([])
+    }
+  }
+
   useEffect(() => {
     cargarProductos()
     cargarCategorias()
+    cargarLogs() // <--- Agregamos la carga de logs al iniciar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarModal, pedidos])
+
+  // ✅ Obtener Detalle de un Pedido 
+  const verDetallePedidoAdmin = async (id) => {
+    setCargandoDetalle(true)
+    try {
+      const res = await fetch(`${API_URL}/api/pedidos/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setPedidoDetalle(data)
+        setModalDetalleAbierto(true)
+      } else {
+        alert(data.message || 'No se pudo cargar el detalle del pedido')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error de conexión al cargar detalle')
+    } finally {
+      setCargandoDetalle(false)
+    }
+  }
 
   // ✅ eliminar pedido
   const eliminarPedidoAdmin = async (id) => {
@@ -73,7 +115,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     if (!ok) return
 
     try {
-      // CORRECCIÓN: URL absoluta y envío de Token de seguridad
       const res = await fetch(`${API_URL}/api/pedidos/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -150,7 +191,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           await cargarProductos()
         }
       } else {
-        // CORRECCIÓN: URL absoluta y Token
         const res = await fetch(`${API_URL}/api/productos/${productoAReponer.id}/reponer`, {
           method: 'PUT',
           headers: { 
@@ -179,7 +219,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     if (!ok) return
 
     try {
-      // CORRECCIÓN: URL absoluta y envío de Token de seguridad
       const res = await fetch(`${API_URL}/api/productos/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -203,7 +242,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     if (!nombre) return alert('Escribí un nombre de categoría')
 
     try {
-      // CORRECCIÓN: URL absoluta y Token
       const res = await fetch(`${API_URL}/api/categorias`, {
         method: 'POST',
         headers: { 
@@ -234,7 +272,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     if (!ok) return
 
     try {
-      // CORRECCIÓN: URL absoluta y Token
       const res = await fetch(`${API_URL}/api/categorias/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -321,6 +358,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
           <button className={`menu-item ${vistaActiva === 'pedidos' ? 'active' : ''}`} onClick={() => setVistaActiva('pedidos')}>
             🛒 Pedidos {pedidosPendientes.length > 0 && <span className="badge-alert">{pedidosPendientes.length}</span>}
+          </button>
+
+          {/* 👇 NUEVO BOTÓN PARA VER LOS LOGS */}
+          <button className={`menu-item ${vistaActiva === 'logs' ? 'active' : ''}`} onClick={() => { setVistaActiva('logs'); cargarLogs(); }}>
+            📜 Historial
           </button>
 
           <div className="separator"></div>
@@ -446,7 +488,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                       <td>
                         {prod.imagen ? (
                           <img
-                            // CORRECCIÓN: Usamos la URL absoluta de la API
                             src={`${API_URL}${prod.imagen}`}
                             alt="mini"
                             style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
@@ -489,26 +530,38 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               <h3>Categorías</h3>
             </div>
 
-            {categorias.length === 0 ? (
-                  <tr><td style={{ padding: 20, textAlign: 'center' }}>No hay categorías todavía</td></tr>
-                ) : (
-                  categorias.map(c => (
-                    <tr key={c.id}>
-                      <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button 
-                          className="btn-add" 
-                          style={{ background: '#ef4444', padding: '5px 10px', fontSize: '0.8rem' }} 
-                          onClick={() => eliminarCategoria(c.id, c.nombre)}
-                        >
-                          🗑 Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+            <div className="table-responsive">
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th style={{ textAlign: 'right' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categorias.length === 0 ? (
+                    <tr><td colSpan="2" style={{ padding: 20, textAlign: 'center' }}>No hay categorías todavía</td></tr>
+                  ) : (
+                    categorias.map(c => (
+                      <tr key={c.id}>
+                        <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button 
+                            className="btn-add" 
+                            style={{ background: '#ef4444', padding: '5px 10px', fontSize: '0.8rem' }} 
+                            onClick={() => eliminarCategoria(c.id, c.nombre)}
+                          >
+                            🗑 Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 15 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 15, marginTop: 20 }}>
               <input
                 type="text"
                 placeholder="Nueva categoría..."
@@ -518,40 +571,19 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               />
               <button className="btn-add" onClick={crearCategoria}>+ Agregar</button>
             </div>
-
-            <div className="table-responsive">
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categorias.length === 0 ? (
-                    <tr><td style={{ padding: 20, textAlign: 'center' }}>No hay categorías todavía</td></tr>
-                  ) : (
-                    categorias.map(c => (
-                      <tr key={c.id}>
-                        <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
           </section>
         )}
 
         {/* PEDIDOS */}
         {vistaActiva === 'pedidos' && (
           <section className="recent-orders">
-            <h3>Pedidos Pendientes</h3>
+            <h3>Lista de Pedidos</h3>
             <div className="table-responsive">
               <table className="clean-table">
                 <thead><tr><th>Cliente</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead>
                 <tbody>
                   {pedidos.length === 0 ? (
-                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No hay pedidos pendientes</td></tr>
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No hay pedidos</td></tr>
                   ) : (
                     pedidos.map(p => (
                       <tr key={p.id}>
@@ -563,6 +595,16 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                           </span>
                         </td>
                         <td style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          
+                          <button 
+                            className="btn-add" 
+                            style={{ background: '#3b82f6' }} 
+                            onClick={() => verDetallePedidoAdmin(p.id)}
+                            disabled={cargandoDetalle}
+                          >
+                            👁️ Detalles
+                          </button>
+
                           {p.estado === 'PENDIENTE' && (
                             <button className="btn-add" style={{ background: '#10b981' }} onClick={() => confirmarPedidoAdmin(p.id)}>
                               ✅ Confirmar
@@ -575,6 +617,46 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
                           {p.estado === 'PAGADO' && <span>✅</span>}
                         </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* 👇 NUEVA SECCIÓN: HISTORIAL DE LOGS */}
+        {vistaActiva === 'logs' && (
+          <section className="recent-orders">
+            <div className="section-header">
+              <h3>📜 Historial de Actividad</h3>
+              <button className="btn-add" style={{ background: '#444' }} onClick={cargarLogs}>🔄 Actualizar</button>
+            </div>
+            <div className="table-responsive">
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Usuario / Actor</th>
+                    <th>Acción</th>
+                    <th>Detalles</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.length === 0 ? (
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#aaa' }}>No hay actividad registrada aún.</td></tr>
+                  ) : (
+                    logs.map(log => (
+                      <tr key={log.id}>
+                        <td style={{ color: '#aaa', fontSize: '0.9rem' }}>{new Date(log.creado_en).toLocaleString('es-AR')}</td>
+                        <td style={{ fontWeight: 'bold', color: '#fff' }}>{log.usuario}</td>
+                        <td>
+                          <span style={{ background: '#222', color: '#c5a059', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', border: '1px solid #444' }}>
+                            {log.accion}
+                          </span>
+                        </td>
+                        <td style={{ color: '#ccc', fontSize: '0.9rem' }}>{log.detalle}</td>
                       </tr>
                     ))
                   )}
@@ -667,6 +749,51 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </div>
         </div>
       )}
+
+      {/* MODAL DETALLE DE PEDIDO PARA EL ADMIN */}
+      {modalDetalleAbierto && pedidoDetalle && (
+        <div className="checkout-overlay" style={{ zIndex: 9999 }}>
+          <div className="checkout-card" style={{ maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #c5a059' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
+              <h2 className="checkout-title" style={{ margin: 0, color: '#c5a059' }}>Detalle de Orden #{pedidoDetalle.id}</h2>
+              <button onClick={() => setModalDetalleAbierto(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: '20px', color: '#ddd', fontSize: '0.9rem' }}>
+              <p style={{ margin: '5px 0' }}><strong>Cliente:</strong> {pedidoDetalle.clienteNombre || 'No registrado'}</p>
+              <p style={{ margin: '5px 0' }}><strong>Teléfono:</strong> {pedidoDetalle.clienteTelefono || 'No especificado'}</p>
+              <p style={{ margin: '5px 0' }}><strong>Dirección:</strong> {pedidoDetalle.clienteDireccion || 'No especificada'}</p>
+              <p style={{ margin: '5px 0' }}><strong>Estado actual:</strong> <span style={{ color: pedidoDetalle.estado === 'PAGADO' ? '#10b981' : '#f59e0b' }}>{pedidoDetalle.estado}</span></p>
+              <p style={{ margin: '5px 0' }}><strong>Fecha:</strong> {new Date(pedidoDetalle.creado_en).toLocaleString()}</p>
+            </div>
+
+            <h3 style={{ borderBottom: '1px solid #333', paddingBottom: '10px', color: '#aaa', fontSize: '1.1rem' }}>Productos a preparar:</h3>
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0' }}>
+              {pedidoDetalle.items?.map((item, idx) => (
+                <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #222', color: '#fff' }}>
+                  <div>
+                    <span style={{ fontWeight: 'bold', color: '#c5a059', marginRight: '8px' }}>{item.cantidad}x</span> 
+                    {item.nombre}
+                  </div>
+                  <div style={{ fontWeight: 'bold' }}>
+                    ${Number(item.subtotal).toLocaleString('es-AR')}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #444' }}>
+              <h3 style={{ margin: 0, color: '#fff' }}>TOTAL COBRADO</h3>
+              <h3 style={{ margin: 0, color: '#10b981' }}>${Number(pedidoDetalle.total).toLocaleString('es-AR')}</h3>
+            </div>
+
+            <button onClick={() => setModalDetalleAbierto(false)} className="btn-cancel" style={{ width: '100%', marginTop: '25px' }}>
+              Cerrar Vista
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

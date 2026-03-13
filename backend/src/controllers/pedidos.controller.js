@@ -1,13 +1,17 @@
 const pool = require('../db');
 const { enviarAlerta } = require('../services/bot.service');
 
-// 1. Obtener todos los pedidos
+// 👇 IMPORTAMOS LA FUNCIÓN PARA GUARDAR LOGS
+const { registrarLog } = require('./logs.controller'); 
+
+// 1. Obtener todos los pedidos (Para el ADMIN)
 const getPedidos = async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT 
         id AS pedidoId,
         id AS id,
+        usuario_id,
         cliente_nombre AS cliente,
         total,
         estado,
@@ -24,6 +28,31 @@ const getPedidos = async (req, res) => {
   }
 };
 
+// NUEVO: 1.5 Obtener pedidos de UN solo usuario (Para el CLIENTE)
+const getMisPedidos = async (req, res) => {
+  try {
+    const usuarioId = req.user.id; 
+
+    const [rows] = await pool.query(`
+      SELECT 
+        id AS pedidoId,
+        id AS id,
+        cliente_nombre AS cliente,
+        total,
+        estado,
+        creado_en
+      FROM pedidos
+      WHERE usuario_id = ?
+      ORDER BY id DESC
+    `, [usuarioId]);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('GET MIS PEDIDOS ERROR:', err);
+    res.status(500).json({ error: 'Error leyendo tus pedidos', detail: err.message });
+  }
+};
+
 // 2. Crear nuevo pedido (Cliente compra en la web)
 const createPedido = async (req, res) => {
   const conn = await pool.getConnection();
@@ -35,7 +64,8 @@ const createPedido = async (req, res) => {
       return res.status(400).json({ success: false, message: 'El pedido no tiene items' });
     }
 
-    // Compatibilidad: algunos front mandan cliente como string, otros como objeto
+    const usuarioId = nuevoPedido.usuario_id || (req.user ? req.user.id : null);
+
     const clienteNombre =
       (nuevoPedido.cliente && (nuevoPedido.cliente.nombre || nuevoPedido.cliente.name)) ||
       nuevoPedido.cliente ||
@@ -52,7 +82,6 @@ const createPedido = async (req, res) => {
       nuevoPedido.direccion ||
       null;
 
-    // Total: si viene, lo usamos; si no, lo calculamos
     const totalCalc = items.reduce((acc, it) => {
       const precio = Number(it.precio || 0);
       const cant = Number(it.cantidad || 1);
@@ -64,20 +93,16 @@ const createPedido = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // 1) Insert pedido
     const [rPedido] = await conn.query(
-      `INSERT INTO pedidos (cliente_nombre, cliente_telefono, cliente_direccion, total, estado)
-       VALUES (?, ?, ?, ?, ?)`,
-      [clienteNombre, clienteTelefono, clienteDireccion, totalFinal, estadoFinal]
+      `INSERT INTO pedidos (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, total, estado)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [usuarioId, clienteNombre, clienteTelefono, clienteDireccion, totalFinal, estadoFinal]
     );
 
     const pedidoId = rPedido.insertId;
 
-    // 2) Insert items
     for (const item of items) {
-      // Tu JSON viejo usa item.id (producto id). Lo mantenemos.
       const productoId = item.productoId || item.id || null;
-
       const nombre = item.nombre || 'Producto';
       const precio = Number(item.precio || 0);
       const cantidad = Number(item.cantidad || 1);
@@ -92,7 +117,10 @@ const createPedido = async (req, res) => {
 
     await conn.commit();
 
-    // ✅ Devolvemos ID real de MySQL con dos nombres: pedidoId e id (compat)
+    // 📝 REGISTRAMOS LA CREACIÓN DEL PEDIDO
+    const actorLog = usuarioId ? `Usuario ID ${usuarioId}` : 'Invitado';
+    await registrarLog(actorLog, 'NUEVO_PEDIDO', `Creó el pedido #${pedidoId} por un total de $${totalFinal}.`);
+
     res.json({
       success: true,
       pedido: {
@@ -112,7 +140,7 @@ const createPedido = async (req, res) => {
   }
 };
 
-// 3. ACTUALIZAR ESTADO (descontar stock + alertas al pasar a PAGADO, devolver al CANCELAR)
+// 3. ACTUALIZAR ESTADO
 const updatePedido = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -125,7 +153,6 @@ const updatePedido = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // Traemos pedido actual y bloqueamos
     const [pRows] = await conn.query(
       `SELECT id, estado FROM pedidos WHERE id = ? FOR UPDATE`,
       [id]
@@ -138,14 +165,10 @@ const updatePedido = async (req, res) => {
 
     const estadoAnterior = pRows[0].estado;
 
-    // A) Si se confirma (PAGADO) y antes NO estaba pagado → descontar stock
+    // A) Si se confirma (PAGADO)
     if (estado === 'PAGADO' && estadoAnterior !== 'PAGADO') {
-      console.log('✅ Confirmando pedido... Descontando stock y verificando alertas.');
-
       const [items] = await conn.query(
-        `SELECT producto_id AS productoId, nombre, cantidad
-         FROM pedido_items
-         WHERE pedido_id = ?`,
+        `SELECT producto_id AS productoId, nombre, cantidad FROM pedido_items WHERE pedido_id = ?`,
         [id]
       );
 
@@ -154,10 +177,7 @@ const updatePedido = async (req, res) => {
         if (!productoId) continue;
 
         const [prodRows] = await conn.query(
-          `SELECT id, nombre, stock, stock_minimo AS stockMinimo
-           FROM productos
-           WHERE id = ?
-           FOR UPDATE`,
+          `SELECT id, nombre, stock, stock_minimo AS stockMinimo FROM productos WHERE id = ? FOR UPDATE`,
           [productoId]
         );
 
@@ -165,7 +185,6 @@ const updatePedido = async (req, res) => {
 
         const prod = prodRows[0];
         const cant = Number(item.cantidad || 1);
-
         let nuevoStock = Number(prod.stock) - cant;
         if (nuevoStock < 0) nuevoStock = 0;
 
@@ -176,26 +195,22 @@ const updatePedido = async (req, res) => {
       await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
       await conn.commit();
 
+      // 📝 REGISTRAMOS PAGO
+      await registrarLog('Administrador', 'PEDIDO_PAGADO', `Confirmó el pago del pedido #${id} y se descontó el stock.`);
+
       for (const item of items) {
         if (!item._alerta) continue;
         const prod = item._alerta;
         if (prod.stock <= prod.stockMinimo) {
-          console.log(`🚨 ALERTA: ${prod.nombre} bajó a ${prod.stock}`);
-          try {
-            await enviarAlerta(prod, true);
-          } catch (e) {
-            console.error('Error enviando alerta:', e);
-          }
+          try { await enviarAlerta(prod, true); } catch (e) {}
         }
       }
 
       return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
     }
 
-    // B) NUEVO: Si se CANCELA y antes estaba PAGADO → devolver stock
+    // B) Si se CANCELA y antes estaba PAGADO
     if (estado === 'CANCELADO' && estadoAnterior === 'PAGADO') {
-      console.log('🔄 Pedido cancelado. Devolviendo stock a los productos...');
-      
       const [items] = await conn.query(
         `SELECT producto_id, cantidad FROM pedido_items WHERE pedido_id = ?`,
         [id]
@@ -212,12 +227,19 @@ const updatePedido = async (req, res) => {
 
       await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
       await conn.commit();
+      
+      // 📝 REGISTRAMOS CANCELACIÓN
+      await registrarLog('Administrador', 'PEDIDO_CANCELADO', `Canceló el pedido #${id} y se devolvió el stock a los productos.`);
+
       return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
     }
 
-    // C) Si no es confirmación ni cancelación de algo pagado, solo cambiamos estado
+    // C) Si solo se cambia de estado (ej: ENVIADO)
     await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
     await conn.commit();
+    
+    // 📝 REGISTRAMOS CAMBIO DE ESTADO
+    await registrarLog('Administrador', 'ESTADO_PEDIDO', `Cambió el estado del pedido #${id} a ${estado}.`);
 
     return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
   } catch (err) {
@@ -229,7 +251,7 @@ const updatePedido = async (req, res) => {
   }
 };
 
-// 4. Obtener pedido por ID (detalle + items)
+// 4. Obtener pedido por ID
 const getPedidoById = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -238,6 +260,7 @@ const getPedidoById = async (req, res) => {
       `SELECT 
         id AS pedidoId,
         id AS id,
+        usuario_id,
         cliente_nombre AS clienteNombre,
         cliente_telefono AS clienteTelefono,
         cliente_direccion AS clienteDireccion,
@@ -273,7 +296,7 @@ const getPedidoById = async (req, res) => {
   }
 };
 
-// ✅ 5. Eliminar pedido (borra también items por ON DELETE CASCADE)
+// 5. Eliminar pedido
 const deletePedido = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -291,10 +314,13 @@ const deletePedido = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
     }
 
-    // Borra el pedido (y sus items por FK cascade)
     await conn.query(`DELETE FROM pedidos WHERE id = ?`, [id]);
 
     await conn.commit();
+    
+    // 📝 REGISTRAMOS ELIMINACIÓN DE PEDIDO
+    await registrarLog('Administrador', 'ELIMINAR_PEDIDO', `Eliminó el pedido #${id} del sistema.`);
+
     return res.json({ success: true, deletedId: id });
   } catch (err) {
     try { await conn.rollback(); } catch {}
@@ -305,4 +331,4 @@ const deletePedido = async (req, res) => {
   }
 };
 
-module.exports = { getPedidos, createPedido, updatePedido, getPedidoById, deletePedido };
+module.exports = { getPedidos, getMisPedidos, createPedido, updatePedido, getPedidoById, deletePedido };
