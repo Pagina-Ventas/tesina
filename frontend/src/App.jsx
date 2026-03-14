@@ -45,6 +45,7 @@ function App() {
   const [carrito, setCarrito] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos')
+  const [busqueda, setBusqueda] = useState('')
   const [mostrarCheckout, setMostrarCheckout] = useState(false)
 
   useEffect(() => {
@@ -74,7 +75,7 @@ function App() {
     if (!token) return
 
     fetch(`${API_URL}/api/pedidos`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
@@ -90,7 +91,7 @@ function App() {
     try {
       const respuesta = await fetch(`${API_URL}/api/productos`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: productoFormData
       })
 
@@ -108,14 +109,13 @@ function App() {
     }
   }
 
-  // 👇 NUEVA FUNCIÓN: EDITAR PRODUCTO COMPLETO (Foto, Precio, Stock, etc.)
   const editarProductoAdmin = async (idProducto, productoFormData) => {
     const token = localStorage.getItem('adminToken')
     const toastId = toast.loading('Guardando cambios...')
     try {
       const respuesta = await fetch(`${API_URL}/api/productos/${idProducto}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: productoFormData
       })
 
@@ -157,7 +157,7 @@ function App() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ cantidad: cant })
       })
@@ -195,7 +195,7 @@ function App() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ estado: 'PAGADO' })
       })
@@ -225,7 +225,7 @@ function App() {
     try {
       const respuesta = await fetch(`${API_URL}/api/pedidos/${pid}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
 
       const data = await respuesta.json().catch(() => ({}))
@@ -310,24 +310,20 @@ function App() {
         setCarrito([])
         setMostrarCheckout(false)
 
-        // --- NUEVA LÓGICA DE WHATSAPP PARA ALEXIA ---
         const TELEFONO_ALEXIA = '5491169734096'
 
-        // 1. Armar el detalle de los productos
         const detalleProductos = ordenData.items.map(item =>
           `• ${item.cantidad}x ${item.nombre} ($${(item.precio * item.cantidad).toLocaleString()})`
         ).join('\n')
 
-        // 2. Lógica para la dirección según si es envío o retiro
         let infoEntrega = `🚚 *Tipo de Entrega:* ${ordenData.tipoEntrega} ${ordenData.envio && ordenData.envio !== '-' ? `(${ordenData.envio})` : ''}\n`
-        
+
         if (ordenData.tipoEntrega === 'Envio') {
           infoEntrega += `📍 *Enviar a:* ${ordenData.direccion}\n`
         } else {
           infoEntrega += `📍 *Retirar en:* Nuestra sucursal (Dirección de venta)\n`
         }
 
-        // 3. Armado final del mensaje
         const mensajeEncoded = encodeURIComponent(
           `👋 Hola Alexia! Soy *${ordenData.cliente}*.\n` +
           `Acabo de realizar el PEDIDO WEB #${pedidoDB.id}.\n\n` +
@@ -385,7 +381,16 @@ function App() {
             />
           </Link>
 
-          <input type="text" placeholder="Buscar..." className="search-bar" />
+          <div className="search-container">
+            <span className="search-icon">⌕</span>
+            <input
+              type="text"
+              placeholder="Buscar productos..."
+              className="search-bar"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             {(localStorage.getItem('token') || localStorage.getItem('adminToken')) ? (
@@ -489,6 +494,7 @@ function App() {
                 categorias={categorias}
                 categoriaSeleccionada={categoriaSeleccionada}
                 setCategoriaSeleccionada={setCategoriaSeleccionada}
+                busqueda={busqueda}
               />
             }
           />
@@ -529,7 +535,7 @@ function App() {
                   eliminarPedidoAdmin={eliminarPedidoAdmin}
                   crearProducto={crearProducto}
                   reponerProductoAdmin={reponerProductoAdmin}
-                  editarProductoAdmin={editarProductoAdmin} // 👈 ¡AQUÍ ESTÁ LA NUEVA FUNCIÓN!
+                  editarProductoAdmin={editarProductoAdmin}
                 />
               </RutaProtegida>
             }

@@ -47,6 +47,49 @@
   background: transparent;
 }
 
+/* --- BUSCADOR --- */
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 260px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  transition: all 0.3s ease;
+}
+
+.search-container:focus-within {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+}
+
+.search-icon {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  color: var(--apolo-white);
+  font-size: 0.95rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.search-bar::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
 /* --- HERO (PORTADA) --- */
 .hero-container {
   background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 60%),
@@ -129,5 +172,9 @@
   .logo-img {
     width: 46px;
     height: 46px;
+  }
+
+  .search-container {
+    min-width: 100%;
   }
 }

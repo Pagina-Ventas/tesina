@@ -7,10 +7,38 @@ import '../style/tienda.css'
 // Definimos la URL base para las imágenes (igual que en App.jsx)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSeleccionada, setCategoriaSeleccionada }) {
-  const productosFiltrados = categoriaSeleccionada === 'Todos'
-    ? productos
-    : productos.filter(p => p.categoria === categoriaSeleccionada)
+const normalizarTexto = (texto) => {
+  return (texto || '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+}
+
+export function Tienda({
+  productos,
+  agregarAlCarrito,
+  categorias,
+  categoriaSeleccionada,
+  setCategoriaSeleccionada,
+  busqueda
+}) {
+  const textoBusqueda = normalizarTexto(busqueda)
+
+  const productosFiltrados = productos.filter((p) => {
+    const coincideCategoria =
+      categoriaSeleccionada === 'Todos' || p.categoria === categoriaSeleccionada
+
+    const textoProducto = normalizarTexto(
+      `${p.nombre || ''} ${p.categoria || ''} ${p.descripcion || ''}`
+    )
+
+    const coincideBusqueda =
+      textoBusqueda === '' || textoProducto.includes(textoBusqueda)
+
+    return coincideCategoria && coincideBusqueda
+  })
 
   return (
     <>
@@ -51,6 +79,20 @@ export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSelec
               <div className="skeleton-pulse"></div>
             </div>
           ))
+        )}
+
+        {productos.length > 0 && productosFiltrados.length === 0 && (
+          <div
+            style={{
+              gridColumn: '1 / -1',
+              textAlign: 'center',
+              padding: '40px 20px',
+              color: '#bbb',
+              fontSize: '1.1rem'
+            }}
+          >
+            No se encontraron productos para esa búsqueda.
+          </div>
         )}
 
         {productosFiltrados.map(prod => {
@@ -94,7 +136,8 @@ export function Tienda({ productos, agregarAlCarrito, categorias, categoriaSelec
                       {prod.categoria === 'Termos' ? '⚱️'
                         : prod.categoria === 'Bombillas' ? '🥢'
                         : prod.categoria === 'Kits' ? '💼'
-                        : prod.categoria === 'Insumos' ? '🍃' : '🧉'}
+                        : prod.categoria === 'Insumos' ? '🍃'
+                        : '🧉'}
                     </span>
                   )}
                 </div>
