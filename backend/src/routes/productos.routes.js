@@ -52,6 +52,19 @@ router.post(
   controller.createProducto
 )
 
+// NUEVA RUTA 🔴 PROTEGIDA: Administrador puede editar producto completo (precio, stock, foto, etc)
+router.put(
+  '/:id',
+  verificarAdmin, // 🔒 Se agrega la protección
+  (req, res, next) => {
+    upload.single('imagen')(req, res, (err) => {
+      if (err) return res.status(400).json({ success: false, message: err.message })
+      next()
+    })
+  },
+  controller.updateProducto
+)
+
 // 🟢 PÚBLICA: Ruta necesaria para el flujo de ventas del local o bot
 router.get('/vender/:id/:cantidad', controller.venderProducto)
 
