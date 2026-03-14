@@ -14,21 +14,23 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
   const [producto, setProducto] = useState(null)
 
   useEffect(() => {
-    // Buscamos el producto por ID (asegurándonos de comparar números con números)
+    // 👇 NUEVO: Hacemos que la página suba al principio al cargar un nuevo producto
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     const encontrado = productos.find(p => p.id === parseInt(id))
     setProducto(encontrado)
   }, [id, productos])
 
   if (!producto) {
-    return <div className="dashboard-container" style={{textAlign:'center', padding:'50px'}}>Cargando mate... 🧉</div>
+    return <div className="dashboard-container" style={{textAlign:'center', padding:'100px', fontSize: '1.5rem', color: '#c5a059'}}>Cargando detalle... 🧉</div>
   }
 
   // Simulamos descripción según categoría
   const descripcion = producto.categoria === 'Termos' 
-    ? 'Mantiene el agua caliente por 24hs. Acero inoxidable 18/8, libre de BPA. Tapón cebador de alta precisión ideal para mate.'
+    ? 'Mantiene el agua caliente por 24hs. Acero inoxidable 18/8, libre de BPA. Tapón cebador de alta precisión ideal para el ritual matero. Resistencia extrema contra golpes y caídas.'
     : producto.categoria === 'Bombillas'
-    ? 'Fabricada en alpaca de alta calidad. Filtro tipo pala para evitar que se tape. Diseño ergonómico y disipador de calor.'
-    : 'La mejor calidad del mercado. Seleccionado especialmente para los amantes del buen mate. Garantía de satisfacción.'
+    ? 'Fabricada en alpaca de alta calidad. Filtro tipo pala para evitar que se tape. Diseño ergonómico y disipador de calor en el pico para no quemarse.'
+    : 'La mejor calidad del mercado. Seleccionado especialmente para los amantes del buen mate. Garantía de satisfacción total.'
 
   // Productos relacionados (Misma categoría, pero no el mismo producto)
   const relacionados = productos
@@ -36,26 +38,25 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
     .slice(0, 3)
 
   return (
-    <div className="dashboard-container">
+    <div className="tienda-wrapper" style={{ paddingTop: '30px' }}>
       
-      {/* Botón Volver (El estilo .btn-back está en layout.css) */}
-      <button onClick={() => navigate(-1)} className="btn-back">
-        ← Volver
+      <button onClick={() => navigate(-1)} className="btn-buy" style={{ width: 'auto', padding: '10px 20px', marginBottom: '20px', background: 'transparent', color: '#a0a0a0', borderColor: '#333' }}>
+        ← VOLVER AL CATÁLOGO
       </button>
 
       <div className="detail-container">
         
         {/* COLUMNA IZQUIERDA: IMAGEN */}
-        <div className="detail-image-box" style={{overflow: 'hidden'}}>
+        <div className="detail-image-box">
             {producto.imagen ? (
                 <img 
                     src={`${API_URL}${producto.imagen}`} 
                     alt={producto.nombre} 
-                    style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                    className="detail-image"
                 />
             ) : (
-                <span style={{fontSize: '8rem'}}>
-                    {producto.categoria === 'Termos' ? '⚱️' : producto.categoria === 'Bombillas' ? '🧪' : producto.categoria === 'Kits' ? '💼' : '🧉'}
+                <span className="detail-image-placeholder">
+                    {producto.categoria === 'Termos' ? '⚱️' : producto.categoria === 'Bombillas' ? '🥢' : producto.categoria === 'Kits' ? '💼' : '🧉'}
                 </span>
             )}
         </div>
@@ -64,24 +65,24 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
         <div className="detail-info">
           <span className="detail-category">{producto.categoria}</span>
           <h1 className="detail-title">{producto.nombre}</h1>
-          <p className="detail-price">${producto.precio.toLocaleString()}</p>
+          <p className="detail-price">${Number(producto.precio).toLocaleString('es-AR')}</p>
           
           <div className="detail-description">
-            <h3>Sobre este producto:</h3>
+            <h3>Sobre este producto</h3>
             <p>{descripcion}</p>
           </div>
 
           <div className="detail-stock-info">
              {producto.stock > 0 ? (
-                 <span style={{color: '#4caf50'}}>✅ Hay Stock ({producto.stock} unid.)</span>
+                 <span style={{color: '#10b981'}}>✅ En Stock ({producto.stock} unidades disponibles)</span>
              ) : (
-                 <span style={{color: '#d32f2f'}}>❌ Agotado</span>
+                 <span style={{color: '#ef4444'}}>❌ Producto Agotado temporalmente</span>
              )}
           </div>
 
           <button 
             className="btn-buy" 
-            style={{marginTop: '30px', padding: '18px', fontSize: '1.2rem'}}
+            style={{marginTop: '20px', padding: '18px', fontSize: '1.2rem', background: producto.stock > 0 ? '#c5a059' : 'transparent', color: producto.stock > 0 ? '#000' : '#ef4444', borderColor: producto.stock > 0 ? '#c5a059' : '#ef4444'}}
             onClick={() => agregarAlCarrito(producto)}
             disabled={producto.stock === 0}
           >
@@ -93,30 +94,48 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
       {/* PRODUCTOS RELACIONADOS */}
       {relacionados.length > 0 && (
           <div className="related-section">
-            <h3 className="section-title">También te puede interesar...</h3>
+            <h3 className="section-title">Completá tu equipo</h3>
+            
+            {/* 👇 Usamos la misma estructura de la Tienda para que se vean iguales */}
             <div className="grid">
                 {relacionados.map(rel => {
                     const esCriticoRel = rel.stock > 0 && rel.stock <= rel.stockMinimo;
+                    
                     return (
                     <div key={rel.id} className="card">
                         <div className="category-tag">{rel.categoria}</div>
+                        
                         <div className={`badge-stock ${rel.stock === 0 ? 'out' : esCriticoRel ? 'low' : 'ok'}`}>
-                          {rel.stock === 0 ? 'AGOTADO' : 'STOCK'}
+                          {rel.stock === 0 ? 'AGOTADO' : esCriticoRel ? `ÚLTIMOS ${rel.stock}` : 'STOCK'}
                         </div>
                         
-                        <Link to={`/producto/${rel.id}`} style={{textDecoration:'none', display: 'block'}}>
-                            <div className="card-image-box" style={{height:'150px', fontSize:'3rem', overflow: 'hidden'}}>
+                        <Link to={`/producto/${rel.id}`} className="card-image-link">
+                            <div className="card-image-box">
                                 {rel.imagen ? (
-                                    <img src={`${API_URL}${rel.imagen}`} alt={rel.nombre} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                                    <img src={`${API_URL}${rel.imagen}`} alt={rel.nombre} className="card-image" />
                                 ) : (
-                                    <span>{rel.categoria === 'Termos' ? '⚱️' : rel.categoria === 'Bombillas' ? '🧪' : '🧉'}</span>
+                                    <span className="card-image-placeholder">
+                                      {rel.categoria === 'Termos' ? '⚱️' : rel.categoria === 'Bombillas' ? '🥢' : '🧉'}
+                                    </span>
                                 )}
                             </div>
-                            <div className="card-body">
-                                <h4 style={{color:'#fff', fontSize:'1rem', margin: '0 0 10px 0'}}>{rel.nombre}</h4>
-                                <p style={{color:'#c5a059', fontWeight:'bold', margin: 0}}>${rel.precio.toLocaleString()}</p>
-                            </div>
                         </Link>
+                        
+                        <div className="card-body">
+                            <Link to={`/producto/${rel.id}`} style={{textDecoration:'none'}}>
+                              <h2 className="card-title">{rel.nombre}</h2>
+                            </Link>
+                            <div className="price-section">
+                               <div className="precio-final">${Number(rel.precio).toLocaleString('es-AR')}</div>
+                            </div>
+                            <button 
+                              className="btn-buy" 
+                              onClick={() => agregarAlCarrito(rel)}
+                              disabled={rel.stock === 0}
+                            >
+                              {rel.stock === 0 ? 'SIN STOCK' : 'AGREGAR AL CARRITO'}
+                            </button>
+                        </div>
                     </div>
                 )})}
             </div>

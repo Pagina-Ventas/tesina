@@ -1,18 +1,20 @@
-/* Importamos la fuente Inter desde Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+/* Importamos las fuentes de Imperio Mate desde Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap');
 
 :root {
-  /* Paleta de Colores Profesional */
-  --bg-dark: #09090b;       /* Fondo casi negro */
-  --bg-card: #18181b;       /* Fondo de tarjetas */
-  --primary: #3b82f6;       /* Azul Tech */
-  --primary-hover: #2563eb;
-  --accent: #8b5cf6;        /* Violeta para detalles */
-  --text-main: #e4e4e7;     /* Blanco suave (no cansa la vista) */
-  --text-muted: #a1a1aa;    /* Gris para textos secundarios */
-  --success: #22c55e;       /* Verde Stock */
-  --danger: #ef4444;        /* Rojo Alerta */
-  --border: #27272a;        /* Bordes sutiles */
+  /* Paleta de Colores Premium - Imperio Mate */
+  --bg-dark: #0a0a0a;       /* Fondo negro profundo */
+  --bg-card: #1e1e1e;       /* Fondo de tarjetas */
+  --primary: #c5a059;       /* Dorado principal */
+  --primary-hover: #e0b86a; /* Dorado claro para hover */
+  --accent: #d4af37;        /* Dorado acento */
+  
+  --text-main: #ffffff;     /* Blanco puro para textos principales */
+  --text-muted: #a0a0a0;    /* Gris elegante para textos secundarios */
+  
+  --success: #10b981;       /* Verde vibrante para stock/éxito */
+  --danger: #ef4444;        /* Rojo para alertas/sin stock */
+  --border: #333333;        /* Bordes sutiles oscuros */
 }
 
 * {
@@ -22,13 +24,15 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background-color: var(--bg-dark);
   color: var(--text-main);
-  -webkit-font-smoothing: antialiased; /* Suavizado de fuente para pantallas retina */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; /* Evita el scroll horizontal fantasma */
 }
 
-/* Scrollbar personalizada */
+/* Scrollbar personalizada unificada */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -36,6 +40,9 @@ body {
   background: var(--bg-dark);
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--border);
   border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
 }

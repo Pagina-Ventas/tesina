@@ -1,37 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;800&family=Playfair+Display:ital,wght@0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap');
 
 :root {
-  /* Paleta Apolo */
+  /* --- PALETA IMPERIO MATE (Dark Premium) --- */
+  --imperio-gold: #c5a059;
+  --imperio-gold-hover: #e0b86a;
+  
   --apolo-white: #ffffff;
   --apolo-silver: #e0e0e0;
   --apolo-silver-dark: #888888;
-  --bg-main: #050505;
+  
+  --bg-main: #0a0a0a; /* Negro un poco más profundo */
   --bg-secondary: #121212;
-  --card-surface: rgba(20, 20, 20, 0.7);
-  --border-light: rgba(255, 255, 255, 0.15);
-  --border-strong: rgba(255, 255, 255, 0.4);
+  --card-surface: #1e1e1e;
+  
+  --border-light: #333333;
+  --border-strong: #555555;
+  
   --text-primary: #ffffff;
   --text-secondary: #a0a0a0;
   --text-muted: #666666;
+  
   --shadow-soft: 0 10px 30px -10px rgba(0,0,0,0.8);
-  --shadow-glow: 0 0 20px rgba(255, 255, 255, 0.1);
+  --shadow-glow: 0 0 20px rgba(197, 160, 89, 0.15); /* Resplandor dorado */
   --glass-blur: blur(12px);
 }
 
-html { scroll-behavior: smooth; }
+/* RESETEO GLOBAL: Evita que los márgenes rompan el ancho de la página */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html { 
+  scroll-behavior: smooth; 
+  overflow-x: hidden; /* Corta cualquier desborde horizontal */
+}
 
 body {
   background-color: var(--bg-main);
-  background-image: linear-gradient(to bottom, rgba(0,0,0,0.4), var(--bg-main)), url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='4' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  /* Fondo con ruido estático sutil, le da textura de lujo */
+  background-image: linear-gradient(to bottom, rgba(10,10,10,0.8), var(--bg-main)), url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='4' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
   color: var(--text-primary);
   font-family: 'Montserrat', sans-serif;
   line-height: 1.6;
   margin: 0;
   padding: 0;
+  overflow-x: hidden; 
 }
 
+/* =========================================
+   SCROLLBAR PERSONALIZADA (Premium)
+   ========================================= */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--imperio-gold);
+}
+
+/* CONTENEDOR BASE */
 .dashboard-container {
   max-width: 1400px;
   margin: 0 auto;
   padding: 30px 20px;
+}
+
+/* Clases de utilidad */
+.text-gold {
+  color: var(--imperio-gold);
 }

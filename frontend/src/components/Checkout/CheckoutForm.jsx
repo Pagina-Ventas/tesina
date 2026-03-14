@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import "../../style/auth.css";
 import { useMercadoPago } from '../../hooks/useMercadoPago'
 
-// Usamos la misma URL que configuraste en App.jsx
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar }) {
@@ -17,17 +16,11 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     email: ''
   })
 
-  // Estado para guardar el porcentaje de recargo desde la base de datos
   const [recargoTarjetaPorcentaje, setRecargoTarjetaPorcentaje] = useState(0)
-
-  // Hook personalizado para Mercado Pago
   const { iniciarPago, cargando: pagandoMP } = useMercadoPago()
   const [procesandoManual, setProcesandoManual] = useState(false)
-
-  // Combinamos ambos estados de carga para bloquear la UI si algo está pasando
   const procesandoTotal = procesandoManual || pagandoMP
 
-  // 1. Obtener la configuración de Mercado Pago (El % de recargo)
   useEffect(() => {
     const fetchConfiguracion = async () => {
       try {
@@ -43,7 +36,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     fetchConfiguracion()
   }, [])
 
-  // 2. Autocompletamos los datos del perfil
   useEffect(() => {
     const userStr = localStorage.getItem('usuarioData')
     if (userStr) {
@@ -54,20 +46,17 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
           nombre: user.nombre || '',
           telefono: user.telefono || '',
           direccion: user.direccion || '',
-          // Juntamos ciudad y provincia para que quede bien en el campo "Ciudad / Provincia"
           ciudad: user.ciudad ? `${user.ciudad}${user.provincia ? `, ${user.provincia}` : ''}` : ''
         }))
-      } catch (error) {
-        console.error('Error leyendo datos del usuario', error)
-      }
+      } catch (error) {}
     }
-  }, []) // El array vacío hace que solo se ejecute al abrir el modal
+  }, [])
 
+  // 👇 DATOS DEL BANCO ACTUALIZADOS SEGÚN TU PEDIDO
   const DATOS_BANCO = {
-    cbu: '0000003100000000000000',
-    alias: 'IMPERIO.MATE.PRO',
-    banco: 'Banco Nación',
-    titular: 'Germán Proprietario'
+    cvu: '4530000800014211011333',
+    alias: 'alexiaaubone',
+    titular: 'ApoloMate'
   }
 
   const COSTOS_ENVIO = {
@@ -76,12 +65,7 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     andreani: 8200
   }
 
-  const costoEnvio =
-    datos.tipoEntrega === 'Envio' && datos.courier
-      ? COSTOS_ENVIO[datos.courier] || 0
-      : 0
-
-  // Calculamos el recargo solo si eligió Mercado Pago
+  const costoEnvio = datos.tipoEntrega === 'Envio' && datos.courier ? COSTOS_ENVIO[datos.courier] || 0 : 0
   const subTotal = totalProductos + costoEnvio
   const costoRecargoTarjeta = datos.metodoPago === 'MercadoPago' ? (subTotal * (recargoTarjetaPorcentaje / 100)) : 0
   const totalFinal = subTotal + costoRecargoTarjeta
@@ -103,10 +87,7 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
       cliente: datos.nombre,
       email: datos.email,
       telefono: datos.telefono,
-      direccion:
-        datos.tipoEntrega === 'Envio'
-          ? `${datos.direccion}, ${datos.ciudad}`
-          : 'Retiro en Local',
+      direccion: datos.tipoEntrega === 'Envio' ? `${datos.direccion}, ${datos.ciudad}` : 'Retiro en Local',
       items: carrito,
       total: totalFinal,
       metodoPago: datos.metodoPago,
@@ -116,12 +97,9 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
       fecha: new Date().toLocaleString()
     }
 
-    // --- ESCENARIO 1: MERCADO PAGO ---
     if (datos.metodoPago === 'MercadoPago') {
       try {
         setProcesandoManual(true)
-
-        // 1. Guardar el pedido primero para obtener ID real de DB
         const pedidoCreado = await onConfirmar(orden, true)
         const idReal = pedidoCreado?.id || pedidoCreado?.pedido?.id || pedidoCreado?.pedidoId
 
@@ -129,14 +107,12 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
           throw new Error('No se pudo generar el pedido en la base de datos.')
         }
 
-        // 👇 SOLUCIÓN: Construimos el array de "items" para que Mercado Pago los sume
         const itemsParaMercadoPago = carrito.map(item => ({
           title: item.nombre,
           quantity: item.cantidad,
           unit_price: item.precio
         }));
 
-        // Si hay costo de envío, lo agregamos como un ítem más
         if (costoEnvio > 0) {
           itemsParaMercadoPago.push({
             title: `Costo de Envío (${datos.courier})`,
@@ -145,7 +121,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
           });
         }
 
-        // Si hay recargo por tarjeta, lo agregamos como un ítem más
         if (costoRecargoTarjeta > 0) {
           itemsParaMercadoPago.push({
             title: `Recargo por pago con Tarjeta (${recargoTarjetaPorcentaje}%)`,
@@ -154,7 +129,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
           });
         }
 
-        // 2. Delegar el pago al Hook con los ítems completos
         await iniciarPago({
           items: itemsParaMercadoPago,
           cliente: {
@@ -173,7 +147,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
       return
     }
 
-    // --- ESCENARIO 2: TRANSFERENCIA / EFECTIVO ---
     try {
       setProcesandoManual(true)
       await onConfirmar(orden, false)
@@ -184,170 +157,161 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     }
   }
 
+  // 👇 ESTILOS UNIFICADOS PARA INPUTS
+  const inputStyle = {
+    width: '100%', padding: '12px 15px', borderRadius: '8px', 
+    background: '#0a0a0a', border: '1px solid #333', color: '#fff', 
+    boxSizing: 'border-box', outline: 'none'
+  };
+
   return (
-    <div className="checkout-overlay">
-      <div className="checkout-card" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
-        <h2 className="checkout-title">Finalizar Compra</h2>
+    <div className="checkout-overlay" style={{ zIndex: 9999, backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.85)' }}>
+      <div className="checkout-card" style={{ 
+        maxHeight: '90vh', overflowY: 'auto', background: '#121212', 
+        border: '1px solid #c5a059', borderRight: '5px solid #c5a059', 
+        borderRadius: '20px', padding: '40px 30px', maxWidth: '450px',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.6)'
+      }}>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', paddingBottom: '15px' }}>
+          <h2 style={{ fontFamily: 'Playfair Display', fontSize: '2.4rem', color: '#fff', margin: '0 auto' }}>Finalizar Compra</h2>
+          <button onClick={onCancelar} style={{ background: 'transparent', border: 'none', color: '#a0a0a0', fontSize: '1.5rem', cursor: 'pointer', position: 'absolute', right: '35px' }}>✕</button>
+        </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
             <div className="form-group">
-              <label className="form-label">Nombre</label>
-              <input
-                type="text"
-                name="nombre"
-                required
-                className="form-input"
-                onChange={handleChange}
-                value={datos.nombre}
-                disabled={procesandoTotal}
-              />
+              <label style={{ color: '#fff', fontSize: '0.9rem', marginBottom: '8px', display: 'block', fontWeight: 'bold' }}>Nombre</label>
+              <input type="text" name="nombre" required style={inputStyle} onChange={handleChange} value={datos.nombre} disabled={procesandoTotal} />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Teléfono</label>
-              <input
-                type="tel"
-                name="telefono"
-                required
-                className="form-input"
-                onChange={handleChange}
-                value={datos.telefono}
-                disabled={procesandoTotal}
-              />
+              <label style={{ color: '#fff', fontSize: '0.9rem', marginBottom: '8px', display: 'block', fontWeight: 'bold' }}>Teléfono</label>
+              <input type="tel" name="telefono" required style={inputStyle} onChange={handleChange} value={datos.telefono} disabled={procesandoTotal} />
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Email (Para enviar recibo)</label>
-            <input
-              type="email"
-              name="email"
-              required
-              className="form-input"
-              onChange={handleChange}
-              value={datos.email}
-              disabled={procesandoTotal}
-            />
+          <div className="form-group" style={{ marginBottom: '20px' }}>
+            <label style={{ color: '#fff', fontSize: '0.9rem', marginBottom: '8px', display: 'block', fontWeight: 'bold' }}>Email (Para enviar recibo)</label>
+            <input type="email" name="email" required style={inputStyle} onChange={handleChange} value={datos.email} disabled={procesandoTotal} />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Forma de Pago</label>
-            <select
-              name="metodoPago"
-              className="form-input"
-              onChange={handleChange}
-              value={datos.metodoPago}
-              disabled={procesandoTotal}
-            >
+          <div className="form-group" style={{ marginBottom: '20px' }}>
+            <label style={{ color: '#fff', fontSize: '0.9rem', marginBottom: '8px', display: 'block', fontWeight: 'bold' }}>Forma de Pago</label>
+            <select name="metodoPago" style={{...inputStyle, padding: '14px 15px', cursor: 'pointer'}} onChange={handleChange} value={datos.metodoPago} disabled={procesandoTotal}>
               <option value="Transferencia">Transferencia Bancaria (Sin recargo)</option>
-              <option value="MercadoPago">Mercado Pago (Tarjetas / QR)</option>
+              <option value="MercadoPago">Mercado Pago (Tarjetas)</option>
               <option value="Efectivo">Efectivo (Solo retiro)</option>
             </select>
           </div>
 
+          {/* CAJA DE TRANSFERENCIA CON ESTILO OSCURO Y DATOS NUEVOS */}
           {datos.metodoPago === 'Transferencia' && (
-            <div className="payment-info-box" style={{ background: '#1a1a2e', padding: '15px', borderRadius: '8px', border: '1px solid #3b82f6', marginBottom: '20px' }}>
-              <p style={{ color: '#3b82f6', fontWeight: 'bold', margin: '0 0 5px 0' }}>Datos para transferir:</p>
-              <p style={{ fontSize: '0.9rem', color: '#fff', margin: '2px 0' }}>Alias: <strong>{DATOS_BANCO.alias}</strong></p>
-              <p style={{ fontSize: '0.9rem', color: '#fff', margin: '2px 0' }}>CBU: {DATOS_BANCO.cbu}</p>
+            <div style={{ background: '#1e1e2f', padding: '15px', borderRadius: '8px', border: '1px solid #3b82f6', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ color: '#a0a0a0', fontSize: '0.9rem' }}>Titular:</span>
+                  <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{DATOS_BANCO.titular}</strong>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ color: '#a0a0a0', fontSize: '0.9rem' }}>Alias:</span>
+                  <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{DATOS_BANCO.alias}</strong>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ color: '#a0a0a0', fontSize: '0.9rem' }}>CVU:</span>
+                  <span style={{ color: '#fff', fontSize: '0.9rem' }}>{DATOS_BANCO.cvu}</span>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* AVISO CLARO DE RECARGO DE MERCADO PAGO */}
+          {/* AVISO DE MERCADO PAGO */}
           {datos.metodoPago === 'MercadoPago' && (
-            <div className="payment-info-box" style={{ background: 'rgba(0, 158, 227, 0.1)', padding: '15px', borderRadius: '8px', border: '1px solid #009ee3', marginBottom: '20px', textAlign: 'center' }}>
+            <div style={{ background: 'rgba(0, 158, 227, 0.1)', padding: '15px', borderRadius: '8px', border: '1px solid #009ee3', marginBottom: '20px', textAlign: 'center' }}>
               <p style={{ color: '#009ee3', fontWeight: 'bold', margin: '0 0 5px 0' }}>Pago con Tarjeta / Mercado Pago</p>
               <p style={{ fontSize: '0.9rem', color: '#fff', margin: '0' }}>
-                Se aplicará un recargo del <strong>{recargoTarjetaPorcentaje}%</strong> por costos de procesamiento.
+                Se aplicará un recargo del <strong>{recargoTarjetaPorcentaje}%</strong>.
               </p>
             </div>
           )}
 
-          <div className="form-group">
-            <label className="form-label">Método de Entrega</label>
+          <div className="form-group" style={{ marginBottom: '25px' }}>
+            <label style={{ color: '#fff', fontSize: '0.9rem', marginBottom: '10px', display: 'block', fontWeight: 'bold' }}>Método de Entrega</label>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
-                className={`filter-btn ${datos.tipoEntrega === 'Retiro' ? 'active' : ''}`}
                 onClick={() => setDatos({ ...datos, tipoEntrega: 'Retiro', courier: '' })}
-                style={{ flex: 1 }}
+                style={{ flex: 1, padding: '12px', borderRadius: '30px', border: '1px solid #333', fontWeight: 'bold', transition: 'all 0.3s', cursor: 'pointer', background: datos.tipoEntrega === 'Retiro' ? '#fff' : 'transparent', color: datos.tipoEntrega === 'Retiro' ? '#000' : '#a0a0a0' }}
                 disabled={procesandoTotal}
               >
-                🏢 Retiro Local
+                🏢 RETIRO LOCAL
               </button>
 
               <button
                 type="button"
-                className={`filter-btn ${datos.tipoEntrega === 'Envio' ? 'active' : ''}`}
                 onClick={() => setDatos({ ...datos, tipoEntrega: 'Envio' })}
+                style={{ flex: 1, padding: '12px', borderRadius: '30px', border: '1px solid #333', fontWeight: 'bold', transition: 'all 0.3s', cursor: datos.metodoPago === 'Efectivo' ? 'not-allowed' : 'pointer', background: datos.tipoEntrega === 'Envio' ? '#333' : 'transparent', color: datos.tipoEntrega === 'Envio' ? '#fff' : '#a0a0a0', opacity: datos.metodoPago === 'Efectivo' ? 0.3 : 1 }}
                 disabled={datos.metodoPago === 'Efectivo' || procesandoTotal}
-                style={{ flex: 1, opacity: datos.metodoPago === 'Efectivo' ? 0.5 : 1 }}
               >
-                🚚 Envío
+                🚚 ENVÍO
               </button>
             </div>
           </div>
 
           {datos.tipoEntrega === 'Envio' && (
-            <div className="shipping-options" style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #333' }}>
-              <select name="courier" className="form-input" required onChange={handleChange} value={datos.courier} disabled={procesandoTotal}>
+            <div style={{ background: 'transparent', marginBottom: '25px' }}>
+              <select name="courier" required onChange={handleChange} value={datos.courier} disabled={procesandoTotal} style={{...inputStyle, marginBottom: '10px', cursor: 'pointer'}}>
                 <option value="" disabled>Seleccionar empresa...</option>
                 <option value="didimoto">🛵 Didimoto - $2.500</option>
                 <option value="correo">📦 Correo Argentino - $6.500</option>
                 <option value="andreani">🚚 Andreani Express - $8.200</option>
               </select>
-              <div style={{ marginTop: '15px' }}>
-                <input type="text" name="direccion" placeholder="Calle y Altura" required className="form-input" style={{ marginBottom: '10px' }} onChange={handleChange} value={datos.direccion} disabled={procesandoTotal} />
-                <input type="text" name="ciudad" placeholder="Ciudad / Provincia" required className="form-input" onChange={handleChange} value={datos.ciudad} disabled={procesandoTotal} />
-              </div>
+              <input type="text" name="direccion" placeholder="Calle y Altura" required style={{...inputStyle, marginBottom: '10px'}} onChange={handleChange} value={datos.direccion} disabled={procesandoTotal} />
+              <input type="text" name="ciudad" placeholder="Ciudad / Provincia" required style={inputStyle} onChange={handleChange} value={datos.ciudad} disabled={procesandoTotal} />
             </div>
           )}
 
-          <div style={{ borderTop: '1px solid #333', paddingTop: '15px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <div style={{ paddingTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a0a0a0', fontSize: '0.9rem' }}>
               <span>Subtotal Productos:</span>
-              <span>${totalProductos.toLocaleString()}</span>
+              <span>${totalProductos.toLocaleString('es-AR')}</span>
             </div>
             
             {costoEnvio > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: '0.9rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a0a0a0', fontSize: '0.9rem' }}>
                 <span>Costo Envío:</span>
-                <span>+ ${costoEnvio.toLocaleString()}</span>
+                <span>+ ${costoEnvio.toLocaleString('es-AR')}</span>
               </div>
             )}
 
-            {/* DETALLE DEL RECARGO EN EL TOTAL */}
             {costoRecargoTarjeta > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#009ee3', fontSize: '0.9rem' }}>
                 <span>Recargo Tarjeta ({recargoTarjetaPorcentaje}%):</span>
-                <span>+ ${costoRecargoTarjeta.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                <span>+ ${costoRecargoTarjeta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', color: '#4caf50', fontWeight: '900', marginTop: '10px' }}>
-              <span>TOTAL FINAL:</span>
-              <span>${totalFinal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', color: '#22c55e', fontWeight: '900', marginTop: '10px' }}>
+              <span style={{color: '#22c55e'}}>TOTAL FINAL:</span>
+              <span>${totalFinal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
             </div>
           </div>
 
           <button
             type="submit"
-            className="btn-whatsapp"
             disabled={procesandoTotal}
-            style={{
-              background: datos.metodoPago === 'MercadoPago' ? '#009ee3' : '#25D366',
-              opacity: procesandoTotal ? 0.7 : 1,
-              marginTop: '20px'
+            style={{ 
+              width: '100%', padding: '16px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1.1rem', cursor: procesandoTotal ? 'not-allowed' : 'pointer', transition: 'all 0.3s', marginTop: '25px',
+              background: datos.metodoPago === 'MercadoPago' ? '#009ee3' : '#22c55e', 
+              color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
             }}
           >
             {procesandoTotal ? '⏳ PROCESANDO...' : datos.metodoPago === 'MercadoPago' ? 'PAGAR CON MERCADO PAGO 💳' : 'ENVIAR PEDIDO A REVISIÓN 📨'}
           </button>
 
-          <button type="button" className="btn-cancel" onClick={onCancelar} disabled={procesandoTotal}>
-            Volver
-          </button>
         </form>
       </div>
     </div>

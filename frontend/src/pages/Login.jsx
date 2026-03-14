@@ -1,12 +1,10 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-
-// --- IMPORTAMOS SOLO EL CSS DE AUTENTICACIÓN ---
 import '../style/auth.css' 
 
 export function Login() {
-  const [esRegistro, setEsRegistro] = useState(false) // Estado para alternar entre Login y Registro
+  const [esRegistro, setEsRegistro] = useState(false)
   const [formData, setFormData] = useState({
       username: '',
       password: ''
@@ -22,13 +20,11 @@ export function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Validación básica
     if(!formData.username || !formData.password) {
         toast.error('Por favor completa todos los campos')
         return
     }
 
-    // Decidimos a qué endpoint llamar según el modo
     const endpoint = esRegistro ? '/api/auth/register' : '/api/auth/login'
 
     try {
@@ -41,29 +37,23 @@ export function Login() {
 
         if (data.success) {
             if (esRegistro) {
-                // CASO: REGISTRO EXITOSO
                 toast.success('¡Cuenta creada con éxito! Ahora inicia sesión.')
-                setEsRegistro(false) // Cambiamos la vista a Login automáticamente
+                setEsRegistro(false) 
             } else {
-                // CASO: LOGIN EXITOSO
-                
-                // Guardamos datos básicos
                 localStorage.setItem('token', data.token) 
                 
                 if (data.role === 'admin') {
-                    // Si es Admin, guardamos el token específico que usa tu ruta protegida
                     localStorage.setItem('adminToken', data.token)
                     toast.success('Bienvenido Jefe 🛡️')
                     setTimeout(() => window.location.href = '/admin', 1000)
                 } else {
-                    // Si es Cliente
-                    localStorage.setItem('usuarioData', JSON.stringify(data.user)) // Guardamos datos para el perfil
+                    localStorage.setItem('usuarioData', JSON.stringify(data.user)) 
                     toast.success('¡Hola! Vamos a tus datos 📝')
                     setTimeout(() => window.location.href = '/perfil', 1000)
                 }
             }
         } else {
-            toast.error(data.message) // Ej: "Usuario ya existe" o "Contraseña incorrecta"
+            toast.error(data.message) 
         }
     } catch (error) {
         console.error(error)
@@ -71,76 +61,75 @@ export function Login() {
     }
   }
 
+  const inputStyle = {
+    width: '100%', padding: '15px', borderRadius: '8px', 
+    background: '#0a0a0a', border: '1px solid #333', color: '#fff', 
+    boxSizing: 'border-box', outline: 'none', textAlign: 'center',
+    fontSize: '1rem', transition: 'border-color 0.3s'
+  };
+
   return (
-    <div className="login-container" style={{
-        display:'flex', 
-        justifyContent:'center', 
-        alignItems:'center', 
-        height:'100vh', 
-        background:'#121212',
-        flexDirection: 'column',
-        gap: '20px'
-    }}>
+    <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh', background:'#121212', flexDirection: 'column', gap: '30px', padding: '20px' }}>
       
       {/* TARJETA DE LOGIN / REGISTRO */}
-      <form onSubmit={handleSubmit} className="checkout-card" style={{width:'350px', textAlign:'center', padding: '40px 30px'}}>
+      <form onSubmit={handleSubmit} style={{
+          width:'100%', maxWidth: '400px', textAlign:'center', padding: '50px 40px',
+          background: '#1e1e1e', borderRadius: '20px', border: '1px solid #333',
+          borderTop: '4px solid #c5a059', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+      }}>
         
-        {/* Título Dinámico */}
-        <h2 style={{color:'#c5a059', marginBottom:'10px', fontSize: '1.8rem'}}>
-            {esRegistro ? 'CREAR CUENTA' : 'LOGIN'}
+        <h2 style={{ fontFamily: 'Playfair Display', color:'#fff', margin:'0 0 10px 0', fontSize: '2.2rem' }}>
+            {esRegistro ? 'Crear Cuenta' : 'Bienvenido'}
         </h2>
-        <p style={{color:'#888', marginBottom:'30px', fontSize:'0.9rem'}}>
-            {esRegistro ? 'Únete a la comunidad ImperioMate' : 'Ingresa a tu cuenta'}
+        <p style={{color:'#a0a0a0', marginBottom:'40px', fontSize:'0.95rem'}}>
+            {esRegistro ? 'Únete a la comunidad ImperioMate' : 'Ingresa a tu cuenta para continuar'}
         </p>
 
-        <div className="form-group" style={{marginBottom:'15px'}}>
+        <div style={{marginBottom:'20px'}}>
             <input 
                 type="text" 
                 name="username"
-                className="form-input" 
                 placeholder="Usuario"
                 value={formData.username}
                 onChange={handleChange}
-                style={{textAlign: 'center'}}
+                style={inputStyle}
+                onFocus={(e) => e.target.style.borderColor = '#c5a059'}
+                onBlur={(e) => e.target.style.borderColor = '#333'}
             />
         </div>
 
-        <div className="form-group" style={{marginBottom:'25px'}}>
+        <div style={{marginBottom:'35px'}}>
             <input 
                 type="password" 
                 name="password"
-                className="form-input" 
                 placeholder="Contraseña"
                 value={formData.password}
                 onChange={handleChange}
-                style={{textAlign: 'center'}}
+                style={inputStyle}
+                onFocus={(e) => e.target.style.borderColor = '#c5a059'}
+                onBlur={(e) => e.target.style.borderColor = '#333'}
             />
         </div>
 
-        <button type="submit" className="btn-whatsapp" style={{width:'100%', padding:'12px', fontSize:'1rem'}}>
-            {esRegistro ? 'REGISTRARSE' : 'INGRESAR'}
+        <button type="submit" style={{
+            width:'100%', padding:'15px', fontSize:'1.1rem', fontWeight: 'bold',
+            background: '#c5a059', color: '#000', border: 'none', borderRadius: '8px',
+            cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', transition: 'all 0.3s'
+        }}
+        onMouseOver={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 10px 20px rgba(197,160,89,0.3)' }}
+        onMouseOut={(e) => { e.target.style.transform = 'none'; e.target.style.boxShadow = 'none' }}
+        >
+            {esRegistro ? 'Registrarse' : 'Ingresar'}
         </button>
 
         {/* Toggle para cambiar entre Login y Registro */}
-        <p 
-            onClick={() => setEsRegistro(!esRegistro)}
-            style={{
-                marginTop:'20px', 
-                color:'#aaa', 
-                fontSize:'0.9rem', 
-                cursor:'pointer',
-                textDecoration: 'underline'
-            }}
-        >
-            {esRegistro 
-                ? '¿Ya tienes cuenta? Inicia Sesión' 
-                : '¿No tienes cuenta? Regístrate aquí'}
+        <p onClick={() => setEsRegistro(!esRegistro)} style={{ marginTop:'25px', color:'#a0a0a0', fontSize:'0.9rem', cursor:'pointer', transition: 'color 0.3s' }} onMouseOver={(e) => e.target.style.color = '#c5a059'} onMouseOut={(e) => e.target.style.color = '#a0a0a0'}>
+            {esRegistro ? '¿Ya tienes cuenta? Inicia Sesión' : '¿No tienes cuenta? Regístrate aquí'}
         </p>
 
       </form>
 
-      {/* BOTÓN VOLVER FUERA DE LA TARJETA */}
-      <Link to="/" style={{color: '#666', textDecoration: 'none', display:'flex', alignItems:'center', gap:'5px', fontSize:'0.9rem'}}>
+      <Link to="/" style={{color: '#666', textDecoration: 'none', display:'flex', alignItems:'center', gap:'5px', fontSize:'0.9rem', transition: 'color 0.3s'}} onMouseOver={(e) => e.target.style.color = '#fff'} onMouseOut={(e) => e.target.style.color = '#666'}>
          ← Volver a la Tienda
       </Link>
 
