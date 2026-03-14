@@ -8,44 +8,35 @@ import '../style/Admin.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-// 👇 Agregamos editarProductoAdmin a los props
 export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin, editarProductoAdmin }) {
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
-  
-  // Estado para guardar los logs
   const [logs, setLogs] = useState([])
-
-  // 👇 NUEVO: Estado para el recargo de Mercado Pago
   const [recargoMP, setRecargoMP] = useState(20)
 
   const [busqueda, setBusqueda] = useState('')
   const [vistaActiva, setVistaActiva] = useState('dashboard')
 
-  // --- MODAL CREAR PRODUCTO ---
   const [mostrarModal, setMostrarModal] = useState(false)
   const [nuevoProd, setNuevoProd] = useState({
     nombre: '',
-    categoria: '', 
+    categoria: '',
     precio: '',
     stock: '',
     stockMinimo: 5,
+    descripcion: '',
     imagen: null
   })
 
-  // --- MODAL REPONER STOCK ---
   const [mostrarModalReponer, setMostrarModalReponer] = useState(false)
   const [productoAReponer, setProductoAReponer] = useState(null)
   const [cantidadReponer, setCantidadReponer] = useState(1)
 
-  // 👇 NUEVO: ESTADO PARA EDITAR PRODUCTO
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false)
   const [prodEditar, setProdEditar] = useState(null)
 
-  // --- CATEGORIAS: crear ---
   const [nuevaCategoria, setNuevaCategoria] = useState('')
 
-  // --- MODAL DETALLE DE PEDIDO ---
   const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false)
   const [pedidoDetalle, setPedidoDetalle] = useState(null)
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
@@ -74,7 +65,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // Cargar Logs
   const cargarLogs = async () => {
     try {
       const res = await fetch(`${API_URL}/api/logs`, {
@@ -88,7 +78,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // 👇 NUEVA FUNCIÓN: Cargar Configuración del Recargo
   const cargarConfiguracion = async () => {
     try {
       const res = await fetch(`${API_URL}/api/mercadopago/configuracion`)
@@ -101,12 +90,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // 👇 NUEVA FUNCIÓN: Guardar Configuración del Recargo
   const guardarConfiguracion = async () => {
     try {
       const res = await fetch(`${API_URL}/api/mercadopago/configuracion`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -126,12 +114,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   useEffect(() => {
     cargarProductos()
     cargarCategorias()
-    cargarLogs() 
-    cargarConfiguracion() // 👈 Agregamos esto aquí
+    cargarLogs()
+    cargarConfiguracion()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mostrarModal, mostrarModalEditar, pedidos]) // 👈 Se refresca también al cerrar el modal de edición
+  }, [mostrarModal, mostrarModalEditar, pedidos])
 
-  // ✅ Obtener Detalle de un Pedido 
   const verDetallePedidoAdmin = async (id) => {
     setCargandoDetalle(true)
     try {
@@ -153,13 +140,12 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // ✅ eliminar pedido
   const eliminarPedidoAdmin = async (id) => {
     const ok = window.confirm(`¿Eliminar el pedido #${id}? Esta acción no se puede deshacer.`)
     if (!ok) return
 
     try {
-      const res = await fetch(`${API_URL}/api/pedidos/${id}`, { 
+      const res = await fetch(`${API_URL}/api/pedidos/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -203,15 +189,23 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     formData.append('precio', nuevoProd.precio)
     formData.append('stock', nuevoProd.stock)
     formData.append('stockMinimo', nuevoProd.stockMinimo)
+    formData.append('descripcion', nuevoProd.descripcion)
 
     if (nuevoProd.imagen) formData.append('imagen', nuevoProd.imagen)
 
     crearProducto(formData)
     setMostrarModal(false)
-    setNuevoProd({ nombre: '', categoria: '', precio: '', stock: '', stockMinimo: 5, imagen: null })
+    setNuevoProd({
+      nombre: '',
+      categoria: '',
+      precio: '',
+      stock: '',
+      stockMinimo: 5,
+      descripcion: '',
+      imagen: null
+    })
   }
 
-  // 👇 NUEVAS FUNCIONES PARA EDITAR
   const abrirEditar = (prod) => {
     setProdEditar({
       id: prod.id,
@@ -220,13 +214,16 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       precio: prod.precio,
       stock: prod.stock,
       stockMinimo: prod.stockMinimo || 5,
+      descripcion: prod.descripcion || '',
       imagen: null
     })
     setMostrarModalEditar(true)
   }
 
   const handleEditChange = (e) => setProdEditar({ ...prodEditar, [e.target.name]: e.target.value })
-  const handleEditFileChange = (e) => { if (e.target.files && e.target.files[0]) setProdEditar({ ...prodEditar, imagen: e.target.files[0] }) }
+  const handleEditFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) setProdEditar({ ...prodEditar, imagen: e.target.files[0] })
+  }
 
   const handleEditSubmit = async (e) => {
     e.preventDefault()
@@ -236,8 +233,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     formData.append('precio', prodEditar.precio)
     formData.append('stock', prodEditar.stock)
     formData.append('stockMinimo', prodEditar.stockMinimo)
+    formData.append('descripcion', prodEditar.descripcion)
     if (prodEditar.imagen) formData.append('imagen', prodEditar.imagen)
-    
+
     const exito = await editarProductoAdmin(prodEditar.id, formData)
     if (exito) {
       setMostrarModalEditar(false)
@@ -271,9 +269,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       } else {
         const res = await fetch(`${API_URL}/api/productos/${productoAReponer.id}/reponer`, {
           method: 'PUT',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ cantidad: cant })
         })
@@ -291,13 +289,12 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // ✅ ELIMINAR PRODUCTO
   const eliminarProductoAdmin = async (id) => {
     const ok = window.confirm('¿Eliminar este producto del catálogo?')
     if (!ok) return
 
     try {
-      const res = await fetch(`${API_URL}/api/productos/${id}`, { 
+      const res = await fetch(`${API_URL}/api/productos/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -314,7 +311,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // ✅ CREAR CATEGORIA
   const crearCategoria = async () => {
     const nombre = nuevaCategoria.trim()
     if (!nombre) return alert('Escribí un nombre de categoría')
@@ -322,7 +318,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     try {
       const res = await fetch(`${API_URL}/api/categorias`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -344,13 +340,12 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // ✅ ELIMINAR CATEGORÍA
   const eliminarCategoria = async (id, nombreCategoria) => {
     const ok = window.confirm(`¿Seguro que quieres eliminar la categoría "${nombreCategoria}"? ¡Se borrarán TODOS los productos que le pertenezcan!`)
     if (!ok) return
 
     try {
-      const res = await fetch(`${API_URL}/api/categorias/${id}`, { 
+      const res = await fetch(`${API_URL}/api/categorias/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -370,7 +365,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
-  // --- DATOS PARA GRAFICOS ---
   const dataCategoriasGraf = productos.reduce((acc, curr) => {
     const cat = acc.find(item => item.name === curr.categoria)
     if (cat) cat.value += curr.stock
@@ -414,7 +408,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   return (
     <div className="admin-wrapper">
-      {/* SIDEBAR */}
       <aside className="admin-sidebar">
         <div className="sidebar-logo">
           <h2>IMPERIO<span>MATE</span></h2>
@@ -442,7 +435,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             📜 Historial
           </button>
 
-          {/* 👇 NUEVO BOTÓN DE AJUSTES EN EL SIDEBAR */}
           <button className={`menu-item ${vistaActiva === 'ajustes' ? 'active' : ''}`} onClick={() => setVistaActiva('ajustes')}>
             ⚙️ Ajustes
           </button>
@@ -452,7 +444,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         </nav>
       </aside>
 
-      {/* CONTENIDO PRINCIPAL */}
       <main className="admin-content">
         <header className="admin-topbar">
           <h2 className="welcome-text">Hola, Germán 👋</h2>
@@ -468,7 +459,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </div>
         </header>
 
-        {/* DASHBOARD */}
         {vistaActiva === 'dashboard' && (
           <>
             <section className="overview-cards">
@@ -543,7 +533,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </>
         )}
 
-        {/* INVENTARIO */}
         {vistaActiva === 'inventario' && (
           <section className="recent-orders">
             <div className="section-header">
@@ -589,7 +578,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                       </td>
 
                       <td style={{ display: 'flex', gap: 10 }}>
-                        {/* 👇 EL NUEVO BOTON DE EDITAR */}
                         <button className="btn-add" style={{ background: '#f59e0b' }} onClick={() => abrirEditar(prod)}>
                           ✏️ Editar
                         </button>
@@ -610,7 +598,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
-        {/* CATEGORIAS */}
         {vistaActiva === 'categorias' && (
           <section className="recent-orders">
             <div className="section-header">
@@ -633,9 +620,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                       <tr key={c.id}>
                         <td style={{ fontWeight: 'bold' }}>{c.nombre}</td>
                         <td style={{ textAlign: 'right' }}>
-                          <button 
-                            className="btn-add" 
-                            style={{ background: '#ef4444', padding: '5px 10px', fontSize: '0.8rem' }} 
+                          <button
+                            className="btn-add"
+                            style={{ background: '#ef4444', padding: '5px 10px', fontSize: '0.8rem' }}
                             onClick={() => eliminarCategoria(c.id, c.nombre)}
                           >
                             🗑 Eliminar
@@ -661,7 +648,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
-        {/* PEDIDOS */}
         {vistaActiva === 'pedidos' && (
           <section className="recent-orders">
             <h3>Lista de Pedidos</h3>
@@ -682,10 +668,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                           </span>
                         </td>
                         <td style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          
-                          <button 
-                            className="btn-add" 
-                            style={{ background: '#3b82f6' }} 
+                          <button
+                            className="btn-add"
+                            style={{ background: '#3b82f6' }}
                             onClick={() => verDetallePedidoAdmin(p.id)}
                             disabled={cargandoDetalle}
                           >
@@ -713,7 +698,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
-        {/* HISTORIAL DE LOGS */}
         {vistaActiva === 'logs' && (
           <section className="recent-orders">
             <div className="section-header">
@@ -753,13 +737,12 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
-        {/* 👇 NUEVA SECCIÓN DE AJUSTES EN EL PANEL PRINCIPAL */}
         {vistaActiva === 'ajustes' && (
           <section className="recent-orders">
             <div className="section-header">
               <h3>⚙️ Configuración General de la Tienda</h3>
             </div>
-            
+
             <div className="checkout-card" style={{ maxWidth: '400px', margin: '20px 0', border: '1px solid #333' }}>
               <div className="form-group">
                 <label className="form-label" style={{ color: '#009ee3', fontWeight: 'bold' }}>
@@ -769,11 +752,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                   Este porcentaje se sumará al subtotal de la compra cuando el cliente elija Mercado Pago.
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input 
-                    type="number" 
-                    className="form-input" 
-                    value={recargoMP} 
-                    onChange={(e) => setRecargoMP(e.target.value)} 
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={recargoMP}
+                    onChange={(e) => setRecargoMP(e.target.value)}
                     min="0"
                     style={{ flex: 1, fontSize: '1.2rem', textAlign: 'center' }}
                   />
@@ -787,16 +770,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             </div>
           </section>
         )}
-
       </main>
 
-      {/* MODAL CREAR PRODUCTO */}
       {mostrarModal && (
         <div className="checkout-overlay">
           <div className="checkout-card" style={{ maxWidth: '500px' }}>
             <h2 className="checkout-title">Nuevo Producto</h2>
             <form onSubmit={handleSubmit}>
-
               <div className="form-group" style={{ border: '1px dashed #444', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
                 <label className="form-label">📸 Imagen del Producto</label>
                 <input type="file" accept="image/*" className="form-input" onChange={handleFileChange} />
@@ -805,6 +785,18 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               <div className="form-group">
                 <label className="form-label">Nombre del Producto</label>
                 <input type="text" name="nombre" required className="form-input" onChange={handleInputChange} value={nuevoProd.nombre} />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Descripción</label>
+                <textarea
+                  name="descripcion"
+                  className="form-input"
+                  onChange={handleInputChange}
+                  value={nuevoProd.descripcion}
+                  rows="4"
+                  placeholder="Escribí una descripción del producto..."
+                />
               </div>
 
               <div className="form-group">
@@ -841,11 +833,10 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         </div>
       )}
 
-      {/* 👇 NUEVO MODAL: EDITAR PRODUCTO */}
       {mostrarModalEditar && prodEditar && (
         <div className="checkout-overlay">
           <div className="checkout-card" style={{ maxWidth: '500px' }}>
-            <h2 className="checkout-title" style={{color: '#f59e0b'}}>Editar Producto</h2>
+            <h2 className="checkout-title" style={{ color: '#f59e0b' }}>Editar Producto</h2>
             <form onSubmit={handleEditSubmit}>
               <div className="form-group" style={{ border: '1px dashed #f59e0b', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
                 <label className="form-label">📸 Cambiar Imagen (Opcional)</label>
@@ -855,6 +846,18 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               <div className="form-group">
                 <label className="form-label">Nombre del Producto</label>
                 <input type="text" name="nombre" required className="form-input" onChange={handleEditChange} value={prodEditar.nombre} />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Descripción</label>
+                <textarea
+                  name="descripcion"
+                  className="form-input"
+                  onChange={handleEditChange}
+                  value={prodEditar.descripcion}
+                  rows="4"
+                  placeholder="Escribí una descripción del producto..."
+                />
               </div>
 
               <div className="form-group">
@@ -876,14 +879,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                 </div>
               </div>
 
-              <button type="submit" className="btn-whatsapp" style={{background: '#f59e0b'}}>Guardar Cambios 💾</button>
+              <button type="submit" className="btn-whatsapp" style={{ background: '#f59e0b' }}>Guardar Cambios 💾</button>
               <button type="button" className="btn-cancel" onClick={() => setMostrarModalEditar(false)}>Cancelar</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL REPONER STOCK */}
       {mostrarModalReponer && (
         <div className="checkout-overlay">
           <div className="checkout-card" style={{ maxWidth: '420px' }}>
@@ -914,7 +916,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         </div>
       )}
 
-      {/* MODAL DETALLE DE PEDIDO PARA EL ADMIN */}
       {modalDetalleAbierto && pedidoDetalle && (
         <div className="checkout-overlay" style={{ zIndex: 9999 }}>
           <div className="checkout-card" style={{ maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #c5a059' }}>
@@ -936,7 +937,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               {pedidoDetalle.items?.map((item, idx) => (
                 <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #222', color: '#fff' }}>
                   <div>
-                    <span style={{ fontWeight: 'bold', color: '#c5a059', marginRight: '8px' }}>{item.cantidad}x</span> 
+                    <span style={{ fontWeight: 'bold', color: '#c5a059', marginRight: '8px' }}>{item.cantidad}x</span>
                     {item.nombre}
                   </div>
                   <div style={{ fontWeight: 'bold' }}>
@@ -957,7 +958,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </div>
         </div>
       )}
-
     </div>
   )
 }
