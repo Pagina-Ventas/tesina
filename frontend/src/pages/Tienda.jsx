@@ -47,6 +47,7 @@ export function Tienda({
           <img src="/banners/banner1.jpg" alt="Banner 1" className="hero-slide" />
           <img src="/banners/banner2.jpg" alt="Banner 2" className="hero-slide" />
           <img src="/banners/banner3.jpg" alt="Banner 3" className="hero-slide" />
+          <img src="/banners/banner4.jpg" alt="Banner 4" className="hero-slide" />
         </div>
 
         <div className="hero-overlay"></div>
