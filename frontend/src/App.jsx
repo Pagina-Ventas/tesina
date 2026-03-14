@@ -21,7 +21,7 @@ import './style/layout.css'
 initMercadoPago('APP_USR-76524e58-7401-4687-acc5-ddb10e609cb9')
 
 // --- IMPORTACIÓN DEL BOTÓN DE WHATSAPP ---
-import { BotonWhatsApp } from './components/BotonWhatsApp';
+import { BotonWhatsApp } from './components/BotonWhatsApp'
 
 // CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -328,8 +328,16 @@ function App() {
 
       <div className="dashboard-container">
         <header className="header">
-          <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
-            APOLO<span>MATE</span>
+          <Link to="/" className="logo-link">
+            <span className="logo">
+              APOLO<span>MATE</span>
+            </span>
+
+            <img
+              src="/logo-apolo.png"
+              alt="Logo Apolo"
+              className="logo-img"
+            />
           </Link>
 
           <input type="text" placeholder="Buscar..." className="search-bar" />
@@ -337,12 +345,28 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             {(localStorage.getItem('token') || localStorage.getItem('adminToken')) ? (
               <>
-                <Link to="/perfil" style={{ color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                <Link
+                  to="/perfil"
+                  style={{
+                    color: '#a0a0a0',
+                    textDecoration: 'none',
+                    fontWeight: 'bold',
+                    fontSize: '0.9rem'
+                  }}
+                >
                   👤 MI PERFIL
                 </Link>
 
                 {localStorage.getItem('adminToken') && (
-                  <Link to="/admin" style={{ color: '#c5a059', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  <Link
+                    to="/admin"
+                    style={{
+                      color: '#c5a059',
+                      textDecoration: 'none',
+                      fontWeight: 'bold',
+                      fontSize: '0.9rem'
+                    }}
+                  >
                     ⚙️ PANEL ADMIN {pedidos.filter(p => p.estado === 'PENDIENTE').length > 0 && <span style={{ color: '#ff4444' }}>•</span>}
                   </Link>
                 )}
@@ -354,21 +378,55 @@ function App() {
                     localStorage.removeItem('usuarioData')
                     window.location.href = '/login'
                   }}
-                  style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #ef4444',
+                    color: '#ef4444',
+                    padding: '5px 10px',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold'
+                  }}
                 >
                   SALIR
                 </button>
               </>
             ) : (
-              <Link to="/login" style={{ color: '#a0a0a0', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>
+              <Link
+                to="/login"
+                style={{
+                  color: '#a0a0a0',
+                  textDecoration: 'none',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem'
+                }}
+              >
                 👤 INGRESAR
               </Link>
             )}
 
             <Link to="/carrito" style={{ textDecoration: 'none' }}>
-              <div style={{ color: '#c5a059', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div
+                style={{
+                  color: '#c5a059',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  gap: '10px',
+                  alignItems: 'center'
+                }}
+              >
                 <span>🛒</span>
-                <span style={{ background: '#c5a059', color: '#000', padding: '2px 8px', borderRadius: '10px', fontSize: '0.9rem' }}>
+                <span
+                  style={{
+                    background: '#c5a059',
+                    color: '#000',
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                    fontSize: '0.9rem'
+                  }}
+                >
                   {totalItems}
                 </span>
               </div>
@@ -432,10 +490,8 @@ function App() {
           />
         </Routes>
       </div>
-      
-      {/* 🚀 EL BOTÓN SE AGREGA AQUÍ AL FINAL, FUERA DE LAS RUTAS PERO DENTRO DEL ROUTER */}
+
       <BotonWhatsApp />
-      
     </BrowserRouter>
   )
 }
