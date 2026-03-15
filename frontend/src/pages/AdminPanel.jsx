@@ -41,6 +41,10 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [pedidoDetalle, setPedidoDetalle] = useState(null)
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
 
+  const fechaActual = new Date()
+  const [anioSeleccionado, setAnioSeleccionado] = useState(fechaActual.getFullYear())
+  const [mesSeleccionado, setMesSeleccionado] = useState(fechaActual.getMonth() + 1)
+
   const token = localStorage.getItem('adminToken')
 
   const cargarProductos = async () => {
@@ -68,7 +72,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const cargarLogs = async () => {
     try {
       const res = await fetch(`${API_URL}/api/logs`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json()
       setLogs(Array.isArray(data) ? data : [])
@@ -96,7 +100,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ recargoMP })
       })
@@ -123,7 +127,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     setCargandoDetalle(true)
     try {
       const res = await fetch(`${API_URL}/api/pedidos/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json()
       if (res.ok) {
@@ -147,7 +151,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     try {
       const res = await fetch(`${API_URL}/api/pedidos/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json().catch(() => null)
 
@@ -221,8 +225,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   }
 
   const handleEditChange = (e) => setProdEditar({ ...prodEditar, [e.target.name]: e.target.value })
+
   const handleEditFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) setProdEditar({ ...prodEditar, imagen: e.target.files[0] })
+    if (e.target.files && e.target.files[0]) {
+      setProdEditar({ ...prodEditar, imagen: e.target.files[0] })
+    }
   }
 
   const handleEditSubmit = async (e) => {
@@ -234,6 +241,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     formData.append('stock', prodEditar.stock)
     formData.append('stockMinimo', prodEditar.stockMinimo)
     formData.append('descripcion', prodEditar.descripcion)
+
     if (prodEditar.imagen) formData.append('imagen', prodEditar.imagen)
 
     const exito = await editarProductoAdmin(prodEditar.id, formData)
@@ -271,7 +279,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({ cantidad: cant })
         })
@@ -296,7 +304,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     try {
       const res = await fetch(`${API_URL}/api/productos/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json().catch(() => ({}))
 
@@ -320,7 +328,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ nombre })
       })
@@ -347,7 +355,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     try {
       const res = await fetch(`${API_URL}/api/categorias/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json().catch(() => ({}))
 
@@ -374,28 +382,128 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   const COLORES_TORTA = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444']
 
-  const dataVentas = useMemo(() => {
-    const meses = []
+  const nombresMeses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ]
+
+  const resumenUltimos6Meses = useMemo(() => {
     const hoy = new Date()
+    const meses = []
 
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const nombreMes = d.toLocaleString('es-ES', { month: 'short' })
-      meses.push({ name: nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1), ventas: 0 })
+      const anioCorto = String(d.getFullYear()).slice(-2)
+
+      meses.push({
+        key,
+        anio: d.getFullYear(),
+        mesNumero: d.getMonth() + 1,
+        name: `${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} '${anioCorto}`,
+        ventas: 0,
+        pedidos: 0,
+        ticketPromedio: 0
+      })
     }
 
-    pedidos.forEach(p => {
-      if (p.estado === 'PAGADO') {
-        meses[meses.length - 1].ventas += Number(p.total || 0)
+    pedidos.forEach((p) => {
+      if (p.estado !== 'PAGADO' || !p.creado_en) return
+
+      const fecha = new Date(p.creado_en)
+      if (Number.isNaN(fecha.getTime())) return
+
+      const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
+      const mes = meses.find((m) => m.key === key)
+
+      if (mes) {
+        mes.ventas += Number(p.total || 0)
+        mes.pedidos += 1
       }
+    })
+
+    meses.forEach((m) => {
+      m.ticketPromedio = m.pedidos > 0 ? m.ventas / m.pedidos : 0
     })
 
     return meses
   }, [pedidos])
 
+  const dataVentas = resumenUltimos6Meses.map((m) => ({
+    name: m.name,
+    ventas: m.ventas
+  }))
+
+  const mesActual = resumenUltimos6Meses[resumenUltimos6Meses.length - 1] || {
+    ventas: 0,
+    pedidos: 0,
+    ticketPromedio: 0
+  }
+
+  const aniosDisponibles = useMemo(() => {
+    const anios = new Set()
+
+    pedidos.forEach((p) => {
+      if (!p.creado_en) return
+      const fecha = new Date(p.creado_en)
+      if (!Number.isNaN(fecha.getTime())) {
+        anios.add(fecha.getFullYear())
+      }
+    })
+
+    anios.add(new Date().getFullYear())
+
+    return Array.from(anios).sort((a, b) => b - a)
+  }, [pedidos])
+
+  const resumenAnual = useMemo(() => {
+    const meses = nombresMeses.map((nombre, index) => ({
+      key: `${anioSeleccionado}-${String(index + 1).padStart(2, '0')}`,
+      mesNumero: index + 1,
+      name: nombre,
+      ventas: 0,
+      pedidos: 0,
+      ticketPromedio: 0
+    }))
+
+    pedidos.forEach((p) => {
+      if (p.estado !== 'PAGADO' || !p.creado_en) return
+
+      const fecha = new Date(p.creado_en)
+      if (Number.isNaN(fecha.getTime())) return
+
+      const anio = fecha.getFullYear()
+      const mes = fecha.getMonth() + 1
+
+      if (anio === anioSeleccionado) {
+        const itemMes = meses.find((m) => m.mesNumero === mes)
+        if (itemMes) {
+          itemMes.ventas += Number(p.total || 0)
+          itemMes.pedidos += 1
+        }
+      }
+    })
+
+    meses.forEach((m) => {
+      m.ticketPromedio = m.pedidos > 0 ? m.ventas / m.pedidos : 0
+    })
+
+    return meses
+  }, [pedidos, anioSeleccionado])
+
+  const mesSeleccionadoData =
+    resumenAnual.find((m) => m.mesNumero === Number(mesSeleccionado)) || {
+      ventas: 0,
+      pedidos: 0,
+      ticketPromedio: 0,
+      name: ''
+    }
+
   const totalProductos = productos.length
   const sinStock = productos.filter(p => p.stock === 0).length
   const valorInventario = productos.reduce((acc, p) => acc + (Number(p.precio || 0) * Number(p.stock || 0)), 0)
+
   const totalVendidoHistorico = pedidos
     .filter(p => p.estado === 'PAGADO')
     .reduce((acc, p) => acc + Number(p.total || 0), 0)
@@ -463,26 +571,55 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           <>
             <section className="overview-cards">
               <div className="stat-card">
+                <div className="stat-icon money">💰</div>
+                <div className="stat-info">
+                  <h3>${Number(mesActual.ventas || 0).toLocaleString('es-AR')}</h3>
+                  <p>Facturación del Mes</p>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon chart">🧾</div>
+                <div className="stat-info">
+                  <h3>{mesActual.pedidos || 0}</h3>
+                  <p>Pedidos del Mes</p>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon box">📊</div>
+                <div className="stat-info">
+                  <h3>${Number(mesActual.ticketPromedio || 0).toLocaleString('es-AR')}</h3>
+                  <p>Ticket Promedio</p>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon warning">🏦</div>
+                <div className="stat-info">
+                  <h3>${Number(totalVendidoHistorico || 0).toLocaleString('es-AR')}</h3>
+                  <p>Facturación Histórica</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="overview-cards" style={{ marginTop: '20px' }}>
+              <div className="stat-card">
                 <div className="stat-icon box">📦</div>
                 <div className="stat-info">
                   <h3>{totalProductos}</h3>
                   <p>Productos</p>
                 </div>
               </div>
+
               <div className="stat-card">
-                <div className="stat-icon money">💰</div>
+                <div className="stat-icon chart">🏷️</div>
                 <div className="stat-info">
-                  <h3>${totalVendidoHistorico.toLocaleString()}</h3>
-                  <p>Ventas Totales</p>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon chart">📈</div>
-                <div className="stat-info">
-                  <h3>${valorInventario.toLocaleString()}</h3>
+                  <h3>${Number(valorInventario || 0).toLocaleString('es-AR')}</h3>
                   <p>Valor Stock</p>
                 </div>
               </div>
+
               <div className="stat-card alert">
                 <div className="stat-icon warning">⚠️</div>
                 <div className="stat-info">
@@ -490,11 +627,19 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                   <p>Sin Stock</p>
                 </div>
               </div>
+
+              <div className="stat-card">
+                <div className="stat-icon money">📈</div>
+                <div className="stat-info">
+                  <h3>${Number(mesActual.ventas || 0).toLocaleString('es-AR')}</h3>
+                  <p>Ganancia Estimada*</p>
+                </div>
+              </div>
             </section>
 
             <section className="charts-grid">
               <div className="chart-container" style={{ minWidth: 0 }}>
-                <h3>📈 Ventas Mensuales</h3>
+                <h3>📈 Facturación - Últimos 6 meses</h3>
                 <div style={{ width: '100%', height: 250, minWidth: 0 }}>
                   <ResponsiveContainer>
                     <AreaChart data={dataVentas}>
@@ -507,8 +652,14 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} />
                       <YAxis axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value) => `$${Number(value || 0).toLocaleString()}`} />
-                      <Area type="monotone" dataKey="ventas" stroke="#3b82f6" fillOpacity={1} fill="url(#colorVentas)" />
+                      <Tooltip formatter={(value) => `$${Number(value || 0).toLocaleString('es-AR')}`} />
+                      <Area
+                        type="monotone"
+                        dataKey="ventas"
+                        stroke="#3b82f6"
+                        fillOpacity={1}
+                        fill="url(#colorVentas)"
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -519,7 +670,15 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                 <div style={{ width: '100%', height: 250, minWidth: 0 }}>
                   <ResponsiveContainer>
                     <PieChart>
-                      <Pie data={dataCategoriasGraf} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                      <Pie
+                        data={dataCategoriasGraf}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
                         {dataCategoriasGraf.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORES_TORTA[index % COLORES_TORTA.length]} />
                         ))}
@@ -529,6 +688,142 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                   </ResponsiveContainer>
                 </div>
               </div>
+            </section>
+
+            <section className="recent-orders" style={{ marginTop: '25px' }}>
+              <div className="section-header">
+                <h3>📅 Resumen de los últimos 6 meses</h3>
+              </div>
+
+              <div className="table-responsive">
+                <table className="clean-table">
+                  <thead>
+                    <tr>
+                      <th>Mes</th>
+                      <th>Pedidos Pagados</th>
+                      <th>Facturación</th>
+                      <th>Ticket Promedio</th>
+                      <th>Ganancia Estimada*</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resumenUltimos6Meses.map((mes) => (
+                      <tr key={mes.key}>
+                        <td style={{ fontWeight: 'bold' }}>{mes.name}</td>
+                        <td>{mes.pedidos}</td>
+                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+                        <td>${Number(mes.ticketPromedio || 0).toLocaleString('es-AR')}</td>
+                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '12px' }}>
+                *Ganancia estimada = facturación. Para ganancia real habría que cargar también el costo de cada producto.
+              </p>
+            </section>
+
+            <section className="recent-orders" style={{ marginTop: '25px' }}>
+              <div className="section-header">
+                <h3>🗂️ Historial por año y mes</h3>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                <div style={{ minWidth: '220px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#aaa' }}>Año</label>
+                  <select
+                    className="form-input"
+                    value={anioSeleccionado}
+                    onChange={(e) => setAnioSeleccionado(Number(e.target.value))}
+                  >
+                    {aniosDisponibles.map((anio) => (
+                      <option key={anio} value={anio}>
+                        {anio}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ minWidth: '220px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#aaa' }}>Mes</label>
+                  <select
+                    className="form-input"
+                    value={mesSeleccionado}
+                    onChange={(e) => setMesSeleccionado(Number(e.target.value))}
+                  >
+                    {nombresMeses.map((mes, index) => (
+                      <option key={mes} value={index + 1}>
+                        {mes}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <section className="overview-cards" style={{ marginBottom: '20px' }}>
+                <div className="stat-card">
+                  <div className="stat-icon money">💰</div>
+                  <div className="stat-info">
+                    <h3>${Number(mesSeleccionadoData.ventas || 0).toLocaleString('es-AR')}</h3>
+                    <p>Facturación de {mesSeleccionadoData.name || 'Mes'}</p>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-icon chart">🧾</div>
+                  <div className="stat-info">
+                    <h3>{mesSeleccionadoData.pedidos || 0}</h3>
+                    <p>Pedidos de {mesSeleccionadoData.name || 'Mes'}</p>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-icon box">📊</div>
+                  <div className="stat-info">
+                    <h3>${Number(mesSeleccionadoData.ticketPromedio || 0).toLocaleString('es-AR')}</h3>
+                    <p>Ticket Promedio</p>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-icon money">📈</div>
+                  <div className="stat-info">
+                    <h3>${Number(mesSeleccionadoData.ventas || 0).toLocaleString('es-AR')}</h3>
+                    <p>Ganancia Estimada*</p>
+                  </div>
+                </div>
+              </section>
+
+              <div className="table-responsive">
+                <table className="clean-table">
+                  <thead>
+                    <tr>
+                      <th>Mes</th>
+                      <th>Pedidos Pagados</th>
+                      <th>Facturación</th>
+                      <th>Ticket Promedio</th>
+                      <th>Ganancia Estimada*</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resumenAnual.map((mes) => (
+                      <tr key={mes.key}>
+                        <td style={{ fontWeight: 'bold' }}>{mes.name}</td>
+                        <td>{mes.pedidos}</td>
+                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+                        <td>${Number(mes.ticketPromedio || 0).toLocaleString('es-AR')}</td>
+                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '12px' }}>
+                *Ganancia estimada = facturación. Para ganancia real habría que cargar también el costo de cada producto.
+              </p>
             </section>
           </>
         )}
@@ -850,7 +1145,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
               <div className="form-group">
                 <label className="form-label">Descripción</label>
-                <textarea
+                                <textarea
                   name="descripcion"
                   className="form-input"
                   onChange={handleEditChange}
@@ -862,25 +1157,53 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
               <div className="form-group">
                 <label className="form-label">Categoría</label>
-                <select name="categoria" className="form-input" onChange={handleEditChange} value={prodEditar.categoria} required>
+                <select
+                  name="categoria"
+                  className="form-input"
+                  onChange={handleEditChange}
+                  value={prodEditar.categoria}
+                  required
+                >
                   <option value="" disabled>Seleccionar categoría...</option>
-                  {categorias.map(c => (<option key={c.id} value={c.nombre}>{c.nombre}</option>))}
+                  {categorias.map(c => (
+                    <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                  ))}
                 </select>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
                   <label className="form-label">Precio ($)</label>
-                  <input type="number" name="precio" required className="form-input" onChange={handleEditChange} value={prodEditar.precio} />
+                  <input
+                    type="number"
+                    name="precio"
+                    required
+                    className="form-input"
+                    onChange={handleEditChange}
+                    value={prodEditar.precio}
+                  />
                 </div>
+
                 <div className="form-group">
                   <label className="form-label">Stock Real</label>
-                  <input type="number" name="stock" required className="form-input" onChange={handleEditChange} value={prodEditar.stock} />
+                  <input
+                    type="number"
+                    name="stock"
+                    required
+                    className="form-input"
+                    onChange={handleEditChange}
+                    value={prodEditar.stock}
+                  />
                 </div>
               </div>
 
-              <button type="submit" className="btn-whatsapp" style={{ background: '#f59e0b' }}>Guardar Cambios 💾</button>
-              <button type="button" className="btn-cancel" onClick={() => setMostrarModalEditar(false)}>Cancelar</button>
+              <button type="submit" className="btn-whatsapp" style={{ background: '#f59e0b' }}>
+                Guardar Cambios 💾
+              </button>
+
+              <button type="button" className="btn-cancel" onClick={() => setMostrarModalEditar(false)}>
+                Cancelar
+              </button>
             </form>
           </div>
         </div>
@@ -909,6 +1232,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             <button type="button" className="btn-whatsapp" onClick={confirmarReponer}>
               ➕ Reponer
             </button>
+
             <button type="button" className="btn-cancel" onClick={() => setMostrarModalReponer(false)}>
               Cancelar
             </button>
@@ -918,28 +1242,94 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
       {modalDetalleAbierto && pedidoDetalle && (
         <div className="checkout-overlay" style={{ zIndex: 9999 }}>
-          <div className="checkout-card" style={{ maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #c5a059' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
-              <h2 className="checkout-title" style={{ margin: 0, color: '#c5a059' }}>Detalle de Orden #{pedidoDetalle.id}</h2>
-              <button onClick={() => setModalDetalleAbierto(false)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
+          <div
+            className="checkout-card"
+            style={{
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              border: '1px solid #c5a059'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px',
+                borderBottom: '1px solid #333',
+                paddingBottom: '10px'
+              }}
+            >
+              <h2 className="checkout-title" style={{ margin: 0, color: '#c5a059' }}>
+                Detalle de Orden #{pedidoDetalle.id}
+              </h2>
+              <button
+                onClick={() => setModalDetalleAbierto(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕
+              </button>
             </div>
 
             <div style={{ marginBottom: '20px', color: '#ddd', fontSize: '0.9rem' }}>
-              <p style={{ margin: '5px 0' }}><strong>Cliente:</strong> {pedidoDetalle.clienteNombre || 'No registrado'}</p>
-              <p style={{ margin: '5px 0' }}><strong>Teléfono:</strong> {pedidoDetalle.clienteTelefono || 'No especificado'}</p>
-              <p style={{ margin: '5px 0' }}><strong>Dirección:</strong> {pedidoDetalle.clienteDireccion || 'No especificada'}</p>
-              <p style={{ margin: '5px 0' }}><strong>Estado actual:</strong> <span style={{ color: pedidoDetalle.estado === 'PAGADO' ? '#10b981' : '#f59e0b' }}>{pedidoDetalle.estado}</span></p>
-              <p style={{ margin: '5px 0' }}><strong>Fecha:</strong> {new Date(pedidoDetalle.creado_en).toLocaleString()}</p>
+              <p style={{ margin: '5px 0' }}>
+                <strong>Cliente:</strong> {pedidoDetalle.clienteNombre || 'No registrado'}
+              </p>
+              <p style={{ margin: '5px 0' }}>
+                <strong>Teléfono:</strong> {pedidoDetalle.clienteTelefono || 'No especificado'}
+              </p>
+              <p style={{ margin: '5px 0' }}>
+                <strong>Dirección:</strong> {pedidoDetalle.clienteDireccion || 'No especificada'}
+              </p>
+              <p style={{ margin: '5px 0' }}>
+                <strong>Estado actual:</strong>{' '}
+                <span style={{ color: pedidoDetalle.estado === 'PAGADO' ? '#10b981' : '#f59e0b' }}>
+                  {pedidoDetalle.estado}
+                </span>
+              </p>
+              <p style={{ margin: '5px 0' }}>
+                <strong>Fecha:</strong> {new Date(pedidoDetalle.creado_en).toLocaleString()}
+              </p>
             </div>
 
-            <h3 style={{ borderBottom: '1px solid #333', paddingBottom: '10px', color: '#aaa', fontSize: '1.1rem' }}>Productos a preparar:</h3>
+            <h3
+              style={{
+                borderBottom: '1px solid #333',
+                paddingBottom: '10px',
+                color: '#aaa',
+                fontSize: '1.1rem'
+              }}
+            >
+              Productos a preparar:
+            </h3>
+
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0' }}>
               {pedidoDetalle.items?.map((item, idx) => (
-                <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #222', color: '#fff' }}>
+                <li
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '10px 0',
+                    borderBottom: '1px solid #222',
+                    color: '#fff'
+                  }}
+                >
                   <div>
-                    <span style={{ fontWeight: 'bold', color: '#c5a059', marginRight: '8px' }}>{item.cantidad}x</span>
+                    <span style={{ fontWeight: 'bold', color: '#c5a059', marginRight: '8px' }}>
+                      {item.cantidad}x
+                    </span>
                     {item.nombre}
                   </div>
+
                   <div style={{ fontWeight: 'bold' }}>
                     ${Number(item.subtotal).toLocaleString('es-AR')}
                   </div>
@@ -947,12 +1337,27 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               ))}
             </ul>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #444' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: '20px',
+                paddingTop: '15px',
+                borderTop: '1px solid #444'
+              }}
+            >
               <h3 style={{ margin: 0, color: '#fff' }}>TOTAL COBRADO</h3>
-              <h3 style={{ margin: 0, color: '#10b981' }}>${Number(pedidoDetalle.total).toLocaleString('es-AR')}</h3>
+              <h3 style={{ margin: 0, color: '#10b981' }}>
+                ${Number(pedidoDetalle.total).toLocaleString('es-AR')}
+              </h3>
             </div>
 
-            <button onClick={() => setModalDetalleAbierto(false)} className="btn-cancel" style={{ width: '100%', marginTop: '25px' }}>
+            <button
+              onClick={() => setModalDetalleAbierto(false)}
+              className="btn-cancel"
+              style={{ width: '100%', marginTop: '25px' }}
+            >
               Cerrar Vista
             </button>
           </div>
