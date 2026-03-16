@@ -1,5 +1,5 @@
 const pool = require('../db');
-const { enviarAlerta } = require('../services/bot.service');
+const { enviarAlerta, enviarPedido } = require('../services/bot.service');
 
 // 👇 IMPORTAMOS LA FUNCIÓN PARA GUARDAR LOGS
 const { registrarLog } = require('./logs.controller'); 
@@ -121,6 +121,17 @@ const createPedido = async (req, res) => {
     const actorLog = usuarioId ? `Usuario ID ${usuarioId}` : 'Invitado';
     await registrarLog(actorLog, 'NUEVO_PEDIDO', `Creó el pedido #${pedidoId} por un total de $${totalFinal}.`);
 
+    // 🤖 ENVIAR NOTIFICACIÓN A TELEGRAM
+    try {
+      await enviarPedido({
+        id: pedidoId,
+        cliente: clienteNombre || 'Cliente',
+        total: totalFinal
+      });
+    } catch (error) {
+      console.error("Error enviando aviso a Telegram:", error.message);
+    }
+
     res.json({
       success: true,
       pedido: {
@@ -165,7 +176,6 @@ const updatePedido = async (req, res) => {
 
     const estadoAnterior = pRows[0].estado;
 
-    // A) Si se confirma (PAGADO)
     if (estado === 'PAGADO' && estadoAnterior !== 'PAGADO') {
       const [items] = await conn.query(
         `SELECT producto_id AS productoId, nombre, cantidad FROM pedido_items WHERE pedido_id = ?`,
@@ -195,7 +205,6 @@ const updatePedido = async (req, res) => {
       await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
       await conn.commit();
 
-      // 📝 REGISTRAMOS PAGO
       await registrarLog('Administrador', 'PEDIDO_PAGADO', `Confirmó el pago del pedido #${id} y se descontó el stock.`);
 
       for (const item of items) {
@@ -209,39 +218,13 @@ const updatePedido = async (req, res) => {
       return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
     }
 
-    // B) Si se CANCELA y antes estaba PAGADO
-    if (estado === 'CANCELADO' && estadoAnterior === 'PAGADO') {
-      const [items] = await conn.query(
-        `SELECT producto_id, cantidad FROM pedido_items WHERE pedido_id = ?`,
-        [id]
-      );
-
-      for (const item of items) {
-        if (item.producto_id) {
-          await conn.query(
-            `UPDATE productos SET stock = stock + ? WHERE id = ?`, 
-            [item.cantidad, item.producto_id]
-          );
-        }
-      }
-
-      await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
-      await conn.commit();
-      
-      // 📝 REGISTRAMOS CANCELACIÓN
-      await registrarLog('Administrador', 'PEDIDO_CANCELADO', `Canceló el pedido #${id} y se devolvió el stock a los productos.`);
-
-      return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
-    }
-
-    // C) Si solo se cambia de estado (ej: ENVIADO)
     await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
     await conn.commit();
     
-    // 📝 REGISTRAMOS CAMBIO DE ESTADO
     await registrarLog('Administrador', 'ESTADO_PEDIDO', `Cambió el estado del pedido #${id} a ${estado}.`);
 
     return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
+
   } catch (err) {
     try { await conn.rollback(); } catch {}
     console.error('UPDATE PEDIDO ERROR:', err);
@@ -251,7 +234,6 @@ const updatePedido = async (req, res) => {
   }
 };
 
-// 4. Obtener pedido por ID
 const getPedidoById = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -284,19 +266,18 @@ const getPedidoById = async (req, res) => {
         cantidad,
         subtotal
       FROM pedido_items
-      WHERE pedido_id = ?
-      ORDER BY id ASC`,
+      WHERE pedido_id = ?`,
       [id]
     );
 
     return res.json({ ...pRows[0], items });
+
   } catch (err) {
     console.error('GET PEDIDO BY ID ERROR:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 5. Eliminar pedido
 const deletePedido = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -318,10 +299,10 @@ const deletePedido = async (req, res) => {
 
     await conn.commit();
     
-    // 📝 REGISTRAMOS ELIMINACIÓN DE PEDIDO
     await registrarLog('Administrador', 'ELIMINAR_PEDIDO', `Eliminó el pedido #${id} del sistema.`);
 
     return res.json({ success: true, deletedId: id });
+
   } catch (err) {
     try { await conn.rollback(); } catch {}
     console.error('DELETE PEDIDO ERROR:', err);
