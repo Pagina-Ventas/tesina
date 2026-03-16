@@ -518,7 +518,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     <div className="admin-wrapper">
       <aside className="admin-sidebar">
         <div className="sidebar-logo">
-          <h2>IMPERIO<span>MATE</span></h2>
+          <h2>APOLO<span>MATE</span></h2>
           <p>Admin Panel</p>
         </div>
 
