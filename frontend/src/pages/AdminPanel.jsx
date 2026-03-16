@@ -15,6 +15,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [usuarios, setUsuarios] = useState([])
   const [recargoMP, setRecargoMP] = useState(20)
 
+  const [adminNombre, setAdminNombre] = useState('Administrador')
+  const [adminIniciales, setAdminIniciales] = useState('AD')
+
   const [busqueda, setBusqueda] = useState('')
   const [vistaActiva, setVistaActiva] = useState('dashboard')
 
@@ -136,6 +139,34 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     cargarConfiguracion()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarModal, mostrarModalEditar, pedidos])
+
+  useEffect(() => {
+  const usuarioGuardado = localStorage.getItem('usuarioData')
+
+  if (usuarioGuardado) {
+    try {
+      const user = JSON.parse(usuarioGuardado)
+
+      const nombreMostrar =
+        user.nombre?.trim() ||
+        user.username?.trim() ||
+        'Administrador'
+
+      setAdminNombre(nombreMostrar)
+
+      const iniciales = nombreMostrar
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((palabra) => palabra[0].toUpperCase())
+        .join('')
+
+      setAdminIniciales(iniciales || 'AD')
+    } catch (error) {
+      console.error('Error leyendo usuarioData:', error)
+    }
+  }
+}, [])
 
   const verDetallePedidoAdmin = async (id) => {
     setCargandoDetalle(true)
@@ -653,7 +684,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
       <main className="admin-content">
         <header className="admin-topbar">
-          <h2 className="welcome-text">Hola, Germán 👋</h2>
+          <h2 className="welcome-text">Hola, {adminNombre} 👋</h2>
           <div className="topbar-actions">
             <input
               type="text"
@@ -662,7 +693,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
-            <div className="admin-profile">GP</div>
+            <div className="admin-profile">{adminIniciales}</div>
           </div>
         </header>
 
