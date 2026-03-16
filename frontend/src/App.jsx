@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Toaster, toast } from 'sonner'
 import { initMercadoPago } from '@mercadopago/sdk-react'
 
@@ -17,11 +17,11 @@ import { Exito } from './pages/Exito'
 import './style/base.css'
 import './style/layout.css'
 
-// ✅ Inicializar Mercado Pago UNA sola vez en toda la app
-initMercadoPago('APP_USR-76524e58-7401-4687-acc5-ddb10e609cb9')
-
 // --- IMPORTACIÓN DEL BOTÓN DE WHATSAPP ---
 import { BotonWhatsApp } from './components/BotonWhatsApp'
+
+// ✅ Inicializar Mercado Pago UNA sola vez en toda la app
+initMercadoPago('APP_USR-76524e58-7401-4687-acc5-ddb10e609cb9')
 
 // CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -40,7 +40,10 @@ const normalizarPedidos = (arr) => {
   })
 }
 
-function App() {
+function AppContenido() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [productos, setProductos] = useState([])
   const [carrito, setCarrito] = useState([])
   const [pedidos, setPedidos] = useState([])
@@ -97,7 +100,7 @@ function App() {
 
       if (respuesta.ok) {
         const data = await respuesta.json()
-        setProductos([...productos, data.producto])
+        setProductos(prev => [...prev, data.producto])
         toast.success('Producto con foto guardado 📸')
       } else {
         const errorData = await respuesta.json()
@@ -203,7 +206,7 @@ function App() {
       const data = await respuesta.json().catch(() => ({}))
 
       if (respuesta.ok) {
-        setPedidos(pedidos.map(p =>
+        setPedidos(prev => prev.map(p =>
           (p.pedidoId ?? p.id) === pid ? { ...p, estado: 'PAGADO' } : p
         ))
         cargarProductos()
@@ -258,11 +261,11 @@ function App() {
 
     const existe = carrito.find(item => item.id === producto.id)
     if (existe) {
-      setCarrito(carrito.map(item =>
-        item.id === producto.id ? { ...existe, cantidad: existe.cantidad + 1 } : item
+      setCarrito(prev => prev.map(item =>
+        item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
       ))
     } else {
-      setCarrito([...carrito, { ...producto, cantidad: 1 }])
+      setCarrito(prev => [...prev, { ...producto, cantidad: 1 }])
     }
 
     toast.success(`¡${producto.nombre} agregado!`, {
@@ -271,13 +274,13 @@ function App() {
   }
 
   const modificarCantidad = (id, cantidad) => {
-    setCarrito(carrito.map(item =>
+    setCarrito(prev => prev.map(item =>
       item.id === id ? { ...item, cantidad: Math.max(1, item.cantidad + cantidad) } : item
     ))
   }
 
   const eliminarDelCarrito = (id) => {
-    setCarrito(carrito.filter(item => item.id !== id))
+    setCarrito(prev => prev.filter(item => item.id !== id))
     toast.error('Producto eliminado', {
       style: { background: '#1e1e1e', border: '1px solid #d32f2f', color: '#fff' }
     })
@@ -347,6 +350,82 @@ function App() {
     }
   }
 
+  const normalizarTexto = (texto) => {
+    return (texto || '')
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+  }
+
+  const buscarPrimerProducto = (texto) => {
+    const textoNormalizado = normalizarTexto(texto)
+
+    if (!textoNormalizado) return null
+
+    return productos.find((p) => {
+      const contenido = normalizarTexto(
+        `${p.nombre || ''} ${p.categoria || ''} ${p.descripcion || ''}`
+      )
+      return contenido.includes(textoNormalizado)
+    })
+  }
+
+  const obtenerSugerencias = () => {
+    const textoNormalizado = normalizarTexto(busqueda)
+
+    if (!textoNormalizado) return []
+
+    const empiezan = productos.filter((p) => {
+      const nombre = normalizarTexto(p.nombre || '')
+      return nombre.startsWith(textoNormalizado)
+    })
+
+    const contienen = productos.filter((p) => {
+      const nombre = normalizarTexto(p.nombre || '')
+      const categoria = normalizarTexto(p.categoria || '')
+      const descripcion = normalizarTexto(p.descripcion || '')
+      return (
+        !nombre.startsWith(textoNormalizado) &&
+        (
+          nombre.includes(textoNormalizado) ||
+          categoria.includes(textoNormalizado) ||
+          descripcion.includes(textoNormalizado)
+        )
+      )
+    })
+
+    return [...empiezan, ...contienen].slice(0, 6)
+  }
+
+  const manejarCambioBusqueda = (e) => {
+    const valor = e.target.value
+    setBusqueda(valor)
+
+    if (location.pathname !== '/') {
+      navigate('/')
+      setTimeout(() => {
+        const catalogo = document.getElementById('catalogo')
+        if (catalogo) {
+          catalogo.scrollIntoView({ behavior: 'smooth' })
+        }
+      }, 100)
+    }
+  }
+
+  const manejarEnterBusqueda = (e) => {
+    if (e.key !== 'Enter') return
+
+    const productoEncontrado = buscarPrimerProducto(busqueda)
+
+    if (productoEncontrado) {
+      navigate(`/producto/${productoEncontrado.id}`)
+    } else {
+      toast.error('No se encontró ningún producto con esa búsqueda')
+    }
+  }
+
   const totalItems = carrito.reduce((acc, item) => acc + item.cantidad, 0)
   const totalPrecio = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
 
@@ -354,8 +433,10 @@ function App() {
     ? ['Todos', ...new Set(productos.map(p => p.categoria))]
     : ['Todos']
 
+  const sugerencias = obtenerSugerencias()
+
   return (
-    <BrowserRouter>
+    <>
       <Toaster position="bottom-right" theme="dark" />
 
       {mostrarCheckout && (
@@ -381,15 +462,62 @@ function App() {
             />
           </Link>
 
-          <div className="search-container">
+          <div className="search-container" style={{ position: 'relative' }}>
             <span className="search-icon">⌕</span>
             <input
               type="text"
               placeholder="Buscar productos..."
               className="search-bar"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={manejarCambioBusqueda}
+              onKeyDown={manejarEnterBusqueda}
+              autoComplete="off"
             />
+
+            {busqueda.trim() !== '' && sugerencias.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '110%',
+                  left: 0,
+                  width: '100%',
+                  background: '#111',
+                  border: '1px solid #c5a059',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  zIndex: 9999,
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.35)'
+                }}
+              >
+                {sugerencias.map((producto, index) => (
+                  <button
+                    key={producto.id}
+                    type="button"
+                    onClick={() => {
+                      setBusqueda(producto.nombre)
+                      navigate(`/producto/${producto.id}`)
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      borderBottom: index !== sugerencias.length - 1
+                        ? '1px solid rgba(255,255,255,0.08)'
+                        : 'none'
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold' }}>{producto.nombre}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#c5a059', marginTop: '3px' }}>
+                      {producto.categoria}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -544,6 +672,14 @@ function App() {
       </div>
 
       <BotonWhatsApp />
+    </>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContenido />
     </BrowserRouter>
   )
 }
