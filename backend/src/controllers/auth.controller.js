@@ -1,139 +1,272 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const pool = require('../db'); 
+const pool = require('../db');
+const { registrarLog } = require('./logs.controller');
 
-// 👇 IMPORTAMOS LA FUNCIÓN PARA GUARDAR LOGS
-const { registrarLog } = require('./logs.controller'); 
-
-// 1. LOGIN (Admin o Usuario)
+// 1. LOGIN
 const login = async (req, res) => {
   try {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'Faltan credenciales (username/password)' });
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan credenciales (username/password)'
+      });
     }
 
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-      return res.status(500).json({ success: false, message: 'Falta JWT_SECRET en el .env' });
+      return res.status(500).json({
+        success: false,
+        message: 'Falta JWT_SECRET en el .env'
+      });
     }
 
-    // A) LOGIN ADMIN
-    if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
-      const token = jwt.sign({ role: 'admin', username }, jwtSecret, { expiresIn: '4h' });
-      
-      // 📝 REGISTRAMOS LA ACCIÓN DEL ADMIN
-      await registrarLog('Administrador', 'LOGIN', 'El administrador inició sesión en el panel.');
+    // Buscar usuario en base de datos
+    const [rows] = await pool.query(
+      `SELECT * FROM usuarios WHERE username = ? AND activo = 1 LIMIT 1`,
+      [username]
+    );
 
-      return res.json({ success: true, token, role: 'admin' });
+    if (rows.length === 0) {
+      await registrarLog(username || 'Desconocido', 'LOGIN_FALLIDO', 'Intento de inicio de sesión fallido.');
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales incorrectas ⛔'
+      });
     }
 
-    // B) LOGIN CLIENTE (Busca en MySQL)
-    const [rows] = await pool.query(`SELECT * FROM usuarios WHERE username = ?`, [username]);
-    
-    if (rows.length > 0) {
-      const usuarioEncontrado = rows[0];
-      const passGuardada = String(usuarioEncontrado.password || '');
+    const usuario = rows[0];
+    const passGuardada = String(usuario.password || '');
 
-      const coincide = passGuardada.startsWith('$2a$') || passGuardada.startsWith('$2b$')
+    const coincide =
+      passGuardada.startsWith('$2a$') || passGuardada.startsWith('$2b$') || passGuardada.startsWith('$2y$')
         ? await bcrypt.compare(password, passGuardada)
-        : passGuardada === password; 
+        : passGuardada === password;
 
-      if (coincide) {
-        delete usuarioEncontrado.password; 
-        
-        const token = jwt.sign({ role: 'client', id: usuarioEncontrado.id, username }, jwtSecret, { expiresIn: '4h' });
-        
-        // 📝 REGISTRAMOS LA ACCIÓN DEL CLIENTE
-        await registrarLog(username, 'LOGIN', 'El cliente inició sesión en la tienda.');
-
-        return res.json({ success: true, token, role: 'client', user: usuarioEncontrado });
-      }
+    if (!coincide) {
+      await registrarLog(username || 'Desconocido', 'LOGIN_FALLIDO', 'Intento de inicio de sesión fallido.');
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales incorrectas ⛔'
+      });
     }
 
-    // Si alguien intenta entrar y falla, también lo podemos registrar (opcional, pero útil para seguridad)
-    await registrarLog(username || 'Desconocido', 'LOGIN_FALLIDO', 'Intento de inicio de sesión fallido.');
+    const userSafe = {
+      id: usuario.id,
+      username: usuario.username,
+      nombre: usuario.nombre || '',
+      email: usuario.email || '',
+      telefono: usuario.telefono || '',
+      direccion: usuario.direccion || '',
+      role: usuario.role || 'cliente',
+      activo: usuario.activo
+    };
 
-    return res.status(401).json({ success: false, message: 'Credenciales incorrectas ⛔' });
+    const token = jwt.sign(
+      {
+        id: usuario.id,
+        username: usuario.username,
+        role: usuario.role || 'cliente'
+      },
+      jwtSecret,
+      { expiresIn: '4h' }
+    );
+
+    await registrarLog(
+      usuario.username,
+      'LOGIN',
+      `El usuario inició sesión con rol ${usuario.role || 'cliente'}.`
+    );
+
+    return res.json({
+      success: true,
+      token,
+      role: usuario.role || 'cliente',
+      user: userSafe
+    });
   } catch (err) {
     console.error('LOGIN ERROR:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
-// 2. REGISTRO (Solo para clientes)
+// 2. REGISTRO
 const register = async (req, res) => {
   try {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'Faltan datos (username/password)' });
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan datos (username/password)'
+      });
     }
 
-    const [existentes] = await pool.query(`SELECT id FROM usuarios WHERE username = ?`, [username]);
-    
+    const usernameLimpio = String(username).trim();
+
+    if (usernameLimpio.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'El usuario debe tener al menos 3 caracteres'
+      });
+    }
+
+    if (String(password).length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'La contraseña debe tener al menos 4 caracteres'
+      });
+    }
+
+    const [existentes] = await pool.query(
+      `SELECT id FROM usuarios WHERE username = ? LIMIT 1`,
+      [usernameLimpio]
+    );
+
     if (existentes.length > 0) {
-      return res.status(400).json({ success: false, message: 'El usuario ya existe' });
+      return res.status(400).json({
+        success: false,
+        message: 'El usuario ya existe'
+      });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      `INSERT INTO usuarios (username, password, nombre, telefono, provincia, ciudad, direccion, dni) 
-       VALUES (?, ?, '', '', '', '', '', '')`,
-      [username, passwordHash]
+    const [result] = await pool.query(
+      `INSERT INTO usuarios (username, password, nombre, email, telefono, direccion, role, activo)
+       VALUES (?, ?, '', '', '', '', 'cliente', 1)`,
+      [usernameLimpio, passwordHash]
     );
 
-    // 📝 REGISTRAMOS EL NUEVO USUARIO
-    await registrarLog(username, 'REGISTRO', 'Un nuevo usuario se ha registrado en la tienda.');
+    await registrarLog(
+      usernameLimpio,
+      'REGISTRO',
+      `Nuevo usuario registrado con ID ${result.insertId}.`
+    );
 
-    return res.json({ success: true, message: 'Usuario creado con éxito' });
+    return res.json({
+      success: true,
+      message: 'Usuario creado con éxito'
+    });
   } catch (err) {
     console.error('REGISTER ERROR:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
 // 3. ACTUALIZAR PERFIL
 const updateProfile = async (req, res) => {
   try {
-    const { username, datos } = req.body || {};
+    const userId = req.user?.id;
+    const { datos } = req.body || {};
 
-    if (!username || !datos) {
-      return res.status(400).json({ success: false, message: 'Faltan datos (username/datos)' });
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'No autorizado'
+      });
     }
 
-    const [result] = await pool.query(
-      `UPDATE usuarios SET 
-       nombre = ?, telefono = ?, provincia = ?, ciudad = ?, direccion = ?, dni = ? 
-       WHERE username = ?`,
+    if (!datos) {
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan datos del perfil'
+      });
+    }
+
+    await pool.query(
+      `UPDATE usuarios
+       SET nombre = ?, email = ?, telefono = ?, direccion = ?
+       WHERE id = ?`,
       [
-        datos.nombre || '', 
-        datos.telefono || '', 
-        datos.provincia || '', 
-        datos.ciudad || '', 
-        datos.direccion || '', 
-        datos.dni || '', 
-        username
+        datos.nombre || '',
+        datos.email || '',
+        datos.telefono || '',
+        datos.direccion || '',
+        userId
       ]
     );
 
-    if (result.affectedRows > 0) {
-      const [usuarioActualizado] = await pool.query(`SELECT * FROM usuarios WHERE username = ?`, [username]);
-      delete usuarioActualizado[0].password; 
-      
-      // 📝 REGISTRAMOS LA ACTUALIZACIÓN
-      await registrarLog(username, 'ACTUALIZAR_PERFIL', 'El usuario actualizó sus datos de envío/contacto.');
+    const [rows] = await pool.query(
+      `SELECT id, username, nombre, email, telefono, direccion, role, activo
+       FROM usuarios
+       WHERE id = ?
+       LIMIT 1`,
+      [userId]
+    );
 
-      return res.json({ success: true, user: usuarioActualizado[0] });
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
     }
 
-    return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    await registrarLog(
+      req.user.username || `Usuario ID ${userId}`,
+      'ACTUALIZAR_PERFIL',
+      'Actualizó sus datos de perfil.'
+    );
+
+    return res.json({
+      success: true,
+      user: rows[0]
+    });
   } catch (err) {
     console.error('UPDATE PROFILE ERROR:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
-module.exports = { login, register, updateProfile };
+// 4. OBTENER MI PERFIL
+const getProfile = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'No autorizado'
+      });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, username, nombre, email, telefono, direccion, role, activo, creado_en
+       FROM usuarios
+       WHERE id = ?
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    return res.json({
+      success: true,
+      user: rows[0]
+    });
+  } catch (err) {
+    console.error('GET PROFILE ERROR:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+module.exports = { login, register, updateProfile, getProfile };

@@ -2,36 +2,38 @@ const { Router } = require('express');
 const router = Router();
 const controller = require('../controllers/pedidos.controller');
 
-// 👈 IMPORTAMOS verificarToken (para clientes) y verificarAdmin (para admins)
-const { verificarToken, verificarAdmin } = require('../middlewares/auth.middleware'); 
+// Importamos verificarToken (para clientes) y verificarAdmin (para admins)
+const { verificarToken, verificarAdmin } = require('../middlewares/auth.middleware');
 
 // ==========================================
 // RUTAS PARA CLIENTES Y PÚBLICAS
 // ==========================================
 
-// 🟢 PÚBLICA/CLIENTE: Crear el pedido
+// Crear pedido.
+// Puede venir con token o sin token.
+// Si viene con token, el controller asociará usuario_id.
+// Si no viene, quedará como invitado.
 router.post('/', controller.createPedido);
 
-// 🟡 PROTEGIDA (CLIENTE): El usuario ve su propio historial
-// ⚠️ IMPORTANTE: Debe ir ANTES de '/:id'
+// Historial del usuario logueado
+// IMPORTANTE: debe ir ANTES de '/:id'
 router.get('/mis-pedidos', verificarToken, controller.getMisPedidos);
 
-// 🟡 PROTEGIDA (CLIENTE/ADMIN): Ver el detalle de un pedido específico.
-// Lo bajamos a 'verificarToken' para que el cliente pueda ver su propio recibo.
-router.get('/:id', verificarToken, controller.getPedidoById); 
-
+// Ver detalle de un pedido específico
+// Requiere token
+router.get('/:id', verificarToken, controller.getPedidoById);
 
 // ==========================================
 // RUTAS EXCLUSIVAS DE ADMINISTRADOR
 // ==========================================
 
-// 🔴 PROTEGIDA: Solo admin ve TODOS los pedidos del sistema
+// Ver todos los pedidos del sistema
 router.get('/', verificarAdmin, controller.getPedidos);
 
-// 🔴 PROTEGIDA: Cambios de estado manuales (PAGADO, ENVIADO, CANCELADO)
+// Cambiar estado de pedido
 router.put('/:id', verificarAdmin, controller.updatePedido);
 
-// 🔴 PROTEGIDA: Eliminar pedido
+// Eliminar pedido
 router.delete('/:id', verificarAdmin, controller.deletePedido);
 
 module.exports = router;

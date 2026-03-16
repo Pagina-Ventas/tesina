@@ -12,6 +12,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [logs, setLogs] = useState([])
+  const [usuarios, setUsuarios] = useState([])
   const [recargoMP, setRecargoMP] = useState(20)
 
   const [busqueda, setBusqueda] = useState('')
@@ -79,6 +80,19 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     } catch (err) {
       console.error('Error cargando logs:', err)
       setLogs([])
+    }
+  }
+
+  const cargarUsuarios = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      setUsuarios(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Error cargando usuarios:', err)
+      setUsuarios([])
     }
   }
 
@@ -169,6 +183,64 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
+  const cambiarRolUsuarioAdmin = async (id, rolActual) => {
+    const nuevoRol = rolActual === 'admin' ? 'cliente' : 'admin'
+    const ok = window.confirm(`¿Seguro que quieres cambiar el rol a "${nuevoRol}"?`)
+    if (!ok) return
+
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios/${id}/rol`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ role: nuevoRol })
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || 'No se pudo cambiar el rol')
+      }
+
+      await cargarUsuarios()
+      alert('✅ Rol actualizado correctamente')
+    } catch (e) {
+      console.error(e)
+      alert(e?.message || 'Error cambiando rol')
+    }
+  }
+
+  const cambiarEstadoUsuarioAdmin = async (id, activoActual) => {
+    const nuevoEstado = !activoActual
+    const ok = window.confirm(`¿Seguro que quieres ${nuevoEstado ? 'activar' : 'desactivar'} este usuario?`)
+    if (!ok) return
+
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios/${id}/activo`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ activo: nuevoEstado })
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || 'No se pudo cambiar el estado')
+      }
+
+      await cargarUsuarios()
+      alert('✅ Estado actualizado correctamente')
+    } catch (e) {
+      console.error(e)
+      alert(e?.message || 'Error cambiando estado')
+    }
+  }
+
   const handleInputChange = (e) => {
     setNuevoProd({ ...nuevoProd, [e.target.name]: e.target.value })
   }
@@ -210,19 +282,19 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     })
   }
 
-  const abrirEditar = (prod) => {
-    setProdEditar({
-      id: prod.id,
-      nombre: prod.nombre,
-      categoria: prod.categoria,
-      precio: prod.precio,
-      stock: prod.stock,
-      stockMinimo: prod.stockMinimo || 5,
-      descripcion: prod.descripcion || '',
-      imagen: null
-    })
-    setMostrarModalEditar(true)
-  }
+ const abrirEditar = (prod) => {
+  setProdEditar({
+    id: prod.id,
+    nombre: prod.nombre,
+    categoria: prod.categoria,
+    precio: prod.precio,
+    stock: prod.stock,
+    stockMinimo: prod.stockMinimo || 5,
+    descripcion: prod.descripcion || '',
+    imagen: null
+  })
+  setMostrarModalEditar(true)
+}
 
   const handleEditChange = (e) => setProdEditar({ ...prodEditar, [e.target.name]: e.target.value })
 
@@ -270,7 +342,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       if (typeof reponerProductoAdmin === 'function') {
         const actualizado = await reponerProductoAdmin(productoAReponer.id, cant)
         if (actualizado?.id) {
-          setProductos(prev => prev.map(p => (p.id === actualizado.id ? { ...p, stock: actualizado.stock } : p)))
+          setProductos(prev => prev.map(p => (
+            p.id === actualizado.id ? { ...p, stock: actualizado.stock } : p
+          )))
         } else {
           await cargarProductos()
         }
@@ -283,10 +357,13 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           },
           body: JSON.stringify({ cantidad: cant })
         })
+
         const data = await res.json().catch(() => ({}))
         if (!res.ok || !data?.success) throw new Error(data?.message || 'No se pudo reponer')
 
-        setProductos(prev => prev.map(p => (p.id === data.producto.id ? { ...p, stock: data.producto.stock } : p)))
+        setProductos(prev => prev.map(p => (
+          p.id === data.producto.id ? { ...p, stock: data.producto.stock } : p
+        )))
       }
 
       setMostrarModalReponer(false)
@@ -306,6 +383,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
+
       const data = await res.json().catch(() => ({}))
 
       if (!res.ok || !data?.success) {
@@ -332,6 +410,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         },
         body: JSON.stringify({ nombre })
       })
+
       const data = await res.json().catch(() => ({}))
 
       if (!res.ok || !data?.success) {
@@ -357,6 +436,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
+
       const data = await res.json().catch(() => ({}))
 
       if (!res.ok || !data?.success) {
@@ -514,6 +594,15 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   const pedidosPendientes = pedidos.filter(p => p.estado === 'PENDIENTE')
 
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const texto = busqueda.toLowerCase()
+    return (
+      (u.username || '').toLowerCase().includes(texto) ||
+      (u.nombre || '').toLowerCase().includes(texto) ||
+      (u.email || '').toLowerCase().includes(texto)
+    )
+  })
+
   return (
     <div className="admin-wrapper">
       <aside className="admin-sidebar">
@@ -537,6 +626,16 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
           <button className={`menu-item ${vistaActiva === 'pedidos' ? 'active' : ''}`} onClick={() => setVistaActiva('pedidos')}>
             🛒 Pedidos {pedidosPendientes.length > 0 && <span className="badge-alert">{pedidosPendientes.length}</span>}
+          </button>
+
+          <button
+            className={`menu-item ${vistaActiva === 'usuarios' ? 'active' : ''}`}
+            onClick={() => {
+              setVistaActiva('usuarios')
+              cargarUsuarios()
+            }}
+          >
+            👥 Usuarios
           </button>
 
           <button className={`menu-item ${vistaActiva === 'logs' ? 'active' : ''}`} onClick={() => { setVistaActiva('logs'); cargarLogs(); }}>
@@ -567,266 +666,266 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </div>
         </header>
 
-        {vistaActiva === 'dashboard' && (
-          <>
-            <section className="overview-cards">
-              <div className="stat-card">
-                <div className="stat-icon money">💰</div>
-                <div className="stat-info">
-                  <h3>${Number(mesActual.ventas || 0).toLocaleString('es-AR')}</h3>
-                  <p>Facturación del Mes</p>
-                </div>
-              </div>
+       {vistaActiva === 'dashboard' && (
+  <>
+    <section className="overview-cards">
+      <div className="stat-card">
+        <div className="stat-icon money">💰</div>
+        <div className="stat-info">
+          <h3>${Number(mesActual.ventas || 0).toLocaleString('es-AR')}</h3>
+          <p>Facturación del Mes</p>
+        </div>
+      </div>
 
-              <div className="stat-card">
-                <div className="stat-icon chart">🧾</div>
-                <div className="stat-info">
-                  <h3>{mesActual.pedidos || 0}</h3>
-                  <p>Pedidos del Mes</p>
-                </div>
-              </div>
+      <div className="stat-card">
+        <div className="stat-icon chart">🧾</div>
+        <div className="stat-info">
+          <h3>{mesActual.pedidos || 0}</h3>
+          <p>Pedidos del Mes</p>
+        </div>
+      </div>
 
-              <div className="stat-card">
-                <div className="stat-icon box">📊</div>
-                <div className="stat-info">
-                  <h3>${Number(mesActual.ticketPromedio || 0).toLocaleString('es-AR')}</h3>
-                  <p>Ticket Promedio</p>
-                </div>
-              </div>
+      <div className="stat-card">
+        <div className="stat-icon box">📊</div>
+        <div className="stat-info">
+          <h3>${Number(mesActual.ticketPromedio || 0).toLocaleString('es-AR')}</h3>
+          <p>Ticket Promedio</p>
+        </div>
+      </div>
 
-              <div className="stat-card">
-                <div className="stat-icon warning">🏦</div>
-                <div className="stat-info">
-                  <h3>${Number(totalVendidoHistorico || 0).toLocaleString('es-AR')}</h3>
-                  <p>Facturación Histórica</p>
-                </div>
-              </div>
-            </section>
+      <div className="stat-card">
+        <div className="stat-icon warning">🏦</div>
+        <div className="stat-info">
+          <h3>${Number(totalVendidoHistorico || 0).toLocaleString('es-AR')}</h3>
+          <p>Facturación Histórica</p>
+        </div>
+      </div>
+    </section>
 
-            <section className="overview-cards" style={{ marginTop: '20px' }}>
-              <div className="stat-card">
-                <div className="stat-icon box">📦</div>
-                <div className="stat-info">
-                  <h3>{totalProductos}</h3>
-                  <p>Productos</p>
-                </div>
-              </div>
+    <section className="overview-cards" style={{ marginTop: '20px' }}>
+      <div className="stat-card">
+        <div className="stat-icon box">📦</div>
+        <div className="stat-info">
+          <h3>{totalProductos}</h3>
+          <p>Productos</p>
+        </div>
+      </div>
 
-              <div className="stat-card">
-                <div className="stat-icon chart">🏷️</div>
-                <div className="stat-info">
-                  <h3>${Number(valorInventario || 0).toLocaleString('es-AR')}</h3>
-                  <p>Valor Stock</p>
-                </div>
-              </div>
+      <div className="stat-card">
+        <div className="stat-icon chart">🏷️</div>
+        <div className="stat-info">
+          <h3>${Number(valorInventario || 0).toLocaleString('es-AR')}</h3>
+          <p>Valor Stock</p>
+        </div>
+      </div>
 
-              <div className="stat-card alert">
-                <div className="stat-icon warning">⚠️</div>
-                <div className="stat-info">
-                  <h3>{sinStock}</h3>
-                  <p>Sin Stock</p>
-                </div>
-              </div>
+      <div className="stat-card alert">
+        <div className="stat-icon warning">⚠️</div>
+        <div className="stat-info">
+          <h3>{sinStock}</h3>
+          <p>Sin Stock</p>
+        </div>
+      </div>
 
-              <div className="stat-card">
-                <div className="stat-icon money">📈</div>
-                <div className="stat-info">
-                  <h3>${Number(mesActual.ventas || 0).toLocaleString('es-AR')}</h3>
-                  <p>Ganancia Estimada*</p>
-                </div>
-              </div>
-            </section>
+      <div className="stat-card">
+        <div className="stat-icon money">📈</div>
+        <div className="stat-info">
+          <h3>${Number(mesActual.ventas || 0).toLocaleString('es-AR')}</h3>
+          <p>Ganancia Estimada*</p>
+        </div>
+      </div>
+    </section>
 
-            <section className="charts-grid">
-              <div className="chart-container" style={{ minWidth: 0 }}>
-                <h3>📈 Facturación - Últimos 6 meses</h3>
-                <div style={{ width: '100%', height: 250, minWidth: 0 }}>
-                  <ResponsiveContainer>
-                    <AreaChart data={dataVentas}>
-                      <defs>
-                        <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                      <YAxis axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value) => `$${Number(value || 0).toLocaleString('es-AR')}`} />
-                      <Area
-                        type="monotone"
-                        dataKey="ventas"
-                        stroke="#3b82f6"
-                        fillOpacity={1}
-                        fill="url(#colorVentas)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+    <section className="charts-grid">
+      <div className="chart-container" style={{ minWidth: 0 }}>
+        <h3>📈 Facturación - Últimos 6 meses</h3>
+        <div style={{ width: '100%', height: 250, minWidth: 0 }}>
+          <ResponsiveContainer>
+            <AreaChart data={dataVentas}>
+              <defs>
+                <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} />
+              <YAxis axisLine={false} tickLine={false} />
+              <Tooltip formatter={(value) => `$${Number(value || 0).toLocaleString('es-AR')}`} />
+              <Area
+                type="monotone"
+                dataKey="ventas"
+                stroke="#3b82f6"
+                fillOpacity={1}
+                fill="url(#colorVentas)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-              <div className="chart-container" style={{ minWidth: 0 }}>
-                <h3>🍰 Distribución por Categoría</h3>
-                <div style={{ width: '100%', height: 250, minWidth: 0 }}>
-                  <ResponsiveContainer>
-                    <PieChart>
-                      <Pie
-                        data={dataCategoriasGraf}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {dataCategoriasGraf.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORES_TORTA[index % COLORES_TORTA.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </section>
+      <div className="chart-container" style={{ minWidth: 0 }}>
+        <h3>🍰 Distribución por Categoría</h3>
+        <div style={{ width: '100%', height: 250, minWidth: 0 }}>
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                data={dataCategoriasGraf}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={80}
+                paddingAngle={5}
+                dataKey="value"
+              >
+                {dataCategoriasGraf.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORES_TORTA[index % COLORES_TORTA.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </section>
 
-            <section className="recent-orders" style={{ marginTop: '25px' }}>
-              <div className="section-header">
-                <h3>📅 Resumen de los últimos 6 meses</h3>
-              </div>
+    <section className="recent-orders" style={{ marginTop: '25px' }}>
+      <div className="section-header">
+        <h3>📅 Resumen de los últimos 6 meses</h3>
+      </div>
 
-              <div className="table-responsive">
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Mes</th>
-                      <th>Pedidos Pagados</th>
-                      <th>Facturación</th>
-                      <th>Ticket Promedio</th>
-                      <th>Ganancia Estimada*</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {resumenUltimos6Meses.map((mes) => (
-                      <tr key={mes.key}>
-                        <td style={{ fontWeight: 'bold' }}>{mes.name}</td>
-                        <td>{mes.pedidos}</td>
-                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
-                        <td>${Number(mes.ticketPromedio || 0).toLocaleString('es-AR')}</td>
-                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      <div className="table-responsive">
+        <table className="clean-table">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th>Pedidos Pagados</th>
+              <th>Facturación</th>
+              <th>Ticket Promedio</th>
+              <th>Ganancia Estimada*</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resumenUltimos6Meses.map((mes) => (
+              <tr key={mes.key}>
+                <td style={{ fontWeight: 'bold' }}>{mes.name}</td>
+                <td>{mes.pedidos}</td>
+                <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+                <td>${Number(mes.ticketPromedio || 0).toLocaleString('es-AR')}</td>
+                <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-              <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '12px' }}>
-                *Ganancia estimada = facturación. Para ganancia real habría que cargar también el costo de cada producto.
-              </p>
-            </section>
+      <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '12px' }}>
+        *Ganancia estimada = facturación. Para ganancia real habría que cargar también el costo de cada producto.
+      </p>
+    </section>
 
-            <section className="recent-orders" style={{ marginTop: '25px' }}>
-              <div className="section-header">
-                <h3>🗂️ Historial por año y mes</h3>
-              </div>
+    <section className="recent-orders" style={{ marginTop: '25px' }}>
+      <div className="section-header">
+        <h3>🗂️ Historial por año y mes</h3>
+      </div>
 
-              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                <div style={{ minWidth: '220px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', color: '#aaa' }}>Año</label>
-                  <select
-                    className="form-input"
-                    value={anioSeleccionado}
-                    onChange={(e) => setAnioSeleccionado(Number(e.target.value))}
-                  >
-                    {aniosDisponibles.map((anio) => (
-                      <option key={anio} value={anio}>
-                        {anio}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+      <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        <div style={{ minWidth: '220px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', color: '#aaa' }}>Año</label>
+          <select
+            className="form-input"
+            value={anioSeleccionado}
+            onChange={(e) => setAnioSeleccionado(Number(e.target.value))}
+          >
+            {aniosDisponibles.map((anio) => (
+              <option key={anio} value={anio}>
+                {anio}
+              </option>
+            ))}
+          </select>
+        </div>
 
-                <div style={{ minWidth: '220px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', color: '#aaa' }}>Mes</label>
-                  <select
-                    className="form-input"
-                    value={mesSeleccionado}
-                    onChange={(e) => setMesSeleccionado(Number(e.target.value))}
-                  >
-                    {nombresMeses.map((mes, index) => (
-                      <option key={mes} value={index + 1}>
-                        {mes}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+        <div style={{ minWidth: '220px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', color: '#aaa' }}>Mes</label>
+          <select
+            className="form-input"
+            value={mesSeleccionado}
+            onChange={(e) => setMesSeleccionado(Number(e.target.value))}
+          >
+            {nombresMeses.map((mes, index) => (
+              <option key={mes} value={index + 1}>
+                {mes}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-              <section className="overview-cards" style={{ marginBottom: '20px' }}>
-                <div className="stat-card">
-                  <div className="stat-icon money">💰</div>
-                  <div className="stat-info">
-                    <h3>${Number(mesSeleccionadoData.ventas || 0).toLocaleString('es-AR')}</h3>
-                    <p>Facturación de {mesSeleccionadoData.name || 'Mes'}</p>
-                  </div>
-                </div>
+      <section className="overview-cards" style={{ marginBottom: '20px' }}>
+        <div className="stat-card">
+          <div className="stat-icon money">💰</div>
+          <div className="stat-info">
+            <h3>${Number(mesSeleccionadoData.ventas || 0).toLocaleString('es-AR')}</h3>
+            <p>Facturación de {mesSeleccionadoData.name || 'Mes'}</p>
+          </div>
+        </div>
 
-                <div className="stat-card">
-                  <div className="stat-icon chart">🧾</div>
-                  <div className="stat-info">
-                    <h3>{mesSeleccionadoData.pedidos || 0}</h3>
-                    <p>Pedidos de {mesSeleccionadoData.name || 'Mes'}</p>
-                  </div>
-                </div>
+        <div className="stat-card">
+          <div className="stat-icon chart">🧾</div>
+          <div className="stat-info">
+            <h3>{mesSeleccionadoData.pedidos || 0}</h3>
+            <p>Pedidos de {mesSeleccionadoData.name || 'Mes'}</p>
+          </div>
+        </div>
 
-                <div className="stat-card">
-                  <div className="stat-icon box">📊</div>
-                  <div className="stat-info">
-                    <h3>${Number(mesSeleccionadoData.ticketPromedio || 0).toLocaleString('es-AR')}</h3>
-                    <p>Ticket Promedio</p>
-                  </div>
-                </div>
+        <div className="stat-card">
+          <div className="stat-icon box">📊</div>
+          <div className="stat-info">
+            <h3>${Number(mesSeleccionadoData.ticketPromedio || 0).toLocaleString('es-AR')}</h3>
+            <p>Ticket Promedio</p>
+          </div>
+        </div>
 
-                <div className="stat-card">
-                  <div className="stat-icon money">📈</div>
-                  <div className="stat-info">
-                    <h3>${Number(mesSeleccionadoData.ventas || 0).toLocaleString('es-AR')}</h3>
-                    <p>Ganancia Estimada*</p>
-                  </div>
-                </div>
-              </section>
+        <div className="stat-card">
+          <div className="stat-icon money">📈</div>
+          <div className="stat-info">
+            <h3>${Number(mesSeleccionadoData.ventas || 0).toLocaleString('es-AR')}</h3>
+            <p>Ganancia Estimada*</p>
+          </div>
+        </div>
+      </section>
 
-              <div className="table-responsive">
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Mes</th>
-                      <th>Pedidos Pagados</th>
-                      <th>Facturación</th>
-                      <th>Ticket Promedio</th>
-                      <th>Ganancia Estimada*</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {resumenAnual.map((mes) => (
-                      <tr key={mes.key}>
-                        <td style={{ fontWeight: 'bold' }}>{mes.name}</td>
-                        <td>{mes.pedidos}</td>
-                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
-                        <td>${Number(mes.ticketPromedio || 0).toLocaleString('es-AR')}</td>
-                        <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      <div className="table-responsive">
+        <table className="clean-table">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th>Pedidos Pagados</th>
+              <th>Facturación</th>
+              <th>Ticket Promedio</th>
+              <th>Ganancia Estimada*</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resumenAnual.map((mes) => (
+              <tr key={mes.key}>
+                <td style={{ fontWeight: 'bold' }}>{mes.name}</td>
+                <td>{mes.pedidos}</td>
+                <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+                <td>${Number(mes.ticketPromedio || 0).toLocaleString('es-AR')}</td>
+                <td>${Number(mes.ventas || 0).toLocaleString('es-AR')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-              <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '12px' }}>
-                *Ganancia estimada = facturación. Para ganancia real habría que cargar también el costo de cada producto.
-              </p>
-            </section>
-          </>
-        )}
+      <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '12px' }}>
+        *Ganancia estimada = facturación. Para ganancia real habría que cargar también el costo de cada producto.
+      </p>
+    </section>
+  </>
+)}
 
         {vistaActiva === 'inventario' && (
           <section className="recent-orders">
@@ -871,7 +970,6 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                           {prod.stock === 0 ? 'Agotado' : prod.stock <= prod.stockMinimo ? 'Bajo' : 'En Stock'}
                         </span>
                       </td>
-
                       <td style={{ display: 'flex', gap: 10 }}>
                         <button className="btn-add" style={{ background: '#f59e0b' }} onClick={() => abrirEditar(prod)}>
                           ✏️ Editar
@@ -948,7 +1046,14 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
             <h3>Lista de Pedidos</h3>
             <div className="table-responsive">
               <table className="clean-table">
-                <thead><tr><th>Cliente</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {pedidos.length === 0 ? (
                     <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No hay pedidos</td></tr>
@@ -993,12 +1098,85 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
+        {vistaActiva === 'usuarios' && (
+          <section className="recent-orders">
+            <div className="section-header">
+              <h3>👥 Gestión de Usuarios</h3>
+              <button className="btn-add" onClick={cargarUsuarios}>🔄 Actualizar</button>
+            </div>
+
+            <div className="table-responsive">
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usuariosFiltrados.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
+                        No hay usuarios registrados
+                      </td>
+                    </tr>
+                  ) : (
+                    usuariosFiltrados.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.id}</td>
+                        <td style={{ fontWeight: 'bold' }}>{u.username}</td>
+                        <td>{u.nombre || '-'}</td>
+                        <td>{u.email || '-'}</td>
+                        <td>{u.telefono || '-'}</td>
+                        <td>
+                          <span className={`status-badge ${u.role === 'admin' ? 'ok' : 'low'}`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${u.activo ? 'ok' : 'out'}`}>
+                            {u.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </td>
+                        <td style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <button
+                            className="btn-add"
+                            style={{ background: u.role === 'admin' ? '#f59e0b' : '#10b981' }}
+                            onClick={() => cambiarRolUsuarioAdmin(u.id, u.role)}
+                          >
+                            {u.role === 'admin' ? 'Quitar Admin' : 'Hacer Admin'}
+                          </button>
+
+                          <button
+                            className="btn-add"
+                            style={{ background: u.activo ? '#ef4444' : '#3b82f6' }}
+                            onClick={() => cambiarEstadoUsuarioAdmin(u.id, u.activo)}
+                          >
+                            {u.activo ? 'Desactivar' : 'Activar'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {vistaActiva === 'logs' && (
           <section className="recent-orders">
             <div className="section-header">
               <h3>📜 Historial de Actividad</h3>
               <button className="btn-add" style={{ background: '#444' }} onClick={cargarLogs}>🔄 Actualizar</button>
             </div>
+
             <div className="table-responsive">
               <table className="clean-table">
                 <thead>
@@ -1145,7 +1323,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
               <div className="form-group">
                 <label className="form-label">Descripción</label>
-                                <textarea
+                <textarea
                   name="descripcion"
                   className="form-input"
                   onChange={handleEditChange}
@@ -1265,6 +1443,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
               <h2 className="checkout-title" style={{ margin: 0, color: '#c5a059' }}>
                 Detalle de Orden #{pedidoDetalle.id}
               </h2>
+
               <button
                 onClick={() => setModalDetalleAbierto(false)}
                 style={{

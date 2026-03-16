@@ -287,12 +287,17 @@ function AppContenido() {
   }
 
   const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => {
-    try {
-      const respuesta = await fetch(`${API_URL}/api/pedidos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ordenData)
-      })
+  try {
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
+
+    const respuesta = await fetch(`${API_URL}/api/pedidos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(ordenData)
+    })
 
       const data = await respuesta.json().catch(() => ({}))
 

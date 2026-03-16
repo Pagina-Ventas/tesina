@@ -8,9 +8,10 @@ const pedidosRoutes = require('./routes/pedidos.routes');
 const authRoutes = require('./routes/auth.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const categoriasRoutes = require('./routes/categorias.routes');
+const usuariosRoutes = require('./routes/usuarios.routes');
 
 // Importamos las rutas de Mercado Pago y Logs
-const mercadoPagoRoutes = require('./routes/mercadoPago.routes'); 
+const mercadoPagoRoutes = require('./routes/mercadoPago.routes');
 const logsRoutes = require('./routes/logs.routes');
 
 // DB pool
@@ -19,14 +20,13 @@ const pool = require('./db');
 const app = express();
 
 // --- MIDDLEWARES ---
-// CORRECCIÓN: Configuramos CORS para producción y desarrollo
 const corsOptions = {
-  // ✅ CORRECCIÓN: Limpiamos la URL quitando espacios y barras finales
   origin: (process.env.FRONT_URL || 'http://localhost:5173').trim().replace(/\/$/, ''),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
+
 app.use(cors(corsOptions));
 
 // Aumentamos límite para fotos pesadas
@@ -52,12 +52,11 @@ app.get('/api/db/ping', async (req, res) => {
 
 // --- RUTAS DE LA API ---
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/pagos', paymentRoutes);
 app.use('/api/categorias', categoriasRoutes);
-
-// Conectamos las nuevas rutas
 app.use('/api/mercadopago', mercadoPagoRoutes);
 app.use('/api/logs', logsRoutes);
 

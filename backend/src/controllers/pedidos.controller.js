@@ -1,8 +1,7 @@
+const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const { enviarAlerta, enviarPedido } = require('../services/bot.service');
-
-// 👇 IMPORTAMOS LA FUNCIÓN PARA GUARDAR LOGS
-const { registrarLog } = require('./logs.controller'); 
+const { registrarLog } = require('./logs.controller');
 
 // 1. Obtener todos los pedidos (Para el ADMIN)
 const getPedidos = async (req, res) => {
@@ -28,10 +27,17 @@ const getPedidos = async (req, res) => {
   }
 };
 
-// NUEVO: 1.5 Obtener pedidos de UN solo usuario (Para el CLIENTE)
+// 1.5 Obtener pedidos de un solo usuario (Para el CLIENTE)
 const getMisPedidos = async (req, res) => {
   try {
-    const usuarioId = req.user.id; 
+    const usuarioId = req.user?.id;
+
+    if (!usuarioId) {
+      return res.status(401).json({
+        success: false,
+        message: 'No autorizado'
+      });
+    }
 
     const [rows] = await pool.query(`
       SELECT 
@@ -56,6 +62,7 @@ const getMisPedidos = async (req, res) => {
 // 2. Crear nuevo pedido (Cliente compra en la web)
 const createPedido = async (req, res) => {
   const conn = await pool.getConnection();
+
   try {
     const nuevoPedido = req.body || {};
     const items = Array.isArray(nuevoPedido.items) ? nuevoPedido.items : [];
@@ -64,7 +71,27 @@ const createPedido = async (req, res) => {
       return res.status(400).json({ success: false, message: 'El pedido no tiene items' });
     }
 
-    const usuarioId = nuevoPedido.usuario_id || (req.user ? req.user.id : null);
+    let usuarioId = null;
+
+    // Si vino desde middleware
+    if (req.user?.id) {
+      usuarioId = req.user.id;
+    }
+
+    // Si no vino desde middleware, intentamos leer token manualmente
+    if (!usuarioId) {
+      const authHeader = req.headers.authorization;
+
+      if (authHeader) {
+        try {
+          const token = authHeader.split(' ')[1];
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          usuarioId = decoded?.id || null;
+        } catch (e) {
+          usuarioId = null;
+        }
+      }
+    }
 
     const clienteNombre =
       (nuevoPedido.cliente && (nuevoPedido.cliente.nombre || nuevoPedido.cliente.name)) ||
@@ -88,7 +115,10 @@ const createPedido = async (req, res) => {
       return acc + precio * cant;
     }, 0);
 
-    const totalFinal = Number.isFinite(Number(nuevoPedido.total)) ? Number(nuevoPedido.total) : totalCalc;
+    const totalFinal = Number.isFinite(Number(nuevoPedido.total))
+      ? Number(nuevoPedido.total)
+      : totalCalc;
+
     const estadoFinal = nuevoPedido.estado || 'PENDIENTE';
 
     await conn.beginTransaction();
@@ -117,11 +147,9 @@ const createPedido = async (req, res) => {
 
     await conn.commit();
 
-    // 📝 REGISTRAMOS LA CREACIÓN DEL PEDIDO
     const actorLog = usuarioId ? `Usuario ID ${usuarioId}` : 'Invitado';
     await registrarLog(actorLog, 'NUEVO_PEDIDO', `Creó el pedido #${pedidoId} por un total de $${totalFinal}.`);
 
-    // 🤖 ENVIAR NOTIFICACIÓN A TELEGRAM
     try {
       await enviarPedido({
         id: pedidoId,
@@ -129,7 +157,7 @@ const createPedido = async (req, res) => {
         total: totalFinal
       });
     } catch (error) {
-      console.error("Error enviando aviso a Telegram:", error.message);
+      console.error('Error enviando aviso a Telegram:', error.message);
     }
 
     res.json({
@@ -138,6 +166,7 @@ const createPedido = async (req, res) => {
         ...nuevoPedido,
         pedidoId,
         id: pedidoId,
+        usuario_id: usuarioId,
         total: totalFinal,
         estado: estadoFinal,
       },
@@ -145,15 +174,20 @@ const createPedido = async (req, res) => {
   } catch (err) {
     try { await conn.rollback(); } catch {}
     console.error('CREATE PEDIDO ERROR:', err);
-    res.status(500).json({ success: false, error: 'Error creando pedido', detail: err.message });
+    res.status(500).json({
+      success: false,
+      error: 'Error creando pedido',
+      detail: err.message
+    });
   } finally {
     conn.release();
   }
 };
 
-// 3. ACTUALIZAR ESTADO
+// 3. Actualizar estado (ADMIN)
 const updatePedido = async (req, res) => {
   const conn = await pool.getConnection();
+
   try {
     const id = Number(req.params.id);
     const { estado } = req.body || {};
@@ -196,10 +230,19 @@ const updatePedido = async (req, res) => {
         const prod = prodRows[0];
         const cant = Number(item.cantidad || 1);
         let nuevoStock = Number(prod.stock) - cant;
+
         if (nuevoStock < 0) nuevoStock = 0;
 
-        await conn.query(`UPDATE productos SET stock = ? WHERE id = ?`, [nuevoStock, prod.id]);
-        item._alerta = { ...prod, stock: nuevoStock, stockMinimo: Number(prod.stockMinimo) };
+        await conn.query(
+          `UPDATE productos SET stock = ? WHERE id = ?`,
+          [nuevoStock, prod.id]
+        );
+
+        item._alerta = {
+          ...prod,
+          stock: nuevoStock,
+          stockMinimo: Number(prod.stockMinimo)
+        };
       }
 
       await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
@@ -210,8 +253,11 @@ const updatePedido = async (req, res) => {
       for (const item of items) {
         if (!item._alerta) continue;
         const prod = item._alerta;
+
         if (prod.stock <= prod.stockMinimo) {
-          try { await enviarAlerta(prod, true); } catch (e) {}
+          try {
+            await enviarAlerta(prod, true);
+          } catch (e) {}
         }
       }
 
@@ -220,11 +266,10 @@ const updatePedido = async (req, res) => {
 
     await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
     await conn.commit();
-    
+
     await registrarLog('Administrador', 'ESTADO_PEDIDO', `Cambió el estado del pedido #${id} a ${estado}.`);
 
     return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
-
   } catch (err) {
     try { await conn.rollback(); } catch {}
     console.error('UPDATE PEDIDO ERROR:', err);
@@ -234,12 +279,29 @@ const updatePedido = async (req, res) => {
   }
 };
 
+// 4. Ver detalle de pedido con seguridad real
 const getPedidoById = async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
-    const [pRows] = await pool.query(
-      `SELECT 
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de pedido inválido'
+      });
+    }
+
+    if (!userId || !userRole) {
+      return res.status(401).json({
+        success: false,
+        message: 'No autorizado'
+      });
+    }
+
+    let query = `
+      SELECT 
         id AS pedidoId,
         id AS id,
         usuario_id,
@@ -250,12 +312,23 @@ const getPedidoById = async (req, res) => {
         estado,
         creado_en
       FROM pedidos
-      WHERE id = ?`,
-      [id]
-    );
+      WHERE id = ?
+    `;
+    let params = [id];
+
+    // Si NO es admin, solo puede ver su propio pedido
+    if (userRole !== 'admin') {
+      query += ` AND usuario_id = ?`;
+      params.push(userId);
+    }
+
+    const [pRows] = await pool.query(query, params);
 
     if (pRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido no encontrado o no tienes permiso para verlo'
+      });
     }
 
     const [items] = await pool.query(
@@ -271,15 +344,16 @@ const getPedidoById = async (req, res) => {
     );
 
     return res.json({ ...pRows[0], items });
-
   } catch (err) {
     console.error('GET PEDIDO BY ID ERROR:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// 5. Eliminar pedido (ADMIN)
 const deletePedido = async (req, res) => {
   const conn = await pool.getConnection();
+
   try {
     const id = Number(req.params.id);
 
@@ -298,11 +372,10 @@ const deletePedido = async (req, res) => {
     await conn.query(`DELETE FROM pedidos WHERE id = ?`, [id]);
 
     await conn.commit();
-    
+
     await registrarLog('Administrador', 'ELIMINAR_PEDIDO', `Eliminó el pedido #${id} del sistema.`);
 
     return res.json({ success: true, deletedId: id });
-
   } catch (err) {
     try { await conn.rollback(); } catch {}
     console.error('DELETE PEDIDO ERROR:', err);
@@ -312,4 +385,11 @@ const deletePedido = async (req, res) => {
   }
 };
 
-module.exports = { getPedidos, getMisPedidos, createPedido, updatePedido, getPedidoById, deletePedido };
+module.exports = {
+  getPedidos,
+  getMisPedidos,
+  createPedido,
+  updatePedido,
+  getPedidoById,
+  deletePedido
+};
