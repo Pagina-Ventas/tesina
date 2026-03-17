@@ -704,6 +704,8 @@ function AppContenido() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
+          
+          {/* 👇 ESTA ES LA RUTA QUE ACTUALIZAMOS 👇 */}
           <Route
             path="/exito"
             element={
@@ -712,6 +714,7 @@ function AppContenido() {
                   setCarrito([])
                   localStorage.removeItem('carrito')
                 }}
+                recargarProductos={cargarProductos} 
               />
             }
           />

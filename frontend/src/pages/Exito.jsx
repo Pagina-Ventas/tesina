@@ -1,28 +1,50 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-
-// --- ACTUALIZAMOS EL IMPORT AL NUEVO CSS ---
 import '../style/tienda.css'
 
-export function Exito({ vaciarCarrito }) {
+// 👇 Definimos la URL de tu backend
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+// 👇 Fíjate que ahora recibe "recargarProductos" como parámetro
+export function Exito({ vaciarCarrito, recargarProductos }) {
   const [searchParams] = useSearchParams()
   
-  // 👈 Capturamos las diferentes formas en que Mercado Pago puede enviar el estado
   const collectionStatus = searchParams.get('collection_status')
   const statusMP = searchParams.get('status')
   
   const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id')
   const pedidoId = searchParams.get('external_reference')
 
-  // Verificamos si está aprobado leyendo cualquiera de los dos parámetros
   const estaAprobado = collectionStatus === 'approved' || statusMP === 'approved'
+  
+  // Usamos useRef para evitar que el fetch se dispare dos veces (por el modo estricto de React)
+  const sincronizado = useRef(false)
 
   useEffect(() => {
-    // 🧹 Vaciamos el carrito SIEMPRE que el usuario aterrice en la pantalla de éxito.
-    // Si Mercado Pago lo redirigió a esta URL, significa que el proceso de checkout terminó
-    // (la orden ya se creó en tu BD antes de ir a pagar), así que limpiamos la memoria.
-    vaciarCarrito()
-  }, [vaciarCarrito])
+    if (estaAprobado && !sincronizado.current) {
+      sincronizado.current = true
+      
+      // 1. Vaciamos el carrito visualmente
+      vaciarCarrito()
+
+      // 2. Le avisamos al Backend que procese el stock y el pago (MODO LOCAL)
+      if (pedidoId) {
+        fetch(`${API_URL}/api/pagos/sincronizar-local/${pedidoId}`, { 
+          method: 'POST' 
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('✅ Stock y Pedido sincronizados:', data)
+          
+          // 3. 👇 ACTUALIZAMOS EL STOCK VISUAL EN EL FRONTEND
+          if (recargarProductos) {
+            recargarProductos()
+          }
+        })
+        .catch(err => console.error('❌ Error sincronizando:', err))
+      }
+    }
+  }, [estaAprobado, pedidoId, vaciarCarrito, recargarProductos])
 
   return (
     <div style={{
@@ -56,7 +78,6 @@ export function Exito({ vaciarCarrito }) {
       )}
 
       <div style={{ display: 'flex', gap: '15px', marginTop: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {/* 👇 Botón para ir a ver el historial del usuario */}
         <Link to="/perfil" className="btn-buy" style={{ background: '#3b82f6', width: 'auto', padding: '15px 30px', textDecoration: 'none'}}>
           👤 VER MIS PEDIDOS
         </Link>
