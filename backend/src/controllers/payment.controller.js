@@ -1,6 +1,7 @@
 const pool = require('../db');
 const { enviarCorreoCompra } = require('../services/mail.service');
 const mpService = require('../services/mercadopago.service');
+const { enviarAlerta } = require('../services/bot.service'); // 👈 Importamos el bot para avisar si hay poco stock
 
 const crearPreferencia = async (req, res) => {
   try {
@@ -67,11 +68,66 @@ const recibirWebhook = async (req, res) => {
       const [rows] = await conn.query(`SELECT * FROM pedidos WHERE id = ? FOR UPDATE`, [idPedido]);
       
       if (rows.length > 0 && rows[0].estado !== 'PAGADO') {
+        
+        // 1. OBTENER LOS PRODUCTOS DEL PEDIDO
+        const [items] = await conn.query(
+          `SELECT producto_id AS productoId, nombre, cantidad FROM pedido_items WHERE pedido_id = ?`,
+          [idPedido]
+        );
+
+        // 2. DESCONTAR EL STOCK DE CADA PRODUCTO
+        let alertasAEnviar = [];
+        for (const item of items) {
+          const productoId = item.productoId;
+          if (!productoId) continue;
+
+          const [prodRows] = await conn.query(
+            `SELECT id, nombre, stock, stock_minimo AS stockMinimo FROM productos WHERE id = ? FOR UPDATE`,
+            [productoId]
+          );
+
+          if (prodRows.length === 0) continue;
+
+          const prod = prodRows[0];
+          const cant = Number(item.cantidad || 1);
+          let nuevoStock = Number(prod.stock) - cant;
+
+          if (nuevoStock < 0) nuevoStock = 0;
+
+          await conn.query(
+            `UPDATE productos SET stock = ? WHERE id = ?`,
+            [nuevoStock, prod.id]
+          );
+
+          // Si el stock queda bajo, lo preparamos para la alerta de Telegram
+          if (nuevoStock <= Number(prod.stockMinimo)) {
+            alertasAEnviar.push({
+              ...prod,
+              stock: nuevoStock,
+              stockMinimo: Number(prod.stockMinimo)
+            });
+          }
+        }
+
+        // 3. MARCAR COMO PAGADO
         await conn.query(`UPDATE pedidos SET estado = 'PAGADO' WHERE id = ?`, [idPedido]);
+        
         await conn.commit();
+
+        // 4. ENVIAR CORREO AL CLIENTE
         if (rows[0].cliente_email) {
           await enviarCorreoCompra(rows[0].cliente_email, rows[0].cliente_nombre, rows[0].id, rows[0].total);
         }
+
+        // 5. ENVIAR ALERTAS AL BOT DE TELEGRAM SI HUBIERA POCO STOCK
+        for (const alerta of alertasAEnviar) {
+          try {
+            await enviarAlerta(alerta, true);
+          } catch (e) {
+            console.error('Error al enviar alerta a Telegram desde el webhook:', e.message);
+          }
+        }
+
       } else {
         await conn.commit();
       }
