@@ -1,16 +1,12 @@
 const { Preference } = require('mercadopago');
-const { mpClient } = require('../config/mercadopago.config.js'); 
-
-// Variable en memoria para guardar el recargo 
-let configuracionPagos = { recargoMP: 20 };
+const { mpClient } = require('../config/mercadopago.config.js');
+const pool = require('../db');
 
 const crearPreferencia = async (req, res) => {
   try {
     const { items, pedidoId } = req.body;
     const preference = new Preference(mpClient);
 
-    // 👇 SOLUCIÓN: Ya no calculamos nada acá. 
-    // Solo recibimos los items del frontend (que ya traen el producto, el envío y el recargo)
     const itemsPasarela = items.map(item => ({
       title: item.title || item.nombre,
       quantity: Number(item.quantity || item.cantidad || 1),
@@ -44,17 +40,65 @@ const crearPreferencia = async (req, res) => {
   }
 };
 
-// Funciones para el Panel de Administrador (Leer y Guardar el %)
-const obtenerConfiguracion = (req, res) => {
-  res.json(configuracionPagos);
+// LEER CONFIGURACIÓN DESDE MYSQL
+const obtenerConfiguracion = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT recargo_mp FROM configuracion_tienda WHERE id = 1 LIMIT 1`
+    );
+
+    if (rows.length === 0) {
+      return res.json({ recargoMP: 20 });
+    }
+
+    return res.json({
+      recargoMP: Number(rows[0].recargo_mp)
+    });
+  } catch (error) {
+    console.error('Error al obtener configuración:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener la configuración',
+      detalle: error.message
+    });
+  }
 };
 
-const actualizarConfiguracion = (req, res) => {
-  const { recargoMP } = req.body;
-  if (recargoMP !== undefined) {
-    configuracionPagos.recargoMP = Number(recargoMP);
+// GUARDAR CONFIGURACIÓN EN MYSQL
+const actualizarConfiguracion = async (req, res) => {
+  try {
+    const { recargoMP } = req.body;
+
+    if (recargoMP === undefined || recargoMP === null || isNaN(Number(recargoMP))) {
+      return res.status(400).json({
+        success: false,
+        message: 'El recargo es inválido'
+      });
+    }
+
+    const valor = Number(recargoMP);
+
+    await pool.query(
+      `
+      INSERT INTO configuracion_tienda (id, recargo_mp)
+      VALUES (1, ?)
+      ON DUPLICATE KEY UPDATE recargo_mp = VALUES(recargo_mp)
+      `,
+      [valor]
+    );
+
+    return res.json({
+      success: true,
+      configuracion: { recargoMP: valor }
+    });
+  } catch (error) {
+    console.error('Error al actualizar configuración:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al actualizar la configuración',
+      detalle: error.message
+    });
   }
-  res.json({ success: true, configuracion: configuracionPagos });
 };
 
 module.exports = { crearPreferencia, obtenerConfiguracion, actualizarConfiguracion };

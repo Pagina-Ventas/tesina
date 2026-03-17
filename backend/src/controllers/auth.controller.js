@@ -23,14 +23,18 @@ const login = async (req, res) => {
       });
     }
 
-    // Buscar usuario en base de datos
     const [rows] = await pool.query(
       `SELECT * FROM usuarios WHERE username = ? AND activo = 1 LIMIT 1`,
       [username]
     );
 
     if (rows.length === 0) {
-      await registrarLog(username || 'Desconocido', 'LOGIN_FALLIDO', 'Intento de inicio de sesión fallido.');
+      await registrarLog(
+        username || 'Desconocido',
+        'LOGIN_FALLIDO',
+        'Intento de inicio de sesión fallido.'
+      );
+
       return res.status(401).json({
         success: false,
         message: 'Credenciales incorrectas ⛔'
@@ -41,12 +45,19 @@ const login = async (req, res) => {
     const passGuardada = String(usuario.password || '');
 
     const coincide =
-      passGuardada.startsWith('$2a$') || passGuardada.startsWith('$2b$') || passGuardada.startsWith('$2y$')
+      passGuardada.startsWith('$2a$') ||
+      passGuardada.startsWith('$2b$') ||
+      passGuardada.startsWith('$2y$')
         ? await bcrypt.compare(password, passGuardada)
         : passGuardada === password;
 
     if (!coincide) {
-      await registrarLog(username || 'Desconocido', 'LOGIN_FALLIDO', 'Intento de inicio de sesión fallido.');
+      await registrarLog(
+        username || 'Desconocido',
+        'LOGIN_FALLIDO',
+        'Intento de inicio de sesión fallido.'
+      );
+
       return res.status(401).json({
         success: false,
         message: 'Credenciales incorrectas ⛔'
@@ -98,16 +109,17 @@ const login = async (req, res) => {
 // 2. REGISTRO
 const register = async (req, res) => {
   try {
-    const { username, password } = req.body || {};
+    const { username, email, password } = req.body || {};
 
-    if (!username || !password) {
+    if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Faltan datos (username/password)'
+        message: 'Faltan datos (username/email/password)'
       });
     }
 
     const usernameLimpio = String(username).trim();
+    const emailLimpio = String(email).trim().toLowerCase();
 
     if (usernameLimpio.length < 3) {
       return res.status(400).json({
@@ -116,22 +128,42 @@ const register = async (req, res) => {
       });
     }
 
-    if (String(password).length < 4) {
+    if (password.length < 4) {
       return res.status(400).json({
         success: false,
         message: 'La contraseña debe tener al menos 4 caracteres'
       });
     }
 
-    const [existentes] = await pool.query(
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailValido.test(emailLimpio)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ingresa un correo válido'
+      });
+    }
+
+    const [usuariosExistentes] = await pool.query(
       `SELECT id FROM usuarios WHERE username = ? LIMIT 1`,
       [usernameLimpio]
     );
 
-    if (existentes.length > 0) {
+    if (usuariosExistentes.length > 0) {
       return res.status(400).json({
         success: false,
         message: 'El usuario ya existe'
+      });
+    }
+
+    const [emailsExistentes] = await pool.query(
+      `SELECT id FROM usuarios WHERE email = ? LIMIT 1`,
+      [emailLimpio]
+    );
+
+    if (emailsExistentes.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ese correo ya está registrado'
       });
     }
 
@@ -139,8 +171,8 @@ const register = async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO usuarios (username, password, nombre, email, telefono, direccion, role, activo)
-       VALUES (?, ?, '', '', '', '', 'cliente', 1)`,
-      [usernameLimpio, passwordHash]
+       VALUES (?, ?, '', ?, '', '', 'cliente', 1)`,
+      [usernameLimpio, passwordHash, emailLimpio]
     );
 
     await registrarLog(
@@ -155,6 +187,14 @@ const register = async (req, res) => {
     });
   } catch (err) {
     console.error('REGISTER ERROR:', err);
+
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        message: 'El usuario o correo ya existe'
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: err.message

@@ -13,17 +13,17 @@ import { PerfilUsuario } from './pages/PerfilUsuario'
 import { CheckoutForm } from './components/Checkout/CheckoutForm'
 import { Exito } from './pages/Exito'
 
-// --- IMPORTACIONES DE ESTILOS NUEVAS ---
+// --- IMPORTACIONES DE ESTILOS ---
 import './style/base.css'
 import './style/layout.css'
 
 // --- IMPORTACIÓN DEL BOTÓN DE WHATSAPP ---
 import { BotonWhatsApp } from './components/BotonWhatsApp'
 
-// ✅ Inicializar Mercado Pago UNA sola vez en toda la app
+// ✅ Inicializar Mercado Pago UNA sola vez
 initMercadoPago('APP_USR-76524e58-7401-4687-acc5-ddb10e609cb9')
 
-// CORRECCIÓN: Definimos la URL base de la API para que funcione en local y en producción
+// ✅ URL base API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 const RutaProtegida = ({ children }) => {
@@ -31,7 +31,7 @@ const RutaProtegida = ({ children }) => {
   return token ? children : <Login />
 }
 
-// ✅ Normaliza pedidos para que SIEMPRE usen el ID real (MySQL)
+// ✅ Normaliza pedidos para que siempre usen el ID real
 const normalizarPedidos = (arr) => {
   if (!Array.isArray(arr)) return []
   return arr.map((p) => {
@@ -45,7 +45,10 @@ function AppContenido() {
   const location = useLocation()
 
   const [productos, setProductos] = useState([])
-  const [carrito, setCarrito] = useState([])
+  const [carrito, setCarrito] = useState(() => {
+    const carritoGuardado = localStorage.getItem('carrito')
+    return carritoGuardado ? JSON.parse(carritoGuardado) : []
+  })
   const [pedidos, setPedidos] = useState([])
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos')
   const [busqueda, setBusqueda] = useState('')
@@ -55,6 +58,33 @@ function AppContenido() {
     cargarProductos()
     cargarPedidos()
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('carrito', JSON.stringify(carrito))
+  }, [carrito])
+
+  useEffect(() => {
+    const volverAlCheckout = localStorage.getItem('redirigirAlCheckout')
+
+    if (
+      volverAlCheckout === 'true' &&
+      (localStorage.getItem('token') || localStorage.getItem('adminToken'))
+    ) {
+      setMostrarCheckout(true)
+      localStorage.removeItem('redirigirAlCheckout')
+      navigate('/carrito')
+    }
+  }, [navigate])
+
+  // ✅ RECARGA PEDIDOS Y PRODUCTOS CADA VEZ QUE ENTRÁS AL ADMIN
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken')
+
+    if (location.pathname === '/admin' && token) {
+      cargarPedidos()
+      cargarProductos()
+    }
+  }, [location.pathname])
 
   const cargarProductos = () => {
     fetch(`${API_URL}/api/productos`)
@@ -115,6 +145,7 @@ function AppContenido() {
   const editarProductoAdmin = async (idProducto, productoFormData) => {
     const token = localStorage.getItem('adminToken')
     const toastId = toast.loading('Guardando cambios...')
+
     try {
       const respuesta = await fetch(`${API_URL}/api/productos/${idProducto}`, {
         method: 'PUT',
@@ -148,6 +179,7 @@ function AppContenido() {
       toast.error('ID de producto inválido')
       return null
     }
+
     if (!Number.isFinite(cant) || cant <= 0) {
       toast.error('Cantidad inválida (debe ser > 0)')
       return null
@@ -189,7 +221,11 @@ function AppContenido() {
     const token = localStorage.getItem('adminToken')
     const pid = Number(idPedido)
     const pedido = pedidos.find(p => (p.pedidoId ?? p.id) === pid)
-    if (!pedido) return toast.error('Pedido no encontrado')
+
+    if (!pedido) {
+      toast.error('Pedido no encontrado')
+      return
+    }
 
     const toastId = toast.loading('Procesando pago y stock...')
 
@@ -245,25 +281,16 @@ function AppContenido() {
     }
   }
 
+  // ✅ AHORA SE PUEDE AGREGAR AL CARRITO SIN LOGIN
   const agregarAlCarrito = (producto) => {
-    const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
-
-    if (!token) {
-      toast.error('🔒 Debes iniciar sesión para comprar', {
-        description: 'Redirigiendo al login...',
-        duration: 2000
-      })
-      setTimeout(() => {
-        window.location.href = '/login'
-      }, 1500)
-      return
-    }
-
     const existe = carrito.find(item => item.id === producto.id)
+
     if (existe) {
-      setCarrito(prev => prev.map(item =>
-        item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
-      ))
+      setCarrito(prev =>
+        prev.map(item =>
+          item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+        )
+      )
     } else {
       setCarrito(prev => [...prev, { ...producto, cantidad: 1 }])
     }
@@ -274,9 +301,11 @@ function AppContenido() {
   }
 
   const modificarCantidad = (id, cantidad) => {
-    setCarrito(prev => prev.map(item =>
-      item.id === id ? { ...item, cantidad: Math.max(1, item.cantidad + cantidad) } : item
-    ))
+    setCarrito(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, cantidad: Math.max(1, item.cantidad + cantidad) } : item
+      )
+    )
   }
 
   const eliminarDelCarrito = (id) => {
@@ -286,18 +315,40 @@ function AppContenido() {
     })
   }
 
-  const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => {
-  try {
+  // ✅ RECIÉN ACÁ EXIGE LOGIN
+  const finalizarCompra = () => {
     const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
 
-    const respuesta = await fetch(`${API_URL}/api/pedidos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify(ordenData)
-    })
+    if (!token) {
+      localStorage.setItem('redirigirAlCheckout', 'true')
+
+      toast.error('🔒 Debes iniciar sesión para finalizar la compra', {
+        description: 'Te llevamos al login...',
+        duration: 2000
+      })
+
+      setTimeout(() => {
+        navigate('/login')
+      }, 1200)
+
+      return
+    }
+
+    setMostrarCheckout(true)
+  }
+
+  const crearOrdenPendiente = async (ordenData, esMercadoPago = false) => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
+
+      const respuesta = await fetch(`${API_URL}/api/pedidos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(ordenData)
+      })
 
       const data = await respuesta.json().catch(() => ({}))
 
@@ -316,13 +367,14 @@ function AppContenido() {
 
       if (!esMercadoPago) {
         setCarrito([])
+        localStorage.removeItem('carrito')
         setMostrarCheckout(false)
 
         const TELEFONO_ALEXIA = '5491169734096'
 
-        const detalleProductos = ordenData.items.map(item =>
-          `• ${item.cantidad}x ${item.nombre} ($${(item.precio * item.cantidad).toLocaleString()})`
-        ).join('\n')
+        const detalleProductos = ordenData.items
+          .map(item => `• ${item.cantidad}x ${item.nombre} ($${(item.precio * item.cantidad).toLocaleString()})`)
+          .join('\n')
 
         let infoEntrega = `🚚 *Tipo de Entrega:* ${ordenData.tipoEntrega} ${ordenData.envio && ordenData.envio !== '-' ? `(${ordenData.envio})` : ''}\n`
 
@@ -343,7 +395,6 @@ function AppContenido() {
         )
 
         window.open(`https://wa.me/${TELEFONO_ALEXIA}?text=${mensajeEncoded}`, '_blank')
-
         toast.success('¡Pedido guardado y enviado a WhatsApp! 📱')
       }
 
@@ -366,20 +417,16 @@ function AppContenido() {
 
   const buscarPrimerProducto = (texto) => {
     const textoNormalizado = normalizarTexto(texto)
-
     if (!textoNormalizado) return null
 
     return productos.find((p) => {
-      const contenido = normalizarTexto(
-        `${p.nombre || ''} ${p.categoria || ''} ${p.descripcion || ''}`
-      )
+      const contenido = normalizarTexto(`${p.nombre || ''} ${p.categoria || ''} ${p.descripcion || ''}`)
       return contenido.includes(textoNormalizado)
     })
   }
 
   const obtenerSugerencias = () => {
     const textoNormalizado = normalizarTexto(busqueda)
-
     if (!textoNormalizado) return []
 
     const empiezan = productos.filter((p) => {
@@ -391,6 +438,7 @@ function AppContenido() {
       const nombre = normalizarTexto(p.nombre || '')
       const categoria = normalizarTexto(p.categoria || '')
       const descripcion = normalizarTexto(p.descripcion || '')
+
       return (
         !nombre.startsWith(textoNormalizado) &&
         (
@@ -648,7 +696,7 @@ function AppContenido() {
               <Carrito
                 carrito={carrito}
                 eliminarDelCarrito={eliminarDelCarrito}
-                finalizarCompra={() => setMostrarCheckout(true)}
+                finalizarCompra={finalizarCompra}
                 modificarCantidad={modificarCantidad}
               />
             }
@@ -656,7 +704,17 @@ function AppContenido() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
-          <Route path="/exito" element={<Exito vaciarCarrito={() => setCarrito([])} />} />
+          <Route
+            path="/exito"
+            element={
+              <Exito
+                vaciarCarrito={() => {
+                  setCarrito([])
+                  localStorage.removeItem('carrito')
+                }}
+              />
+            }
+          />
 
           <Route
             path="/admin"
