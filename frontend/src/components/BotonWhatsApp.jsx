@@ -5,7 +5,7 @@ export function BotonWhatsApp() {
     const numeroWhatsApp = "5491169734096"; 
     
     // Mensaje predeterminado
-    const mensaje = "¡Hola Imperio Mate! 👋 Me gustaría hacerles una consulta.";
+    const mensaje = "¡Hola Apolo Mate! 👋 Me gustaría hacerles una consulta.";
     
     // Generamos el link de WhatsApp con el mensaje codificado para la URL
     const linkWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensaje)}`;
