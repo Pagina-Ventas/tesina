@@ -381,7 +381,7 @@ function AppContenido() {
         if (ordenData.tipoEntrega === 'Envio') {
           infoEntrega += `📍 *Enviar a:* ${ordenData.direccion}\n`
         } else {
-          infoEntrega += `📍 *Retirar en:* Nuestra sucursal (Dirección de venta)\n`
+          infoEntrega += `📍 *Retirar en:* Nuestra sucursal (victoria 1215 sur)\n`
         }
 
         const mensajeEncoded = encodeURIComponent(
