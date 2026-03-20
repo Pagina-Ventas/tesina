@@ -6,6 +6,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 :root {
+  /* Le avisa al navegador que use controles nativos en versión oscura */
+  color-scheme: dark; 
+
   /* --- PALETA ADMIN (Dark Premium) --- */
   --admin-bg: #121212;
   --admin-sidebar: #0a0a0a;
@@ -446,7 +449,7 @@
 }
 
 /* =========================================
-   5. GRÁFICOS
+   5. GRÁFICOS Y FORMULARIOS
    ========================================= */
 .charts-grid {
   display: grid;
@@ -470,7 +473,7 @@
   color: #fff;
 }
 
-/* Formulario de Ajustes */
+/* Formulario de Ajustes e Inputs Generales */
 .form-input {
   background-color: var(--admin-bg);
   color: #fff;
@@ -480,11 +483,20 @@
   width: 100%;
   box-sizing: border-box;
   font-family: inherit;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .form-input:focus {
   border-color: var(--admin-primary);
   outline: none;
+  box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.2);
+}
+
+/* --- SOLUCIÓN PARA LOS SELECT DE AÑO/MES Y MODALES --- */
+select.form-input option {
+  background-color: var(--admin-bg);
+  color: var(--admin-text-main);
+  padding: 10px;
 }
 
 /* =========================================
