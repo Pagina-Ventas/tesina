@@ -17,8 +17,9 @@ import { Exito } from './pages/Exito'
 import './style/base.css'
 import './style/layout.css'
 
-// --- IMPORTACIÓN DEL BOTÓN DE WHATSAPP ---
+// --- IMPORTACIÓN DE COMPONENTES ---
 import { BotonWhatsApp } from './components/BotonWhatsApp'
+import Footer from './components/Footer'
 
 // ✅ Inicializar Mercado Pago UNA sola vez
 initMercadoPago('APP_USR-76524e58-7401-4687-acc5-ddb10e609cb9')
@@ -705,7 +706,6 @@ function AppContenido() {
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
           
-          {/* 👇 ESTA ES LA RUTA QUE ACTUALIZAMOS 👇 */}
           <Route
             path="/exito"
             element={
@@ -714,7 +714,7 @@ function AppContenido() {
                   setCarrito([])
                   localStorage.removeItem('carrito')
                 }}
-                recargarProductos={cargarProductos} 
+                recargarProductos={cargarProductos}
               />
             }
           />
@@ -737,6 +737,7 @@ function AppContenido() {
         </Routes>
       </div>
 
+      <Footer />
       <BotonWhatsApp />
     </>
   )
