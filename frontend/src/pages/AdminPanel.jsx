@@ -14,6 +14,14 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [logs, setLogs] = useState([])
   const [usuarios, setUsuarios] = useState([])
   const [recargoMP, setRecargoMP] = useState(20)
+    const [banners, setBanners] = useState([])
+  const [nuevoBanner, setNuevoBanner] = useState({
+    titulo: '',
+    subtitulo: '',
+    orden: 0,
+    activo: 1,
+    imagen: null
+  })
 
   const [adminNombre, setAdminNombre] = useState('Administrador')
   const [adminIniciales, setAdminIniciales] = useState('AD')
@@ -131,12 +139,173 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       alert('Error de conexión')
     }
   }
+    const cargarBanners = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/banners/admin`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      setBanners(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Error cargando banners:', err)
+      setBanners([])
+    }
+  }
 
-  useEffect(() => {
+  const handleBannerInputChange = (e) => {
+    const { name, value } = e.target
+    setNuevoBanner(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleBannerFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setNuevoBanner(prev => ({
+        ...prev,
+        imagen: e.target.files[0]
+      }))
+    }
+  }
+
+  const crearBanner = async (e) => {
+    e.preventDefault()
+
+    if (!nuevoBanner.imagen) {
+      alert('Seleccioná una imagen para el banner')
+      return
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('titulo', nuevoBanner.titulo)
+      formData.append('subtitulo', nuevoBanner.subtitulo)
+      formData.append('orden', nuevoBanner.orden)
+      formData.append('activo', nuevoBanner.activo)
+      formData.append('imagen', nuevoBanner.imagen)
+
+      const res = await fetch(`${API_URL}/api/banners`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'No se pudo crear el banner')
+      }
+
+      alert('✅ Banner creado correctamente')
+
+      setNuevoBanner({
+        titulo: '',
+        subtitulo: '',
+        orden: 0,
+        activo: 1,
+        imagen: null
+      })
+
+      await cargarBanners()
+    } catch (error) {
+      console.error(error)
+      alert(error.message || 'Error creando banner')
+    }
+  }
+
+  const cambiarEstadoBanner = async (banner) => {
+    try {
+      const formData = new FormData()
+      formData.append('titulo', banner.titulo || '')
+      formData.append('subtitulo', banner.subtitulo || '')
+      formData.append('orden', banner.orden || 0)
+      formData.append('activo', banner.activo ? 0 : 1)
+
+      const res = await fetch(`${API_URL}/api/banners/${banner.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'No se pudo actualizar el banner')
+      }
+
+      await cargarBanners()
+    } catch (error) {
+      console.error(error)
+      alert(error.message || 'Error actualizando banner')
+    }
+  }
+
+  const cambiarOrdenBanner = async (banner, nuevoOrden) => {
+    try {
+      const formData = new FormData()
+      formData.append('titulo', banner.titulo || '')
+      formData.append('subtitulo', banner.subtitulo || '')
+      formData.append('orden', nuevoOrden)
+      formData.append('activo', banner.activo ? 1 : 0)
+
+      const res = await fetch(`${API_URL}/api/banners/${banner.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'No se pudo actualizar el orden')
+      }
+
+      await cargarBanners()
+    } catch (error) {
+      console.error(error)
+      alert(error.message || 'Error actualizando orden')
+    }
+  }
+
+  const eliminarBanner = async (id) => {
+    const ok = window.confirm('¿Eliminar este banner?')
+    if (!ok) return
+
+    try {
+      const res = await fetch(`${API_URL}/api/banners/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'No se pudo eliminar el banner')
+      }
+
+      alert('✅ Banner eliminado')
+      await cargarBanners()
+    } catch (error) {
+      console.error(error)
+      alert(error.message || 'Error eliminando banner')
+    }
+  }
+
+    useEffect(() => {
     cargarProductos()
     cargarCategorias()
     cargarLogs()
     cargarConfiguracion()
+    cargarBanners()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarModal, mostrarModalEditar, pedidos])
 
@@ -1241,13 +1410,16 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
           </section>
         )}
 
-        {vistaActiva === 'ajustes' && (
+            {vistaActiva === 'ajustes' && (
           <section className="recent-orders">
             <div className="section-header">
               <h3>⚙️ Configuración General de la Tienda</h3>
             </div>
 
-            <div className="checkout-card" style={{ maxWidth: '400px', margin: '20px 0', border: '1px solid #333' }}>
+            <div
+              className="checkout-card"
+              style={{ maxWidth: '400px', margin: '20px 0', border: '1px solid #333' }}
+            >
               <div className="form-group">
                 <label className="form-label" style={{ color: '#009ee3', fontWeight: 'bold' }}>
                   Recargo por Tarjeta / Mercado Pago (%)
@@ -1268,9 +1440,167 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                 </div>
               </div>
 
-              <button className="btn-whatsapp" style={{ background: '#3b82f6', marginTop: '10px' }} onClick={guardarConfiguracion}>
+              <button
+                className="btn-whatsapp"
+                style={{ background: '#3b82f6', marginTop: '10px' }}
+                onClick={guardarConfiguracion}
+              >
                 Guardar Configuración 💾
               </button>
+            </div>
+
+            <div
+              className="checkout-card"
+              style={{ marginTop: '25px', border: '1px solid #333' }}
+            >
+              <h3 style={{ marginBottom: '20px', color: '#c5a059' }}>🖼️ Gestión del Carrusel</h3>
+
+              <form onSubmit={crearBanner}>
+                <div className="form-group" style={{ marginBottom: '15px' }}>
+                  <label className="form-label">Imagen del banner</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="form-input"
+                    onChange={handleBannerFileChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Título (opcional)</label>
+                  <input
+                    type="text"
+                    name="titulo"
+                    className="form-input"
+                    value={nuevoBanner.titulo}
+                    onChange={handleBannerInputChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Subtítulo (opcional)</label>
+                  <input
+                    type="text"
+                    name="subtitulo"
+                    className="form-input"
+                    value={nuevoBanner.subtitulo}
+                    onChange={handleBannerInputChange}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Orden</label>
+                    <input
+                      type="number"
+                      name="orden"
+                      className="form-input"
+                      value={nuevoBanner.orden}
+                      onChange={handleBannerInputChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Activo</label>
+                    <select
+                      name="activo"
+                      className="form-input"
+                      value={nuevoBanner.activo}
+                      onChange={handleBannerInputChange}
+                    >
+                      <option value={1}>Sí</option>
+                      <option value={0}>No</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" className="btn-whatsapp" style={{ marginTop: '10px' }}>
+                  + Agregar Banner
+                </button>
+              </form>
+
+              <div style={{ marginTop: '30px' }}>
+                <h4 style={{ color: '#fff', marginBottom: '15px' }}>Banners cargados</h4>
+
+                {banners.length === 0 ? (
+                  <p style={{ color: '#aaa' }}>No hay banners cargados todavía.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '15px' }}>
+                    {banners.map((banner) => (
+                      <div
+                        key={banner.id}
+                        style={{
+                          border: '1px solid #333',
+                          borderRadius: '12px',
+                          padding: '15px',
+                          background: '#111'
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '15px',
+                            alignItems: 'center',
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          <img
+                            src={`${API_URL}${banner.imagen}`}
+                            alt={banner.titulo || 'Banner'}
+                            style={{
+                              width: '180px',
+                              height: '90px',
+                              objectFit: 'cover',
+                              borderRadius: '10px',
+                              border: '1px solid #333'
+                            }}
+                          />
+
+                          <div style={{ flex: 1, minWidth: '220px' }}>
+                            <p style={{ margin: '0 0 8px 0', color: '#fff', fontWeight: 'bold' }}>
+                              {banner.titulo || 'Sin título'}
+                            </p>
+                            <p style={{ margin: '0 0 10px 0', color: '#aaa' }}>
+                              {banner.subtitulo || 'Sin subtítulo'}
+                            </p>
+                            <p style={{ margin: 0, color: banner.activo ? '#10b981' : '#ef4444' }}>
+                              {banner.activo ? 'Activo' : 'Inactivo'}
+                            </p>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <input
+                              type="number"
+                              defaultValue={banner.orden}
+                              onBlur={(e) => cambiarOrdenBanner(banner, e.target.value)}
+                              className="form-input"
+                              style={{ width: '90px' }}
+                            />
+
+                            <button
+                              type="button"
+                              className="btn-add"
+                              style={{ background: banner.activo ? '#f59e0b' : '#10b981' }}
+                              onClick={() => cambiarEstadoBanner(banner)}
+                            >
+                              {banner.activo ? 'Desactivar' : 'Activar'}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn-add"
+                              style={{ background: '#ef4444' }}
+                              onClick={() => eliminarBanner(banner.id)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         )}

@@ -1,10 +1,7 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-
-// --- IMPORTAMOS SOLO LOS ESTILOS DE LA TIENDA ---
 import '../style/tienda.css'
 
-// Definimos la URL base para las imágenes (igual que en App.jsx)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 const normalizarTexto = (texto) => {
@@ -24,6 +21,23 @@ export function Tienda({
   setCategoriaSeleccionada,
   busqueda
 }) {
+  const [banners, setBanners] = useState([])
+
+  useEffect(() => {
+    const cargarBanners = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/banners`)
+        const data = await res.json()
+        setBanners(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error cargando banners:', error)
+        setBanners([])
+      }
+    }
+
+    cargarBanners()
+  }, [])
+
   const textoBusqueda = normalizarTexto(busqueda)
 
   const productosFiltrados = productos.filter((p) => {
@@ -40,14 +54,43 @@ export function Tienda({
     return coincideCategoria && coincideBusqueda
   })
 
+  const bannersActivos = banners.length > 0 ? banners : null
+  const segundosPorBanner = 5
+  const cantidadBanners = bannersActivos?.length || 1
+  const duracionTotal = cantidadBanners * segundosPorBanner
+
   return (
     <>
       <section className="hero-container">
         <div className="hero-carousel">
-          <img src="/banners/banner1.jpg" alt="Banner 1" className="hero-slide" />
-          <img src="/banners/banner2.jpg" alt="Banner 2" className="hero-slide" />
-          <img src="/banners/banner3.jpg" alt="Banner 3" className="hero-slide" />
-          <img src="/banners/banner4.jpg" alt="Banner 4" className="hero-slide" />
+          {bannersActivos && bannersActivos.length > 0 ? (
+            bannersActivos.length === 1 ? (
+              <img
+                src={`${API_URL}${bannersActivos[0].imagen}`}
+                alt={bannersActivos[0].titulo || 'Banner'}
+                className="hero-slide hero-slide-single"
+              />
+            ) : (
+              bannersActivos.map((banner, index) => (
+                <img
+                  key={banner.id}
+                  src={`${API_URL}${banner.imagen}`}
+                  alt={banner.titulo || `Banner ${index + 1}`}
+                  className="hero-slide"
+                  style={{
+                    animationDelay: `${index * segundosPorBanner}s`,
+                    animationDuration: `${duracionTotal}s`
+                  }}
+                />
+              ))
+            )
+          ) : (
+            <img
+              src="/banners/banner1.jpg"
+              alt="Banner por defecto"
+              className="hero-slide hero-slide-single"
+            />
+          )}
         </div>
 
         <div className="hero-overlay"></div>
