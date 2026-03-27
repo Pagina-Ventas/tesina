@@ -44,7 +44,7 @@ const normalizarPedidos = (arr) => {
 function AppContenido() {
   const navigate = useNavigate()
   const location = useLocation()
-
+  const esRutaAdmin = location.pathname.startsWith('/admin')
   const [productos, setProductos] = useState([])
   const [carrito, setCarrito] = useState(() => {
     const carritoGuardado = localStorage.getItem('carrito')
@@ -737,8 +737,8 @@ function AppContenido() {
         </Routes>
       </div>
 
-      <Footer />
-      <BotonWhatsApp />
+      {!esRutaAdmin && <Footer />}
+      {!esRutaAdmin && <BotonWhatsApp />}
     </>
   )
 }
