@@ -100,13 +100,40 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
                     {rel.stock === 0 ? 'AGOTADO' : esCriticoRel ? `ÚLTIMOS ${rel.stock}` : 'STOCK'}
                   </div>
 
-                  <Link to={`/producto/${rel.id}`} className="card-image-link">
-                    <div className="card-image-box">
+                  <Link to={`/producto/${rel.id}`} style={{ textDecoration: 'none' }}>
+                    <div
+                      className="card-image-box"
+                      style={{
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
                       {rel.imagen ? (
-                        <img src={`${API_URL}${rel.imagen}`} alt={rel.nombre} className="card-image" />
+                        <img
+                          src={`${API_URL}${rel.imagen}`}
+                          alt={rel.nombre}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            transition: 'transform 0.4s ease'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        />
                       ) : (
-                        <span className="card-image-placeholder">
-                          {rel.categoria === 'Termos' ? '⚱️' : rel.categoria === 'Bombillas' ? '🥢' : '🧉'}
+                        <span style={{ fontSize: '4rem', opacity: '0.5' }}>
+                          {rel.categoria === 'Termos'
+                            ? '⚱️'
+                            : rel.categoria === 'Bombillas'
+                            ? '🥢'
+                            : rel.categoria === 'Kits'
+                            ? '💼'
+                            : rel.categoria === 'Insumos'
+                            ? '🍃'
+                            : '🧉'}
                         </span>
                       )}
                     </div>
