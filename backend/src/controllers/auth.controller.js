@@ -1,7 +1,9 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const pool = require('../db');
 const { registrarLog } = require('./logs.controller');
+const { enviarCorreoVerificacion } = require('../services/mail.service');
 
 // 1. LOGIN
 const login = async (req, res) => {
@@ -64,6 +66,13 @@ const login = async (req, res) => {
       });
     }
 
+    if (!usuario.email_verificado) {
+      return res.status(403).json({
+        success: false,
+        message: 'Debes verificar tu correo antes de iniciar sesión.'
+      });
+    }
+
     const userSafe = {
       id: usuario.id,
       username: usuario.username,
@@ -72,7 +81,8 @@ const login = async (req, res) => {
       telefono: usuario.telefono || '',
       direccion: usuario.direccion || '',
       role: usuario.role || 'cliente',
-      activo: usuario.activo
+      activo: usuario.activo,
+      email_verificado: usuario.email_verificado
     };
 
     const token = jwt.sign(
@@ -168,22 +178,38 @@ const register = async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const tokenVerificacion = crypto.randomBytes(32).toString('hex');
+    const tokenExpiraEn = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const [result] = await pool.query(
-      `INSERT INTO usuarios (username, password, nombre, email, telefono, direccion, role, activo)
-       VALUES (?, ?, '', ?, '', '', 'cliente', 1)`,
-      [usernameLimpio, passwordHash, emailLimpio]
+      `INSERT INTO usuarios (
+        username,
+        password,
+        nombre,
+        email,
+        telefono,
+        direccion,
+        role,
+        activo,
+        email_verificado,
+        token_verificacion,
+        token_expira_en
+      )
+      VALUES (?, ?, '', ?, '', '', 'cliente', 1, 0, ?, ?)`,
+      [usernameLimpio, passwordHash, emailLimpio, tokenVerificacion, tokenExpiraEn]
     );
+
+    await enviarCorreoVerificacion(emailLimpio, usernameLimpio, tokenVerificacion);
 
     await registrarLog(
       usernameLimpio,
       'REGISTRO',
-      `Nuevo usuario registrado con ID ${result.insertId}.`
+      `Nuevo usuario registrado con ID ${result.insertId}. Pendiente de verificación por mail.`
     );
 
     return res.json({
       success: true,
-      message: 'Usuario creado con éxito'
+      message: 'Usuario creado con éxito. Revisa tu correo para verificar la cuenta.'
     });
   } catch (err) {
     console.error('REGISTER ERROR:', err);
@@ -202,7 +228,78 @@ const register = async (req, res) => {
   }
 };
 
-// 3. ACTUALIZAR PERFIL
+// 3. VERIFICAR EMAIL
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token inválido'
+      });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, username, token_expira_en
+       FROM usuarios
+       WHERE token_verificacion = ?
+       LIMIT 1`,
+      [token]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token inválido o inexistente'
+      });
+    }
+
+    const usuario = rows[0];
+
+    if (!usuario.token_expira_en || new Date(usuario.token_expira_en) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'El enlace de verificación expiró'
+      });
+    }
+
+    await pool.query(
+      `UPDATE usuarios
+       SET email_verificado = 1,
+           token_verificacion = NULL,
+           token_expira_en = NULL
+       WHERE id = ?`,
+      [usuario.id]
+    );
+
+    await registrarLog(
+      usuario.username,
+      'EMAIL_VERIFICADO',
+      'El usuario verificó su correo electrónico.'
+    );
+
+    return res.send(`
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; background: #121212; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #c5a059; text-align: center;">
+    <h1 style="color: #c5a059;">✅ Cuenta verificada</h1>
+    <p style="font-size: 18px;">Tu correo fue confirmado correctamente.</p>
+    <p style="color: #aaa;">Ya podés volver a ApoloMate e iniciar sesión.</p>
+    <a href="${process.env.FRONT_URL || 'http://localhost:5173'}/login"
+       style="display:inline-block;margin-top:20px;padding:12px 20px;background:#c5a059;color:#000;text-decoration:none;border-radius:8px;font-weight:bold;">
+      Ir al login
+    </a>
+  </div>
+`);
+  } catch (err) {
+    console.error('VERIFY EMAIL ERROR:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+// 4. ACTUALIZAR PERFIL
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -236,7 +333,7 @@ const updateProfile = async (req, res) => {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, username, nombre, email, telefono, direccion, role, activo
+      `SELECT id, username, nombre, email, telefono, direccion, role, activo, email_verificado
        FROM usuarios
        WHERE id = ?
        LIMIT 1`,
@@ -269,7 +366,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// 4. OBTENER MI PERFIL
+// 5. OBTENER MI PERFIL
 const getProfile = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -282,7 +379,7 @@ const getProfile = async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, username, nombre, email, telefono, direccion, role, activo, creado_en
+      `SELECT id, username, nombre, email, telefono, direccion, role, activo, creado_en, email_verificado
        FROM usuarios
        WHERE id = ?
        LIMIT 1`,
@@ -309,4 +406,4 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { login, register, updateProfile, getProfile };
+module.exports = { login, register, verifyEmail, updateProfile, getProfile };
