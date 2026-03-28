@@ -395,6 +395,156 @@ const updateProducto = async (req, res) => {
   }
 };
 
+// 8. Obtener imágenes secundarias de un producto
+const getImagenesProducto = async (req, res) => {
+  const productoId = Number(req.params.id);
+
+  if (!Number.isFinite(productoId) || productoId <= 0) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        id,
+        producto_id AS productoId,
+        imagen,
+        orden
+      FROM producto_imagenes
+      WHERE producto_id = ?
+      ORDER BY orden ASC, id ASC
+      `,
+      [productoId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error('ERROR OBTENIENDO IMÁGENES DEL PRODUCTO:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error obteniendo imágenes del producto',
+      detail: err.message
+    });
+  }
+};
+
+// 9. Agregar imágenes secundarias a un producto
+const agregarImagenesProducto = async (req, res) => {
+  const productoId = Number(req.params.id);
+
+  if (!Number.isFinite(productoId) || productoId <= 0) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ success: false, message: 'No se subieron imágenes' });
+  }
+
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const [productoRows] = await conn.query(
+      `SELECT id, nombre FROM productos WHERE id = ? FOR UPDATE`,
+      [productoId]
+    );
+
+    if (productoRows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    }
+
+    const [ordenRows] = await conn.query(
+      `SELECT COALESCE(MAX(orden), 0) AS maxOrden FROM producto_imagenes WHERE producto_id = ?`,
+      [productoId]
+    );
+
+    let ordenActual = Number(ordenRows[0]?.maxOrden || 0);
+
+    for (const file of req.files) {
+      ordenActual += 1;
+
+      await conn.query(
+        `
+        INSERT INTO producto_imagenes (producto_id, imagen, orden)
+        VALUES (?, ?, ?)
+        `,
+        [productoId, `/uploads/${file.filename}`, ordenActual]
+      );
+    }
+
+    await conn.commit();
+
+    const [imagenes] = await pool.query(
+      `
+      SELECT 
+        id,
+        producto_id AS productoId,
+        imagen,
+        orden
+      FROM producto_imagenes
+      WHERE producto_id = ?
+      ORDER BY orden ASC, id ASC
+      `,
+      [productoId]
+    );
+
+    await registrarLog(
+      'Administrador',
+      'AGREGAR_IMAGENES_PRODUCTO',
+      `Se agregaron ${req.files.length} imágenes secundarias al producto "${productoRows[0].nombre}".`
+    );
+
+    res.json({
+      success: true,
+      imagenes
+    });
+  } catch (err) {
+    try { await conn.rollback(); } catch {}
+    console.error('ERROR AGREGANDO IMÁGENES AL PRODUCTO:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error agregando imágenes al producto',
+      detail: err.message
+    });
+  } finally {
+    conn.release();
+  }
+};
+
+// 10. Eliminar imagen secundaria
+const eliminarImagenProducto = async (req, res) => {
+  const imagenId = Number(req.params.imagenId);
+
+  if (!Number.isFinite(imagenId) || imagenId <= 0) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id FROM producto_imagenes WHERE id = ?`,
+      [imagenId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Imagen no encontrada' });
+    }
+
+    await pool.query(`DELETE FROM producto_imagenes WHERE id = ?`, [imagenId]);
+
+    res.json({ success: true, deletedId: imagenId });
+  } catch (err) {
+    console.error('ERROR ELIMINANDO IMAGEN DEL PRODUCTO:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error eliminando imagen',
+      detail: err.message
+    });
+  }
+};
+
 module.exports = {
   getProductos,
   createProducto,
@@ -402,5 +552,8 @@ module.exports = {
   eliminarProducto,
   venderProducto,
   verificarStock,
-  updateProducto
+  updateProducto,
+  getImagenesProducto,
+  agregarImagenesProducto,
+  eliminarImagenProducto
 };

@@ -1,7 +1,7 @@
 const { Router } = require('express')
 const router = Router()
 const controller = require('../controllers/productos.controller')
-const { verificarAdmin } = require('../middlewares/auth.middleware') // 👈 IMPORTANTE: Importamos el middleware
+const { verificarAdmin } = require('../middlewares/auth.middleware')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
@@ -30,7 +30,7 @@ const upload = multer({
     const mimetype = filetypes.test(file.mimetype)
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase())
     if (mimetype && extname) return cb(null, true)
-    cb(new Error('❌ Solo se permiten imágenes (jpg, png, webp)'))
+    cb(new Error('❌ Solo se permiten imágenes (jpg, png, webp, gif)'))
   }
 })
 
@@ -39,10 +39,13 @@ const upload = multer({
 // 🟢 PÚBLICA: Cualquier usuario puede ver los productos
 router.get('/', controller.getProductos)
 
+// 🟢 PÚBLICA: Obtener imágenes secundarias de un producto
+router.get('/:id/imagenes', controller.getImagenesProducto)
+
 // 🔴 PROTEGIDA: Solo el administrador puede crear productos
 router.post(
   '/',
-  verificarAdmin, // 🔒 Se agrega la protección aquí
+  verificarAdmin,
   (req, res, next) => {
     upload.single('imagen')(req, res, (err) => {
       if (err) return res.status(400).json({ success: false, message: err.message })
@@ -52,10 +55,23 @@ router.post(
   controller.createProducto
 )
 
-// NUEVA RUTA 🔴 PROTEGIDA: Administrador puede editar producto completo (precio, stock, foto, etc)
+// 🔴 PROTEGIDA: Agregar imágenes secundarias a un producto
+router.post(
+  '/:id/imagenes',
+  verificarAdmin,
+  (req, res, next) => {
+    upload.array('imagenes', 10)(req, res, (err) => {
+      if (err) return res.status(400).json({ success: false, message: err.message })
+      next()
+    })
+  },
+  controller.agregarImagenesProducto
+)
+
+// 🔴 PROTEGIDA: Administrador puede editar producto completo
 router.put(
   '/:id',
-  verificarAdmin, // 🔒 Se agrega la protección
+  verificarAdmin,
   (req, res, next) => {
     upload.single('imagen')(req, res, (err) => {
       if (err) return res.status(400).json({ success: false, message: err.message })
@@ -65,15 +81,17 @@ router.put(
   controller.updateProducto
 )
 
-// 🟢 PÚBLICA: Ruta necesaria para el flujo de ventas del local o bot
-router.get('/vender/:id/:cantidad', controller.venderProducto)
-
 // 🔴 PROTEGIDA: Solo el administrador puede reponer stock manualmente
-router.put('/:id/reponer', verificarAdmin, controller.reponerStock) // 🔒 Se agrega la protección aquí
+router.put('/:id/reponer', verificarAdmin, controller.reponerStock)
+
+// 🔴 PROTEGIDA: Eliminar imagen secundaria
+router.delete('/imagenes/:imagenId', verificarAdmin, controller.eliminarImagenProducto)
 
 // 🔴 PROTEGIDA: Solo el administrador puede eliminar productos
-router.delete('/:id', verificarAdmin, controller.eliminarProducto) // 🔒 Se agrega la protección aquí
+router.delete('/:id', verificarAdmin, controller.eliminarProducto)
 
+// 🟢 PÚBLICA: Ruta necesaria para el flujo de ventas del local o bot
+router.get('/vender/:id/:cantidad', controller.venderProducto)
 
 // 👇 RUTA DE PRUEBA (BOTÓN DE PÁNICO)
 router.get('/test-bot', async (req, res) => {

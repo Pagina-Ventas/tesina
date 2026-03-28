@@ -47,6 +47,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false)
   const [prodEditar, setProdEditar] = useState(null)
 
+  const [imagenesSecundarias, setImagenesSecundarias] = useState([])
+  const [imagenesProductoActual, setImagenesProductoActual] = useState([])
+
   const [nuevaCategoria, setNuevaCategoria] = useState('')
 
   const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false)
@@ -493,6 +496,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     descripcion: prod.descripcion || '',
     imagen: null
   })
+
+  setImagenesSecundarias([])
+  cargarImagenesProducto(prod.id)
   setMostrarModalEditar(true)
 }
 
@@ -503,9 +509,87 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       setProdEditar({ ...prodEditar, imagen: e.target.files[0] })
     }
   }
+  const handleImagenesSecundariasChange = (e) => {
+    if (e.target.files) {
+      setImagenesSecundarias(Array.from(e.target.files))
+    }
+  }
 
-  const handleEditSubmit = async (e) => {
+  const cargarImagenesProducto = async (productoId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/productos/${productoId}/imagenes`)
+      const data = await res.json()
+      setImagenesProductoActual(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Error cargando imágenes secundarias:', err)
+      setImagenesProductoActual([])
+    }
+  }
+
+  const subirImagenesSecundarias = async (productoId) => {
+    if (!imagenesSecundarias.length) {
+      alert('Seleccioná al menos una imagen secundaria')
+      return
+    }
+
+    try {
+      const formData = new FormData()
+
+      imagenesSecundarias.forEach((img) => {
+        formData.append('imagenes', img)
+      })
+
+      const res = await fetch(`${API_URL}/api/productos/${productoId}/imagenes`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || 'No se pudieron subir las imágenes secundarias')
+      }
+
+      setImagenesSecundarias([])
+      await cargarImagenesProducto(productoId)
+      alert('✅ Imágenes secundarias agregadas')
+    } catch (err) {
+      console.error(err)
+      alert(err?.message || 'Error subiendo imágenes secundarias')
+    }
+  }
+
+  const eliminarImagenSecundaria = async (imagenId, productoId) => {
+    const ok = window.confirm('¿Eliminar esta imagen secundaria?')
+    if (!ok) return
+
+    try {
+      const res = await fetch(`${API_URL}/api/productos/imagenes/${imagenId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || 'No se pudo eliminar la imagen')
+      }
+
+      await cargarImagenesProducto(productoId)
+    } catch (err) {
+      console.error(err)
+      alert(err?.message || 'Error eliminando imagen')
+    }
+  }
+
+   const handleEditSubmit = async (e) => {
     e.preventDefault()
+
     const formData = new FormData()
     formData.append('nombre', prodEditar.nombre)
     formData.append('categoria', prodEditar.categoria)
@@ -514,12 +598,17 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     formData.append('stockMinimo', prodEditar.stockMinimo)
     formData.append('descripcion', prodEditar.descripcion)
 
-    if (prodEditar.imagen) formData.append('imagen', prodEditar.imagen)
+    if (prodEditar.imagen) {
+      formData.append('imagen', prodEditar.imagen)
+    }
 
     const exito = await editarProductoAdmin(prodEditar.id, formData)
+
     if (exito) {
       setMostrarModalEditar(false)
       setProdEditar(null)
+      setImagenesSecundarias([])
+      setImagenesProductoActual([])
     }
   }
 
@@ -1610,299 +1699,309 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         <div className="checkout-overlay">
           <div className="checkout-card" style={{ maxWidth: '500px' }}>
             <h2 className="checkout-title">Nuevo Producto</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group" style={{ border: '1px dashed #444', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
-                <label className="form-label">📸 Imagen del Producto</label>
-                <input type="file" accept="image/*" className="form-input" onChange={handleFileChange} />
-              </div>
+           <form onSubmit={handleSubmit}>
+  <div className="form-group">
+    <label className="form-label">Nombre del Producto</label>
+    <input
+      type="text"
+      name="nombre"
+      required
+      className="form-input"
+      onChange={handleInputChange}
+      value={nuevoProd.nombre}
+    />
+  </div>
 
-              <div className="form-group">
-                <label className="form-label">Nombre del Producto</label>
-                <input type="text" name="nombre" required className="form-input" onChange={handleInputChange} value={nuevoProd.nombre} />
-              </div>
+  <div className="form-group">
+    <label className="form-label">Descripción</label>
+    <textarea
+      name="descripcion"
+      className="form-input"
+      onChange={handleInputChange}
+      value={nuevoProd.descripcion}
+      rows="4"
+      placeholder="Escribí una descripción del producto..."
+    />
+  </div>
 
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <textarea
-                  name="descripcion"
-                  className="form-input"
-                  onChange={handleInputChange}
-                  value={nuevoProd.descripcion}
-                  rows="4"
-                  placeholder="Escribí una descripción del producto..."
-                />
-              </div>
+  <div className="form-group">
+    <label className="form-label">Categoría</label>
+    <select
+      name="categoria"
+      className="form-input"
+      onChange={handleInputChange}
+      value={nuevoProd.categoria}
+      required
+    >
+      <option value="" disabled>Seleccionar categoría...</option>
+      {categorias.map(c => (
+        <option key={c.id} value={c.nombre}>{c.nombre}</option>
+      ))}
+    </select>
+  </div>
 
-              <div className="form-group">
-                <label className="form-label">Categoría</label>
-                <select
-                  name="categoria"
-                  className="form-input"
-                  onChange={handleInputChange}
-                  value={nuevoProd.categoria}
-                  required
-                >
-                  <option value="" disabled>Seleccionar categoría...</option>
-                  {categorias.map(c => (
-                    <option key={c.id} value={c.nombre}>{c.nombre}</option>
-                  ))}
-                </select>
-              </div>
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+    <div className="form-group">
+      <label className="form-label">Precio ($)</label>
+      <input
+        type="number"
+        name="precio"
+        required
+        className="form-input"
+        onChange={handleInputChange}
+        value={nuevoProd.precio}
+      />
+    </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="form-group">
-                  <label className="form-label">Precio ($)</label>
-                  <input type="number" name="precio" required className="form-input" onChange={handleInputChange} value={nuevoProd.precio} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Stock Inicial</label>
-                  <input type="number" name="stock" required className="form-input" onChange={handleInputChange} value={nuevoProd.stock} />
-                </div>
-              </div>
+    <div className="form-group">
+      <label className="form-label">Stock Inicial</label>
+      <input
+        type="number"
+        name="stock"
+        required
+        className="form-input"
+        onChange={handleInputChange}
+        value={nuevoProd.stock}
+      />
+    </div>
+  </div>
 
-              <button type="submit" className="btn-whatsapp">Guardar Producto 💾</button>
-              <button type="button" className="btn-cancel" onClick={() => setMostrarModal(false)}>Cancelar</button>
-            </form>
+  <div className="form-group">
+    <label className="form-label">Stock mínimo</label>
+    <input
+      type="number"
+      name="stockMinimo"
+      className="form-input"
+      onChange={handleInputChange}
+      value={nuevoProd.stockMinimo}
+    />
+  </div>
+
+  <div className="form-group" style={{ border: '1px dashed #444', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
+    <label className="form-label">📸 Imagen del Producto</label>
+    <input
+      type="file"
+      accept="image/*"
+      className="form-input"
+      onChange={handleFileChange}
+    />
+  </div>
+
+  <button type="submit" className="btn-whatsapp">
+    Guardar Producto 💾
+  </button>
+
+  <button
+    type="button"
+    className="btn-cancel"
+    onClick={() => setMostrarModal(false)}
+  >
+    Cancelar
+  </button>
+</form>
           </div>
         </div>
       )}
 
       {mostrarModalEditar && prodEditar && (
-        <div className="checkout-overlay">
-          <div className="checkout-card" style={{ maxWidth: '500px' }}>
-            <h2 className="checkout-title" style={{ color: '#f59e0b' }}>Editar Producto</h2>
-            <form onSubmit={handleEditSubmit}>
-              <div className="form-group" style={{ border: '1px dashed #f59e0b', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
-                <label className="form-label">📸 Cambiar Imagen (Opcional)</label>
-                <input type="file" accept="image/*" className="form-input" onChange={handleEditFileChange} />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Nombre del Producto</label>
-                <input type="text" name="nombre" required className="form-input" onChange={handleEditChange} value={prodEditar.nombre} />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <textarea
-                  name="descripcion"
-                  className="form-input"
-                  onChange={handleEditChange}
-                  value={prodEditar.descripcion}
-                  rows="4"
-                  placeholder="Escribí una descripción del producto..."
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Categoría</label>
-                <select
-                  name="categoria"
-                  className="form-input"
-                  onChange={handleEditChange}
-                  value={prodEditar.categoria}
-                  required
-                >
-                  <option value="" disabled>Seleccionar categoría...</option>
-                  {categorias.map(c => (
-                    <option key={c.id} value={c.nombre}>{c.nombre}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="form-group">
-                  <label className="form-label">Precio ($)</label>
-                  <input
-                    type="number"
-                    name="precio"
-                    required
-                    className="form-input"
-                    onChange={handleEditChange}
-                    value={prodEditar.precio}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Stock Real</label>
-                  <input
-                    type="number"
-                    name="stock"
-                    required
-                    className="form-input"
-                    onChange={handleEditChange}
-                    value={prodEditar.stock}
-                  />
-                </div>
-              </div>
-
-              <button type="submit" className="btn-whatsapp" style={{ background: '#f59e0b' }}>
-                Guardar Cambios 💾
-              </button>
-
-              <button type="button" className="btn-cancel" onClick={() => setMostrarModalEditar(false)}>
-                Cancelar
-              </button>
-            </form>
-          </div>
+  <div className="checkout-overlay">
+    <div className="checkout-card" style={{ maxWidth: '500px' }}>
+      <h2 className="checkout-title" style={{ color: '#f59e0b' }}>Editar Producto</h2>
+      <form onSubmit={handleEditSubmit}>
+        <div
+          className="form-group"
+          style={{
+            border: '1px dashed #f59e0b',
+            padding: '10px',
+            borderRadius: '8px',
+            marginBottom: '15px'
+          }}
+        >
+          <label className="form-label">📸 Cambiar Imagen (Opcional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="form-input"
+            onChange={handleEditFileChange}
+          />
         </div>
-      )}
 
-      {mostrarModalReponer && (
-        <div className="checkout-overlay">
-          <div className="checkout-card" style={{ maxWidth: '420px' }}>
-            <h2 className="checkout-title">Reponer Stock</h2>
+        <div
+          className="form-group"
+          style={{
+            border: '1px dashed #3b82f6',
+            padding: '10px',
+            borderRadius: '8px',
+            marginBottom: '15px'
+          }}
+        >
+          <label className="form-label">🖼️ Imágenes secundarias</label>
 
-            <p style={{ color: '#a0a0a0', marginTop: 0 }}>
-              Producto: <b style={{ color: '#fff' }}>{productoAReponer?.nombre}</b>
-            </p>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="form-input"
+            onChange={handleImagenesSecundariasChange}
+          />
 
-            <div className="form-group">
-              <label className="form-label">Cantidad a agregar</label>
-              <input
-                type="number"
-                min="1"
-                className="form-input"
-                value={cantidadReponer}
-                onChange={(e) => setCantidadReponer(e.target.value)}
-              />
+          {imagenesSecundarias.length > 0 && (
+            <div style={{ marginTop: '10px', color: '#aaa', fontSize: '0.9rem' }}>
+              {imagenesSecundarias.length} imagen(es) seleccionada(s)
             </div>
+          )}
 
-            <button type="button" className="btn-whatsapp" onClick={confirmarReponer}>
-              ➕ Reponer
-            </button>
-
-            <button type="button" className="btn-cancel" onClick={() => setMostrarModalReponer(false)}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {modalDetalleAbierto && pedidoDetalle && (
-        <div className="checkout-overlay" style={{ zIndex: 9999 }}>
-          <div
-            className="checkout-card"
-            style={{
-              maxWidth: '500px',
-              width: '90%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              border: '1px solid #c5a059'
-            }}
+          <button
+            type="button"
+            className="btn-add"
+            style={{ background: '#3b82f6', marginTop: '10px' }}
+            onClick={() => subirImagenesSecundarias(prodEditar.id)}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '20px',
-                borderBottom: '1px solid #333',
-                paddingBottom: '10px'
-              }}
-            >
-              <h2 className="checkout-title" style={{ margin: 0, color: '#c5a059' }}>
-                Detalle de Orden #{pedidoDetalle.id}
-              </h2>
+            Subir imágenes secundarias
+          </button>
+        </div>
 
-              <button
-                onClick={() => setModalDetalleAbierto(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer'
-                }}
-              >
-                ✕
-              </button>
-            </div>
+        <div style={{ marginBottom: '20px' }}>
+          <label className="form-label">Galería actual</label>
 
-            <div style={{ marginBottom: '20px', color: '#ddd', fontSize: '0.9rem' }}>
-              <p style={{ margin: '5px 0' }}>
-                <strong>Cliente:</strong> {pedidoDetalle.clienteNombre || 'No registrado'}
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>Teléfono:</strong> {pedidoDetalle.clienteTelefono || 'No especificado'}
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>Dirección:</strong> {pedidoDetalle.clienteDireccion || 'No especificada'}
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>Estado actual:</strong>{' '}
-                <span style={{ color: pedidoDetalle.estado === 'PAGADO' ? '#10b981' : '#f59e0b' }}>
-                  {pedidoDetalle.estado}
-                </span>
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>Fecha:</strong> {new Date(pedidoDetalle.creado_en).toLocaleString()}
-              </p>
-            </div>
-
-            <h3
-              style={{
-                borderBottom: '1px solid #333',
-                paddingBottom: '10px',
-                color: '#aaa',
-                fontSize: '1.1rem'
-              }}
-            >
-              Productos a preparar:
-            </h3>
-
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0' }}>
-              {pedidoDetalle.items?.map((item, idx) => (
-                <li
-                  key={idx}
+          {imagenesProductoActual.length === 0 ? (
+            <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
+              Este producto no tiene imágenes secundarias todavía.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {imagenesProductoActual.map((img) => (
+                <div
+                  key={img.id}
                   style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '10px 0',
-                    borderBottom: '1px solid #222',
-                    color: '#fff'
+                    position: 'relative',
+                    width: '90px',
+                    height: '90px'
                   }}
                 >
-                  <div>
-                    <span style={{ fontWeight: 'bold', color: '#c5a059', marginRight: '8px' }}>
-                      {item.cantidad}x
-                    </span>
-                    {item.nombre}
-                  </div>
+                  <img
+                    src={`${API_URL}${img.imagen}`}
+                    alt="secundaria"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '1px solid #333'
+                    }}
+                  />
 
-                  <div style={{ fontWeight: 'bold' }}>
-                    ${Number(item.subtotal).toLocaleString('es-AR')}
-                  </div>
-                </li>
+                  <button
+                    type="button"
+                    onClick={() => eliminarImagenSecundaria(img.id, prodEditar.id)}
+                    style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      right: '-8px',
+                      background: '#ef4444',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
-            </ul>
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '20px',
-                paddingTop: '15px',
-                borderTop: '1px solid #444'
-              }}
-            >
-              <h3 style={{ margin: 0, color: '#fff' }}>TOTAL COBRADO</h3>
-              <h3 style={{ margin: 0, color: '#10b981' }}>
-                ${Number(pedidoDetalle.total).toLocaleString('es-AR')}
-              </h3>
             </div>
+          )}
+        </div>
 
-            <button
-              onClick={() => setModalDetalleAbierto(false)}
-              className="btn-cancel"
-              style={{ width: '100%', marginTop: '25px' }}
-            >
-              Cerrar Vista
-            </button>
+        <div className="form-group">
+          <label className="form-label">Nombre del Producto</label>
+          <input
+            type="text"
+            name="nombre"
+            required
+            className="form-input"
+            onChange={handleEditChange}
+            value={prodEditar.nombre}
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Descripción</label>
+          <textarea
+            name="descripcion"
+            className="form-input"
+            onChange={handleEditChange}
+            value={prodEditar.descripcion}
+            rows="4"
+            placeholder="Escribí una descripción del producto..."
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Categoría</label>
+          <select
+            name="categoria"
+            className="form-input"
+            onChange={handleEditChange}
+            value={prodEditar.categoria}
+            required
+          >
+            <option value="" disabled>Seleccionar categoría...</option>
+            {categorias.map(c => (
+              <option key={c.id} value={c.nombre}>{c.nombre}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="form-group">
+            <label className="form-label">Precio ($)</label>
+            <input
+              type="number"
+              name="precio"
+              required
+              className="form-input"
+              onChange={handleEditChange}
+              value={prodEditar.precio}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Stock Real</label>
+            <input
+              type="number"
+              name="stock"
+              required
+              className="form-input"
+              onChange={handleEditChange}
+              value={prodEditar.stock}
+            />
           </div>
         </div>
-      )}
+
+        <button type="submit" className="btn-whatsapp" style={{ background: '#f59e0b' }}>
+          Guardar Cambios 💾
+        </button>
+
+        <button
+          type="button"
+          className="btn-cancel"
+          onClick={() => {
+            setMostrarModalEditar(false)
+            setProdEditar(null)
+            setImagenesSecundarias([])
+            setImagenesProductoActual([])
+          }}
+        >
+          Cancelar
+        </button>
+      </form>
+    </div>
+  </div>
+)}
     </div>
   )
 }

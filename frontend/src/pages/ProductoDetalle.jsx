@@ -9,7 +9,10 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 export function ProductoDetalle({ productos, agregarAlCarrito }) {
   const { id } = useParams()
   const navigate = useNavigate()
+
   const [producto, setProducto] = useState(null)
+  const [imagenesSecundarias, setImagenesSecundarias] = useState([])
+  const [imagenActiva, setImagenActiva] = useState(null)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -18,8 +21,45 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
     setProducto(encontrado)
   }, [id, productos])
 
+  useEffect(() => {
+    if (producto?.imagen) {
+      setImagenActiva(producto.imagen)
+    } else {
+      setImagenActiva(null)
+    }
+  }, [producto])
+
+  useEffect(() => {
+    const cargarImagenesSecundarias = async () => {
+      if (!id) return
+
+      try {
+        const res = await fetch(`${API_URL}/api/productos/${id}/imagenes`)
+        const data = await res.json()
+        setImagenesSecundarias(Array.isArray(data) ? data : [])
+      } catch (err) {
+        console.error('Error cargando imágenes secundarias:', err)
+        setImagenesSecundarias([])
+      }
+    }
+
+    cargarImagenesSecundarias()
+  }, [id])
+
   if (!producto) {
-    return <div className="dashboard-container" style={{ textAlign:'center', padding:'100px', fontSize: '1.5rem', color: '#c5a059' }}>Cargando detalle... 🧉</div>
+    return (
+      <div
+        className="dashboard-container"
+        style={{
+          textAlign: 'center',
+          padding: '100px',
+          fontSize: '1.5rem',
+          color: '#c5a059'
+        }}
+      >
+        Cargando detalle... 🧉
+      </div>
+    )
   }
 
   const descripcion = producto.descripcion?.trim()
@@ -35,24 +75,62 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
       <button
         onClick={() => navigate(-1)}
         className="btn-buy"
-        style={{ width: 'auto', padding: '10px 20px', marginBottom: '20px', background: 'transparent', color: '#a0a0a0', borderColor: '#333' }}
+        style={{
+          width: 'auto',
+          padding: '10px 20px',
+          marginBottom: '20px',
+          background: 'transparent',
+          color: '#a0a0a0',
+          borderColor: '#333'
+        }}
       >
         ← VOLVER AL CATÁLOGO
       </button>
 
       <div className="detail-container">
         <div className="detail-image-box">
-          {producto.imagen ? (
-            <img
-              src={`${API_URL}${producto.imagen}`}
-              alt={producto.nombre}
-              className="detail-image"
-            />
-          ) : (
-            <span className="detail-image-placeholder">
-              {producto.categoria === 'Termos' ? '⚱️' : producto.categoria === 'Bombillas' ? '🥢' : producto.categoria === 'Kits' ? '💼' : '🧉'}
-            </span>
-          )}
+          <div className="detail-gallery">
+            <div className="detail-thumbs">
+              {producto.imagen && (
+                <img
+                  src={`${API_URL}${producto.imagen}`}
+                  alt="principal"
+                  onClick={() => setImagenActiva(producto.imagen)}
+                  className={`detail-thumb ${imagenActiva === producto.imagen ? 'active' : ''}`}
+                />
+              )}
+
+              {imagenesSecundarias.map((img) => (
+                <img
+                  key={img.id}
+                  src={`${API_URL}${img.imagen}`}
+                  alt="secundaria"
+                  onClick={() => setImagenActiva(img.imagen)}
+                  className={`detail-thumb ${imagenActiva === img.imagen ? 'active' : ''}`}
+                />
+              ))}
+            </div>
+
+            <div className="detail-main-image-wrapper">
+              {imagenActiva ? (
+                <img
+                  src={`${API_URL}${imagenActiva}`}
+                  alt={producto.nombre}
+                  className="detail-image"
+                />
+              ) : (
+                <span className="detail-image-placeholder">
+                  {producto.categoria === 'Termos'
+                    ? '⚱️'
+                    : producto.categoria === 'Bombillas'
+                    ? '🥢'
+                    : producto.categoria === 'Kits'
+                    ? '💼'
+                    : '🧉'}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="detail-info">
@@ -67,19 +145,30 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
 
           <div className="detail-stock-info">
             {producto.stock > 0 ? (
-              <span style={{ color: '#10b981' }}>✅ En Stock ({producto.stock} unidades disponibles)</span>
+              <span style={{ color: '#10b981' }}>
+                ✅ En Stock ({producto.stock} unidades disponibles)
+              </span>
             ) : (
-              <span style={{ color: '#ef4444' }}>❌ Producto Agotado temporalmente</span>
+              <span style={{ color: '#ef4444' }}>
+                ❌ Producto Agotado temporalmente
+              </span>
             )}
           </div>
 
           <button
             className="btn-buy"
-            style={{ marginTop: '20px', padding: '18px', fontSize: '1.2rem', background: producto.stock > 0 ? '#c5a059' : 'transparent', color: producto.stock > 0 ? '#000' : '#ef4444', borderColor: producto.stock > 0 ? '#c5a059' : '#ef4444' }}
+            style={{
+              marginTop: '20px',
+              padding: '18px',
+              fontSize: '1.2rem',
+              background: producto.stock > 0 ? '#c5a059' : 'transparent',
+              color: producto.stock > 0 ? '#000' : '#ef4444',
+              borderColor: producto.stock > 0 ? '#c5a059' : '#ef4444'
+            }}
             onClick={() => agregarAlCarrito(producto)}
             disabled={producto.stock === 0}
           >
-            {producto.stock === 0 ? "SIN STOCK" : "AGREGAR AL CARRITO 🛒"}
+            {producto.stock === 0 ? 'SIN STOCK' : 'AGREGAR AL CARRITO 🛒'}
           </button>
         </div>
       </div>
@@ -140,12 +229,14 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
                   </Link>
 
                   <div className="card-body">
-                    <Link to={`/producto/${rel.id}`} style={{ textDecoration:'none' }}>
+                    <Link to={`/producto/${rel.id}`} style={{ textDecoration: 'none' }}>
                       <h2 className="card-title">{rel.nombre}</h2>
                     </Link>
+
                     <div className="price-section">
                       <div className="precio-final">${Number(rel.precio).toLocaleString('es-AR')}</div>
                     </div>
+
                     <button
                       className="btn-buy"
                       onClick={() => agregarAlCarrito(rel)}
