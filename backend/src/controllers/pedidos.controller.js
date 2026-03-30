@@ -73,12 +73,10 @@ const createPedido = async (req, res) => {
 
     let usuarioId = null;
 
-    // Si vino desde middleware
     if (req.user?.id) {
       usuarioId = req.user.id;
     }
 
-    // Si no vino desde middleware, intentamos leer token manualmente
     if (!usuarioId) {
       const authHeader = req.headers.authorization;
 
@@ -109,6 +107,18 @@ const createPedido = async (req, res) => {
       nuevoPedido.direccion ||
       null;
 
+    const metodoPago =
+      nuevoPedido.metodoPago ||
+      nuevoPedido.metodo_pago ||
+      nuevoPedido.formaPago ||
+      null;
+
+    const tipoEntrega =
+      nuevoPedido.tipoEntrega ||
+      nuevoPedido.tipo_entrega ||
+      nuevoPedido.entrega ||
+      null;
+
     const totalCalc = items.reduce((acc, it) => {
       const precio = Number(it.precio || 0);
       const cant = Number(it.cantidad || 1);
@@ -124,9 +134,19 @@ const createPedido = async (req, res) => {
     await conn.beginTransaction();
 
     const [rPedido] = await conn.query(
-      `INSERT INTO pedidos (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, total, estado)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [usuarioId, clienteNombre, clienteTelefono, clienteDireccion, totalFinal, estadoFinal]
+      `INSERT INTO pedidos 
+      (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, total, estado, metodo_pago, tipo_entrega)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        usuarioId,
+        clienteNombre,
+        clienteTelefono,
+        clienteDireccion,
+        totalFinal,
+        estadoFinal,
+        metodoPago,
+        tipoEntrega
+      ]
     );
 
     const pedidoId = rPedido.insertId;
@@ -169,6 +189,8 @@ const createPedido = async (req, res) => {
         usuario_id: usuarioId,
         total: totalFinal,
         estado: estadoFinal,
+        metodoPago,
+        tipoEntrega
       },
     });
   } catch (err) {
@@ -308,6 +330,8 @@ const getPedidoById = async (req, res) => {
         cliente_nombre AS clienteNombre,
         cliente_telefono AS clienteTelefono,
         cliente_direccion AS clienteDireccion,
+        metodo_pago AS metodoPago,
+        tipo_entrega AS tipoEntrega,
         total,
         estado,
         creado_en
@@ -316,7 +340,6 @@ const getPedidoById = async (req, res) => {
     `;
     let params = [id];
 
-    // Si NO es admin, solo puede ver su propio pedido
     if (userRole !== 'admin') {
       query += ` AND usuario_id = ?`;
       params.push(userId);
