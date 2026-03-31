@@ -18,11 +18,13 @@
   },
   "homepage": "https://github.com/German717/tesina#readme",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "fs-extra": "^11.3.3",
-    "mysql2": "^3.16.3",
+    "mercadopago": "^2.12.0",
+    "mysql2": "^3.18.2",
     "node-telegram-bot-api": "^0.67.0",
     "sequelize": "^6.37.7"
   },

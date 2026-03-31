@@ -1,0 +1,152 @@
+/* =========================================
+   ELEMENTOS GLOBALES (HEADER Y NAVEGACIÓN)
+   Tema: Dark Premium
+   ========================================= */
+
+/* --- HEADER --- */
+.header {
+  background: rgba(10, 10, 10, 0.85); /* Fondo oscuro translúcido */
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  padding: 15px 40px;
+  border-bottom: 1px solid rgba(197, 160, 89, 0.2); /* Línea dorada muy sutil */
+  margin-bottom: 0; /* Lo dejamos en 0 para que cada página maneje su propio margen superior */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000; /* Aseguramos que siempre flote por encima del contenido */
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+}
+
+.logo-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.logo-link:hover {
+  transform: scale(1.02);
+}
+
+.logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  line-height: 1;
+  display: inline-block;
+  margin: 0;
+}
+
+/* Si en algún momento ponés "MATE" dentro de un <span>, se pintará dorado */
+.logo span {
+  color: var(--imperio-gold);
+}
+
+.logo-img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  background: transparent;
+  border: 1px solid rgba(197, 160, 89, 0.5); /* Anillo dorado alrededor del logo */
+}
+
+/* --- BUSCADOR --- */
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 320px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-light);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.search-container:focus-within {
+  border-color: var(--imperio-gold);
+  box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.15); /* Resplandor al escribir */
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.search-icon {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.search-bar::placeholder {
+  color: var(--text-muted);
+}
+
+/* --- BOTÓN VOLVER GENÉRICO (Usado en el detalle de producto) --- */
+.btn-back {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: 30px;
+  transition: all 0.3s ease;
+  font-family: 'Montserrat', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.btn-back:hover {
+  color: var(--imperio-gold);
+  border-color: rgba(197, 160, 89, 0.3);
+  background: rgba(197, 160, 89, 0.05);
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+@media (max-width: 900px) {
+  .header {
+    padding: 15px 20px;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: space-between; 
+  }
+
+  .logo {
+    font-size: 1.6rem;
+  }
+
+  .logo-img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .search-container {
+    min-width: 100%;
+    order: 3; /* Manda el buscador a una línea nueva debajo del logo */
+  }
+}

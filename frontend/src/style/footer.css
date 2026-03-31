@@ -1,0 +1,91 @@
+.footer {
+  background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+  border-top: 1px solid rgba(197, 160, 89, 0.25);
+  padding: 60px 20px 25px;
+  margin-top: 80px;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 50px;
+}
+
+.footer-col h4 {
+  color: #c5a059;
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+}
+
+.footer-logo {
+  font-size: 1.8rem;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.footer-logo span {
+  color: #c5a059;
+}
+
+.footer-text {
+  color: #aaa;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-col li {
+  margin-bottom: 8px;
+}
+
+.footer-col a {
+  color: #aaa;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: 0.2s;
+}
+
+.footer-col a:hover {
+  color: #c5a059;
+}
+
+.footer-col p {
+  color: #aaa;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 40px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+}
+
+.footer-bottom p {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.footer-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.footer-link-btn:hover {
+  color: #c5a059;
+}
