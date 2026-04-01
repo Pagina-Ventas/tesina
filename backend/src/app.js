@@ -10,8 +10,6 @@ const paymentRoutes = require('./routes/payment.routes');
 const categoriasRoutes = require('./routes/categorias.routes');
 const usuariosRoutes = require('./routes/usuarios.routes');
 const bannersRoutes = require('./routes/banners.routes');
-
-// Importamos las rutas de Mercado Pago y Logs
 const mercadoPagoRoutes = require('./routes/mercadoPago.routes');
 const logsRoutes = require('./routes/logs.routes');
 
@@ -21,14 +19,30 @@ const pool = require('./db');
 const app = express();
 
 // --- MIDDLEWARES ---
-const corsOptions = {
-  origin: (process.env.FRONT_URL || 'http://localhost:5173').trim().replace(/\/$/, ''),
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://tesina-frontend.vercel.app',
+  'https://tesina-frontend-pdnksc9l1-alessiacatas-projects.vercel.app',
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // permitir requests sin origin (Postman, navegador directo, health checks)
+    if (!origin) return callback(null, true);
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    const normalizedAllowed = allowedOrigins.map(o => o.replace(/\/$/, ''));
+
+    if (normalizedAllowed.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origen no permitido por CORS: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-app.use(cors(corsOptions));
+}));
 
 // Aumentamos límite para fotos pesadas
 app.use(express.json({ limit: '50mb' }));
