@@ -45,6 +45,7 @@ function AppContenido() {
   const navigate = useNavigate()
   const location = useLocation()
   const esRutaAdmin = location.pathname.startsWith('/admin')
+
   const [productos, setProductos] = useState([])
   const [carrito, setCarrito] = useState(() => {
     const carritoGuardado = localStorage.getItem('carrito')
@@ -314,6 +315,13 @@ function AppContenido() {
     toast.error('Producto eliminado', {
       style: { background: '#1e1e1e', border: '1px solid #d32f2f', color: '#fff' }
     })
+  }
+
+  const cerrarSesion = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('usuarioData')
+    navigate('/login', { replace: true })
   }
 
   // ✅ RECIÉN ACÁ EXIGE LOGIN
@@ -604,12 +612,7 @@ function AppContenido() {
                 )}
 
                 <button
-                  onClick={() => {
-                    localStorage.removeItem('token')
-                    localStorage.removeItem('adminToken')
-                    localStorage.removeItem('usuarioData')
-                    window.location.href = '/login'
-                  }}
+                  onClick={cerrarSesion}
                   style={{
                     background: 'transparent',
                     border: '1px solid #ef4444',
@@ -705,7 +708,7 @@ function AppContenido() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
-          
+
           <Route
             path="/exito"
             element={
