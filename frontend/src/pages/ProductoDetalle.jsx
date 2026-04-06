@@ -4,7 +4,11 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import '../style/producto.css'
 import '../style/tienda.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error('Falta VITE_API_URL')
+}
 
 export function ProductoDetalle({ productos, agregarAlCarrito }) {
   const { id } = useParams()

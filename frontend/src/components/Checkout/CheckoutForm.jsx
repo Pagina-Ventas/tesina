@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react'
 import "../../style/auth.css";
 import { useMercadoPago } from '../../hooks/useMercadoPago'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error('Falta VITE_API_URL')
+}
 
 export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar }) {
   const [datos, setDatos] = useState({

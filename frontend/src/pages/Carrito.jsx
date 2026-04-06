@@ -2,7 +2,11 @@ import React, { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import '../style/carrito.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error('Falta VITE_API_URL')
+}
 
 export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modificarCantidad }) {
 

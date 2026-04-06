@@ -3,7 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import '../style/auth.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error('Falta VITE_API_URL')
+}
 
 export function Login() {
   const navigate = useNavigate()
