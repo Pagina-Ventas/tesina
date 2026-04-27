@@ -21,9 +21,8 @@ const app = express();
 // --- MIDDLEWARES ---
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://tesina-frontend.vercel.app',
-  'https://tesina-frontend-pdnksc9l1-alessiacatas-projects.vercel.app',
-];
+  process.env.FRONT_URL,
+].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
