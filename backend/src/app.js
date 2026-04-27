@@ -19,20 +19,27 @@ const pool = require('./db');
 const app = express();
 
 // --- MIDDLEWARES ---
+
+// URLs permitidas para conectarse al backend
 const allowedOrigins = [
   'http://localhost:5173',
+  'https://tesina-frontend.vercel.app',
   process.env.FRONT_URL,
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // permitir requests sin origin (Postman, navegador directo, health checks)
+    // Permitir requests sin origin: Postman, navegador directo, health checks
     if (!origin) return callback(null, true);
 
     const normalizedOrigin = origin.replace(/\/$/, '');
     const normalizedAllowed = allowedOrigins.map(o => o.replace(/\/$/, ''));
 
-    if (normalizedAllowed.includes(normalizedOrigin)) {
+    const isAllowed =
+      normalizedAllowed.includes(normalizedOrigin) ||
+      normalizedOrigin.endsWith('.vercel.app');
+
+    if (isAllowed) {
       return callback(null, true);
     }
 
