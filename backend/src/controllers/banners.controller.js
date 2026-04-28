@@ -1,5 +1,24 @@
 const pool = require('../db');
 const { registrarLog } = require('./logs.controller');
+const cloudinary = require('../config/cloudinary');
+
+// Subir imagen a Cloudinary desde memoria
+const subirACloudinary = (buffer, folder = 'banners') => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: 'image'
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    stream.end(buffer);
+  });
+};
 
 // GET público: solo banners activos
 const getBannersPublicos = async (req, res) => {
@@ -54,7 +73,8 @@ const createBanner = async (req, res) => {
       });
     }
 
-    const imagenUrl = `/uploads/${req.file.filename}`;
+    const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'banners');
+    const imagenUrl = resultadoCloudinary.secure_url;
 
     const [result] = await pool.query(
       `
@@ -118,7 +138,8 @@ const updateBanner = async (req, res) => {
     let imagen = actual.imagen;
 
     if (req.file) {
-      imagen = `/uploads/${req.file.filename}`;
+      const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'banners');
+      imagen = resultadoCloudinary.secure_url;
     }
 
     await pool.query(
