@@ -7,7 +7,8 @@ const path = require('path')
 const fs = require('fs')
 
 // --- 1. VERIFICACIÓN AUTOMÁTICA DE CARPETA ---
-const uploadDir = path.join(__dirname, '../../uploads')
+const uploadDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads')
+
 if (!fs.existsSync(uploadDir)) {
   console.log('📂 Creando carpeta uploads...')
   fs.mkdirSync(uploadDir, { recursive: true })
@@ -15,7 +16,9 @@ if (!fs.existsSync(uploadDir)) {
 
 // --- 2. CONFIGURACIÓN DE MULTER ---
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => { cb(null, uploadDir) },
+  destination: (req, file, cb) => {
+    cb(null, uploadDir)
+  },
   filename: (req, file, cb) => {
     const unico = Date.now() + '-' + Math.round(Math.random() * 1e9)
     cb(null, file.fieldname + '-' + unico + path.extname(file.originalname))
@@ -29,7 +32,9 @@ const upload = multer({
     const filetypes = /jpeg|jpg|png|webp|gif/
     const mimetype = filetypes.test(file.mimetype)
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase())
+
     if (mimetype && extname) return cb(null, true)
+
     cb(new Error('❌ Solo se permiten imágenes (jpg, png, webp, gif)'))
   }
 })
@@ -93,7 +98,7 @@ router.delete('/:id', verificarAdmin, controller.eliminarProducto)
 // 🟢 PÚBLICA: Ruta necesaria para el flujo de ventas del local o bot
 router.get('/vender/:id/:cantidad', controller.venderProducto)
 
-// 👇 RUTA DE PRUEBA (BOTÓN DE PÁNICO)
+// 👇 RUTA DE PRUEBA BOT
 router.get('/test-bot', async (req, res) => {
   try {
     const { enviarAlerta } = require('../services/bot.service')

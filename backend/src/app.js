@@ -24,6 +24,8 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',
   'https://tesina-frontend.vercel.app',
+  'https://apolomates.com',
+  'https://www.apolomates.com',
   process.env.FRONT_URL,
 ].filter(Boolean);
 
@@ -55,7 +57,8 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- ARCHIVOS ESTÁTICOS (FOTOS) ---
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const uploadsPath = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // --- RUTA SIMPLE (salud) ---
 app.get('/', (req, res) => res.send('OK 🚀 Backend activo'));
