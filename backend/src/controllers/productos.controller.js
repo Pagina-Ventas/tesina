@@ -1,6 +1,25 @@
 const pool = require('../db');
 const { enviarAlerta } = require('../services/bot.service');
 const { registrarLog } = require('./logs.controller');
+const cloudinary = require('../config/cloudinary');
+
+// Subir imagen a Cloudinary desde buffer
+const subirACloudinary = (buffer, folder = 'productos') => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: 'image'
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    stream.end(buffer);
+  });
+};
 
 // 1. Obtener productos
 const getProductos = async (req, res) => {
@@ -33,7 +52,13 @@ const getProductos = async (req, res) => {
 const createProducto = async (req, res) => {
   try {
     const { nombre, precio, categoria, stock, stockMinimo, descripcion } = req.body;
-    const imagenUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    let imagenUrl = null;
+
+    if (req.file) {
+      const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'productos');
+      imagenUrl = resultadoCloudinary.secure_url;
+    }
 
     console.log('BODY RECIBIDO CREATE PRODUCTO:', req.body);
 
@@ -318,7 +343,7 @@ const updateProducto = async (req, res) => {
 
     const [rows] = await conn.query(
       `
-      SELECT nombre, stock, precio, descripcion
+      SELECT nombre, stock, precio, descripcion, imagen
       FROM productos
       WHERE id = ?
       FOR UPDATE
@@ -348,8 +373,11 @@ const updateProducto = async (req, res) => {
     ];
 
     if (req.file) {
+      const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'productos');
+      const imagenUrl = resultadoCloudinary.secure_url;
+
       query += `, imagen = ?`;
-      params.push(`/uploads/${req.file.filename}`);
+      params.push(imagenUrl);
     }
 
     query += ` WHERE id = ?`;
@@ -466,12 +494,15 @@ const agregarImagenesProducto = async (req, res) => {
     for (const file of req.files) {
       ordenActual += 1;
 
+      const resultadoCloudinary = await subirACloudinary(file.buffer, 'productos/secundarias');
+      const imagenUrl = resultadoCloudinary.secure_url;
+
       await conn.query(
         `
         INSERT INTO producto_imagenes (producto_id, imagen, orden)
         VALUES (?, ?, ?)
         `,
-        [productoId, `/uploads/${file.filename}`, ordenActual]
+        [productoId, imagenUrl, ordenActual]
       );
     }
 
