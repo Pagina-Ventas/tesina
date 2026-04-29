@@ -8,6 +8,26 @@ if (!API_URL) {
   throw new Error('Falta VITE_API_URL')
 }
 
+const getImagenUrl = (imagen) => {
+  if (!imagen) return ''
+
+  let url = String(imagen).trim()
+
+  if (url.startsWith('https//')) {
+    url = url.replace('https//', 'https://')
+  }
+
+  if (url.startsWith('http//')) {
+    url = url.replace('http//', 'http://')
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`
+}
+
 const normalizarTexto = (texto) => {
   return (texto || '')
     .toString()
@@ -70,7 +90,7 @@ export function Tienda({
           {bannersActivos && bannersActivos.length > 0 ? (
             bannersActivos.length === 1 ? (
               <img
-                src={`${API_URL}${bannersActivos[0].imagen}`}
+                src={getImagenUrl(bannersActivos[0].imagen)}
                 alt={bannersActivos[0].titulo || 'Banner'}
                 className="hero-slide hero-slide-single"
               />
@@ -78,7 +98,7 @@ export function Tienda({
               bannersActivos.map((banner, index) => (
                 <img
                   key={banner.id}
-                  src={`${API_URL}${banner.imagen}`}
+                  src={getImagenUrl(banner.imagen)}
                   alt={banner.titulo || `Banner ${index + 1}`}
                   className="hero-slide"
                   style={{
@@ -168,7 +188,7 @@ export function Tienda({
                 >
                   {prod.imagen ? (
                     <img
-                      src={`${API_URL}${prod.imagen}`}
+                      src={getImagenUrl(prod.imagen)}
                       alt={prod.nombre}
                       style={{
                         width: '100%',
@@ -197,7 +217,7 @@ export function Tienda({
                 </Link>
 
                 <div className="price-section">
-                  <div className="precio-final">${prod.precio.toLocaleString()}</div>
+                  <div className="precio-final">${Number(prod.precio || 0).toLocaleString('es-AR')}</div>
                 </div>
 
                 <button

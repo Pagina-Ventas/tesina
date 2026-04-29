@@ -8,11 +8,29 @@ if (!API_URL) {
   throw new Error('Falta VITE_API_URL')
 }
 
-export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modificarCantidad }) {
+const getImagenUrl = (imagen) => {
+  if (!imagen) return ''
 
-  // 👇 Hacemos que siempre que entre al carrito suba al top de la página
+  let url = String(imagen).trim()
+
+  if (url.startsWith('https//')) {
+    url = url.replace('https//', 'https://')
+  }
+
+  if (url.startsWith('http//')) {
+    url = url.replace('http//', 'http://')
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`
+}
+
+export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modificarCantidad }) {
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const totalPrecio = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
@@ -23,7 +41,7 @@ export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modifica
         <div className="cart-page-container empty-cart">
           <span className="empty-icon">🧉</span>
           <h2 className="cart-header-title" style={{ border: 'none', margin: '0 0 10px 0' }}>Tu carrito está vacío</h2>
-          <p style={{color: '#a0a0a0', marginBottom: '40px'}}>Parece que todavía no elegiste ningún producto para tu ritual.</p>
+          <p style={{ color: '#a0a0a0', marginBottom: '40px' }}>Parece que todavía no elegiste ningún producto para tu ritual.</p>
           <Link to="/" className="btn-continue" style={{ display: 'inline-flex', margin: '0 auto' }}>
             VOLVER AL CATÁLOGO
           </Link>
@@ -35,7 +53,7 @@ export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modifica
   return (
     <div className="tienda-wrapper">
       <div className="cart-page-container">
-        
+
         <div className="cart-header">
           <h2 className="cart-header-title">Tu Selección</h2>
           <span className="cart-item-count">{carrito.length} {carrito.length === 1 ? 'producto' : 'productos'}</span>
@@ -49,10 +67,13 @@ export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modifica
             return (
               <div key={item.id} className="cart-item-row">
 
-                {/* IMAGEN MINIATURA */}
                 <div className="cart-item-img-box">
                   {item.imagen ? (
-                    <img src={`${API_URL}${item.imagen}`} alt={item.nombre} className="cart-item-img" />
+                    <img
+                      src={getImagenUrl(item.imagen)}
+                      alt={item.nombre}
+                      className="cart-item-img"
+                    />
                   ) : (
                     <span className="cart-item-img-placeholder">
                       {item.categoria === 'Termos' ? '⚱️' : item.categoria === 'Bombillas' ? '🥢' : '🧉'}
@@ -60,13 +81,11 @@ export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modifica
                   )}
                 </div>
 
-                {/* DETALLES */}
                 <div className="item-details">
                   <h3>{item.nombre}</h3>
                   <div className="item-price">${Number(item.precio).toLocaleString('es-AR')}</div>
                 </div>
 
-                {/* CONTROLES */}
                 <div className="cart-item-controls">
                   <div className="item-quantity-box">
                     <button
@@ -97,7 +116,7 @@ export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modifica
                   </div>
 
                   <div className="item-subtotal">
-                     ${(item.precio * item.cantidad).toLocaleString('es-AR')}
+                    ${(item.precio * item.cantidad).toLocaleString('es-AR')}
                   </div>
 
                   <button className="btn-delete-item" onClick={() => eliminarDelCarrito(item.id)} title="Quitar producto">
@@ -116,7 +135,7 @@ export function Carrito({ carrito, eliminarDelCarrito, finalizarCompra, modifica
             <span className="total-amount">${totalPrecio.toLocaleString('es-AR')}</span>
           </div>
           <p className="shipping-notice">El costo de envío y recargos se calcularán en el siguiente paso.</p>
-          
+
           <div className="cart-actions">
             <Link to="/" className="btn-continue">← SEGUIR MIRANDO</Link>
             <button className="btn-confirm-order" onClick={finalizarCompra}>
