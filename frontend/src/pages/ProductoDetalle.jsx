@@ -10,26 +10,35 @@ if (!API_URL) {
   throw new Error('Falta VITE_API_URL')
 }
 
-// Sirve para imágenes nuevas de Cloudinary y viejas de /uploads
+// Sirve para imágenes nuevas de Cloudinary, URLs mal armadas y viejas de /uploads
 const getImagenUrl = (imagen) => {
   if (!imagen) return ''
 
+  let url = String(imagen).trim()
+
+  // Corrige URLs mal armadas como:
+  // https://tesina-backend.onrender.comhttps//res.cloudinary.com/...
+  if (url.includes('res.cloudinary.com')) {
+    const index = url.indexOf('res.cloudinary.com')
+    return `https://${url.slice(index)}`
+  }
+
+  // Corrige casos tipo https//res.cloudinary.com
+  if (url.startsWith('https//')) {
+    url = url.replace('https//', 'https://')
+  }
+
+  if (url.startsWith('http//')) {
+    url = url.replace('http//', 'http://')
+  }
+
   // Si ya es URL completa, la usa tal cual
-  if (imagen.startsWith('http://') || imagen.startsWith('https://')) {
-    return imagen
-  }
-
-  // Corrige caso raro si viniera "https//..." sin dos puntos
-  if (imagen.startsWith('https//')) {
-    return imagen.replace('https//', 'https://')
-  }
-
-  if (imagen.startsWith('http//')) {
-    return imagen.replace('http//', 'http://')
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
   }
 
   // Si es imagen vieja tipo /uploads/imagen.jpg, le agrega el backend
-  return `${API_URL}${imagen.startsWith('/') ? imagen : `/${imagen}`}`
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 export function ProductoDetalle({ productos, agregarAlCarrito }) {

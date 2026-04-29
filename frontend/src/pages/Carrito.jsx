@@ -13,6 +13,14 @@ const getImagenUrl = (imagen) => {
 
   let url = String(imagen).trim()
 
+  // Corrige URLs mal armadas como:
+  // https://tesina-backend.onrender.comhttps//res.cloudinary.com/...
+  if (url.includes('res.cloudinary.com')) {
+    const index = url.indexOf('res.cloudinary.com')
+    return `https://${url.slice(index)}`
+  }
+
+  // Corrige casos tipo https//res.cloudinary.com
   if (url.startsWith('https//')) {
     url = url.replace('https//', 'https://')
   }
