@@ -3,7 +3,11 @@ import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import '../style/auth.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error('Falta VITE_API_URL')
+}
 
 export function PerfilUsuario() {
   const navigate = useNavigate()
@@ -154,18 +158,20 @@ export function PerfilUsuario() {
     transition: 'border-color 0.3s'
   }
 
+  const cerrarSesion = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('usuarioData')
+    navigate('/', { replace: true })
+  }
+
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'60px 20px', gap:'40px', background:'#121212', minHeight:'100vh' }}>
       <div style={{ width:'100%', maxWidth:'700px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <h1 style={{ fontFamily:'Playfair Display', color:'#fff', margin:0, fontSize:'2.5rem' }}>Mi Cuenta</h1>
 
         <button
-          onClick={() => {
-            localStorage.removeItem('token')
-            localStorage.removeItem('adminToken')
-            localStorage.removeItem('usuarioData')
-            window.location.href = '/'
-          }}
+          onClick={cerrarSesion}
           style={{ background:'transparent', border:'1px solid #444', color:'#a0a0a0', padding:'8px 16px', borderRadius:'30px', cursor:'pointer', transition:'all 0.3s' }}
           onMouseOver={(e) => { e.target.style.color = '#fff'; e.target.style.borderColor = '#fff' }}
           onMouseOut={(e) => { e.target.style.color = '#a0a0a0'; e.target.style.borderColor = '#444' }}

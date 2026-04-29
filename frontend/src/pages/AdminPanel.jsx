@@ -6,7 +6,41 @@ import {
 } from 'recharts'
 import '../style/Admin.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error('Falta VITE_API_URL')
+}
+
+const getImagenUrl = (imagen) => {
+  if (!imagen) return ''
+
+  let url = String(imagen).trim()
+
+  // Corrige URLs mal armadas como:
+  // https://tesina-backend.onrender.comhttps//res.cloudinary.com/...
+  if (url.includes('res.cloudinary.com')) {
+    const index = url.indexOf('res.cloudinary.com')
+    return `https://${url.slice(index)}`
+  }
+
+  // Corrige casos tipo https//res.cloudinary.com
+  if (url.startsWith('https//')) {
+    url = url.replace('https//', 'https://')
+  }
+
+  if (url.startsWith('http//')) {
+    url = url.replace('http//', 'http://')
+  }
+
+  // Si ya es URL completa, la usa tal cual
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  // Para imágenes viejas tipo /uploads/imagen.jpg
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`
+}
 
 export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin, editarProductoAdmin }) {
   const [productos, setProductos] = useState([])
@@ -1220,11 +1254,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                     <tr key={prod.id}>
                       <td>
                         {prod.imagen ? (
-                          <img
-                            src={`${API_URL}${prod.imagen}`}
-                            alt="mini"
-                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
-                          />
+                        <img
+                          src={getImagenUrl(prod.imagen)}
+                          alt="mini"
+                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                        />
                         ) : (
                           <span>📷</span>
                         )}
@@ -1613,7 +1647,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                           }}
                         >
                           <img
-                            src={`${API_URL}${banner.imagen}`}
+                            src={getImagenUrl(banner.imagen)}
                             alt={banner.titulo || 'Banner'}
                             style={{
                               width: '180px',
@@ -1995,7 +2029,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                         }}
                       >
                         <img
-                          src={`${API_URL}${img.imagen}`}
+                          src={getImagenUrl(img.imagen)}
                           alt="secundaria"
                           style={{
                             width: '100%',

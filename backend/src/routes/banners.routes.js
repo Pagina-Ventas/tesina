@@ -3,23 +3,11 @@ const router = Router();
 const controller = require('../controllers/banners.controller');
 const { verificarAdmin } = require('../middlewares/auth.middleware');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-// carpeta uploads
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const unico = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, 'banner-' + unico + path.extname(file.originalname));
-  }
-});
+// IMPORTANTE:
+// Usamos memoryStorage para que la imagen quede en req.file.buffer
+// y luego se suba a Cloudinary desde el controller.
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -27,12 +15,27 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|webp|gif/;
     const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = filetypes.test(file.originalname.toLowerCase());
 
     if (mimetype && extname) return cb(null, true);
+
     cb(new Error('Solo se permiten imágenes (jpg, png, webp, gif)'));
   }
 });
+
+// Middleware para manejar errores de multer
+const subirImagenBanner = (req, res, next) => {
+  upload.single('imagen')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+
+    next();
+  });
+};
 
 // públicas
 router.get('/', controller.getBannersPublicos);
@@ -43,24 +46,14 @@ router.get('/admin', verificarAdmin, controller.getBannersAdmin);
 router.post(
   '/',
   verificarAdmin,
-  (req, res, next) => {
-    upload.single('imagen')(req, res, (err) => {
-      if (err) return res.status(400).json({ success: false, message: err.message });
-      next();
-    });
-  },
+  subirImagenBanner,
   controller.createBanner
 );
 
 router.put(
   '/:id',
   verificarAdmin,
-  (req, res, next) => {
-    upload.single('imagen')(req, res, (err) => {
-      if (err) return res.status(400).json({ success: false, message: err.message });
-      next();
-    });
-  },
+  subirImagenBanner,
   controller.updateBanner
 );
 

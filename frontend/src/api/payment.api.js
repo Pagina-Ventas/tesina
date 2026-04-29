@@ -1,5 +1,9 @@
 // src/api/payment.api.js
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error('Falta VITE_API_URL')
+}
 
 // ✅ Usamos 'export const' para que sea un export nombrado exactamente así
 export const generarPreferenciaPago = async (datosPago) => {

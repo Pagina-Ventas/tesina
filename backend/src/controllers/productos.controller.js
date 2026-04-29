@@ -1,6 +1,44 @@
 const pool = require('../db');
 const { enviarAlerta } = require('../services/bot.service');
 const { registrarLog } = require('./logs.controller');
+const cloudinary = require('../config/cloudinary');
+
+// Convierte números del formulario.
+// Acepta: 40000, 40000.00, 40000,00, 40.000,00
+const parseNumero = (valor, defecto = 0) => {
+  if (valor === undefined || valor === null || valor === '') return defecto;
+
+  const texto = String(valor).trim();
+
+  let normalizado = texto;
+
+  // Caso argentino/europeo: 40.000,50 => 40000.50
+  if (texto.includes(',')) {
+    normalizado = texto.replace(/\./g, '').replace(',', '.');
+  }
+
+  const numero = Number(normalizado);
+
+  return Number.isFinite(numero) ? numero : defecto;
+};
+
+// Subir imagen a Cloudinary desde buffer
+const subirACloudinary = (buffer, folder = 'productos') => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: 'image'
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    stream.end(buffer);
+  });
+};
 
 // 1. Obtener productos
 const getProductos = async (req, res) => {
@@ -33,9 +71,19 @@ const getProductos = async (req, res) => {
 const createProducto = async (req, res) => {
   try {
     const { nombre, precio, categoria, stock, stockMinimo, descripcion } = req.body;
-    const imagenUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    let imagenUrl = null;
+
+    if (req.file) {
+      const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'productos');
+      imagenUrl = resultadoCloudinary.secure_url;
+    }
 
     console.log('BODY RECIBIDO CREATE PRODUCTO:', req.body);
+
+    const precioNum = parseNumero(precio);
+    const stockNum = parseNumero(stock);
+    const stockMinimoNum = parseNumero(stockMinimo);
 
     const [result] = await pool.query(
       `
@@ -44,10 +92,10 @@ const createProducto = async (req, res) => {
       `,
       [
         nombre || '',
-        Number(precio || 0),
+        precioNum,
         categoria || null,
-        Number(stock || 0),
-        Number(stockMinimo || 0),
+        stockNum,
+        stockMinimoNum,
         descripcion || '',
         imagenUrl
       ]
@@ -56,7 +104,7 @@ const createProducto = async (req, res) => {
     await registrarLog(
       'Administrador',
       'CREAR_PRODUCTO',
-      `Se creó el producto "${nombre}" (ID: ${result.insertId}) con ${stock || 0} de stock inicial.`
+      `Se creó el producto "${nombre}" (ID: ${result.insertId}) con ${stockNum} de stock inicial.`
     );
 
     res.json({
@@ -64,10 +112,10 @@ const createProducto = async (req, res) => {
       producto: {
         id: result.insertId,
         nombre: nombre || '',
-        precio: Number(precio || 0),
+        precio: precioNum,
         categoria: categoria || null,
-        stock: Number(stock || 0),
-        stockMinimo: Number(stockMinimo || 0),
+        stock: stockNum,
+        stockMinimo: stockMinimoNum,
         descripcion: descripcion || '',
         imagen: imagenUrl
       }
@@ -85,7 +133,7 @@ const createProducto = async (req, res) => {
 // 3. Reponer stock
 const reponerStock = async (req, res) => {
   const idProd = Number(req.params.id);
-  const cantidad = Number(req.body?.cantidad);
+  const cantidad = parseNumero(req.body?.cantidad);
 
   if (!Number.isFinite(idProd) || idProd <= 0) {
     return res.status(400).json({ success: false, message: 'ID inválido' });
@@ -124,7 +172,7 @@ const reponerStock = async (req, res) => {
     }
 
     const prod = rows[0];
-    const stockActual = Number(prod.stock || 0);
+    const stockActual = parseNumero(prod.stock);
     const nuevoStock = stockActual + cantidad;
 
     await conn.query(`UPDATE productos SET stock = ? WHERE id = ?`, [nuevoStock, idProd]);
@@ -142,8 +190,8 @@ const reponerStock = async (req, res) => {
       producto: {
         ...prod,
         stock: nuevoStock,
-        stockMinimo: Number(prod.stockMinimo || 0),
-        precio: Number(prod.precio || 0),
+        stockMinimo: parseNumero(prod.stockMinimo),
+        precio: parseNumero(prod.precio),
         descripcion: prod.descripcion || ''
       }
     });
@@ -198,7 +246,7 @@ const eliminarProducto = async (req, res) => {
 // 5. Vender producto
 const venderProducto = async (req, res) => {
   const idProd = Number(req.params.id);
-  const cantidadVenta = Number(req.params.cantidad);
+  const cantidadVenta = parseNumero(req.params.cantidad);
 
   console.log(`🛒 Procesando venta... ID: ${idProd}, Cant: ${cantidadVenta}`);
 
@@ -227,8 +275,8 @@ const venderProducto = async (req, res) => {
     }
 
     const prod = rows[0];
-    const stockActual = Number(prod.stock);
-    const stockMin = Number(prod.stockMinimo);
+    const stockActual = parseNumero(prod.stock);
+    const stockMin = parseNumero(prod.stockMinimo);
 
     if (stockActual < cantidadVenta) {
       await conn.rollback();
@@ -318,7 +366,7 @@ const updateProducto = async (req, res) => {
 
     const [rows] = await conn.query(
       `
-      SELECT nombre, stock, precio, descripcion
+      SELECT nombre, stock, precio, descripcion, imagen, categoria, stock_minimo AS stockMinimo
       FROM productos
       WHERE id = ?
       FOR UPDATE
@@ -333,6 +381,18 @@ const updateProducto = async (req, res) => {
 
     const prodAnterior = rows[0];
 
+    const precioNum = precio !== undefined && precio !== null && precio !== ''
+      ? parseNumero(precio, parseNumero(prodAnterior.precio))
+      : parseNumero(prodAnterior.precio);
+
+    const stockNum = stock !== undefined && stock !== null && stock !== ''
+      ? parseNumero(stock, parseNumero(prodAnterior.stock))
+      : parseNumero(prodAnterior.stock);
+
+    const stockMinimoNum = stockMinimo !== undefined && stockMinimo !== null && stockMinimo !== ''
+      ? parseNumero(stockMinimo, parseNumero(prodAnterior.stockMinimo))
+      : parseNumero(prodAnterior.stockMinimo);
+
     let query = `
       UPDATE productos
       SET nombre = ?, precio = ?, categoria = ?, stock = ?, stock_minimo = ?, descripcion = ?
@@ -340,16 +400,19 @@ const updateProducto = async (req, res) => {
 
     let params = [
       nombre || prodAnterior.nombre,
-      Number(precio || 0),
-      categoria || null,
-      Number(stock || 0),
-      Number(stockMinimo || 0),
-      descripcion || ''
+      precioNum,
+      categoria || prodAnterior.categoria || null,
+      stockNum,
+      stockMinimoNum,
+      descripcion ?? prodAnterior.descripcion ?? ''
     ];
 
     if (req.file) {
+      const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'productos');
+      const imagenUrl = resultadoCloudinary.secure_url;
+
       query += `, imagen = ?`;
-      params.push(`/uploads/${req.file.filename}`);
+      params.push(imagenUrl);
     }
 
     query += ` WHERE id = ?`;
@@ -361,7 +424,7 @@ const updateProducto = async (req, res) => {
     await registrarLog(
       'Administrador',
       'EDITAR_PRODUCTO',
-      `Se editó "${nombre || prodAnterior.nombre}". Precio: $${precio || prodAnterior.precio}, Stock: ${stock || prodAnterior.stock}.`
+      `Se editó "${nombre || prodAnterior.nombre}". Precio: $${precioNum}, Stock: ${stockNum}.`
     );
 
     const [updatedRows] = await pool.query(
@@ -461,17 +524,20 @@ const agregarImagenesProducto = async (req, res) => {
       [productoId]
     );
 
-    let ordenActual = Number(ordenRows[0]?.maxOrden || 0);
+    let ordenActual = parseNumero(ordenRows[0]?.maxOrden);
 
     for (const file of req.files) {
       ordenActual += 1;
+
+      const resultadoCloudinary = await subirACloudinary(file.buffer, 'productos/secundarias');
+      const imagenUrl = resultadoCloudinary.secure_url;
 
       await conn.query(
         `
         INSERT INTO producto_imagenes (producto_id, imagen, orden)
         VALUES (?, ?, ?)
         `,
-        [productoId, `/uploads/${file.filename}`, ordenActual]
+        [productoId, imagenUrl, ordenActual]
       );
     }
 
