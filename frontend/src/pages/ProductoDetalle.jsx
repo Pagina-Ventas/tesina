@@ -10,6 +10,28 @@ if (!API_URL) {
   throw new Error('Falta VITE_API_URL')
 }
 
+// Sirve para imágenes nuevas de Cloudinary y viejas de /uploads
+const getImagenUrl = (imagen) => {
+  if (!imagen) return ''
+
+  // Si ya es URL completa, la usa tal cual
+  if (imagen.startsWith('http://') || imagen.startsWith('https://')) {
+    return imagen
+  }
+
+  // Corrige caso raro si viniera "https//..." sin dos puntos
+  if (imagen.startsWith('https//')) {
+    return imagen.replace('https//', 'https://')
+  }
+
+  if (imagen.startsWith('http//')) {
+    return imagen.replace('http//', 'http://')
+  }
+
+  // Si es imagen vieja tipo /uploads/imagen.jpg, le agrega el backend
+  return `${API_URL}${imagen.startsWith('/') ? imagen : `/${imagen}`}`
+}
+
 export function ProductoDetalle({ productos, agregarAlCarrito }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -97,7 +119,7 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
             <div className="detail-thumbs">
               {producto.imagen && (
                 <img
-                  src={`${API_URL}${producto.imagen}`}
+                  src={getImagenUrl(producto.imagen)}
                   alt="principal"
                   onClick={() => setImagenActiva(producto.imagen)}
                   className={`detail-thumb ${imagenActiva === producto.imagen ? 'active' : ''}`}
@@ -107,7 +129,7 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
               {imagenesSecundarias.map((img) => (
                 <img
                   key={img.id}
-                  src={`${API_URL}${img.imagen}`}
+                  src={getImagenUrl(img.imagen)}
                   alt="secundaria"
                   onClick={() => setImagenActiva(img.imagen)}
                   className={`detail-thumb ${imagenActiva === img.imagen ? 'active' : ''}`}
@@ -118,7 +140,7 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
             <div className="detail-main-image-wrapper">
               {imagenActiva ? (
                 <img
-                  src={`${API_URL}${imagenActiva}`}
+                  src={getImagenUrl(imagenActiva)}
                   alt={producto.nombre}
                   className="detail-image"
                 />
@@ -205,7 +227,7 @@ export function ProductoDetalle({ productos, agregarAlCarrito }) {
                     >
                       {rel.imagen ? (
                         <img
-                          src={`${API_URL}${rel.imagen}`}
+                          src={getImagenUrl(rel.imagen)}
                           alt={rel.nombre}
                           style={{
                             width: '100%',
