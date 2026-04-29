@@ -3,18 +3,18 @@
 
 :root {
   /* Paleta de Colores Premium - Apolo Mate */
-  --bg-dark: #0a0a0a;       /* Fondo negro profundo */
-  --bg-card: #1e1e1e;       /* Fondo de tarjetas */
-  --primary: #c5a059;       /* Dorado principal */
-  --primary-hover: #e0b86a; /* Dorado claro para hover */
-  --accent: #d4af37;        /* Dorado acento */
-  
-  --text-main: #ffffff;     /* Blanco puro para textos principales */
-  --text-muted: #a0a0a0;    /* Gris elegante para textos secundarios */
-  
-  --success: #10b981;       /* Verde vibrante para stock/éxito */
-  --danger: #ef4444;        /* Rojo para alertas/sin stock */
-  --border: #333333;        /* Bordes sutiles oscuros */
+  --bg-dark: #0a0a0a;
+  --bg-card: #1e1e1e;
+  --primary: #c5a059;
+  --primary-hover: #e0b86a;
+  --accent: #d4af37;
+
+  --text-main: #ffffff;
+  --text-muted: #a0a0a0;
+
+  --success: #10b981;
+  --danger: #ef4444;
+  --border: #333333;
 }
 
 * {
@@ -23,26 +23,83 @@
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  width: 100%;
+}
+
 body {
   font-family: 'Montserrat', sans-serif;
   background-color: var(--bg-dark);
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden; /* Evita el scroll horizontal fantasma */
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
 }
 
 /* Scrollbar personalizada unificada */
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-dark);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
+}
+
+/* Base responsive general */
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-size: 15px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
