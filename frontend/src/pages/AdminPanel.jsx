@@ -12,6 +12,26 @@ if (!API_URL) {
   throw new Error('Falta VITE_API_URL')
 }
 
+const getImagenUrl = (imagen) => {
+  if (!imagen) return ''
+
+  let url = String(imagen).trim()
+
+  if (url.startsWith('https//')) {
+    url = url.replace('https//', 'https://')
+  }
+
+  if (url.startsWith('http//')) {
+    url = url.replace('http//', 'http://')
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`
+}
+
 export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, reponerProductoAdmin, editarProductoAdmin }) {
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
@@ -1224,11 +1244,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                     <tr key={prod.id}>
                       <td>
                         {prod.imagen ? (
-                          <img
-                            src={`${API_URL}${prod.imagen}`}
-                            alt="mini"
-                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
-                          />
+                        <img
+                          src={getImagenUrl(prod.imagen)}
+                          alt="mini"
+                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                        />
                         ) : (
                           <span>📷</span>
                         )}
@@ -1617,7 +1637,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                           }}
                         >
                           <img
-                            src={`${API_URL}${banner.imagen}`}
+                            src={getImagenUrl(banner.imagen)}
                             alt={banner.titulo || 'Banner'}
                             style={{
                               width: '180px',
@@ -1999,7 +2019,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
                         }}
                       >
                         <img
-                          src={`${API_URL}${img.imagen}`}
+                          src={getImagenUrl(img.imagen)}
                           alt="secundaria"
                           style={{
                             width: '100%',
