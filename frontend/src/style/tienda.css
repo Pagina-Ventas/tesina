@@ -550,3 +550,215 @@
     font-size: 1.35rem;
   }
 }
+/* =========================================
+   MOBILE CATÁLOGO PREMIUM - ESTILO LACOSTE
+   PEGAR AL FINAL DE tienda.css
+========================================= */
+
+@media (max-width: 768px) {
+  /* HERO MÁS COMPACTA */
+  .hero-container {
+    height: 310px;
+    min-height: 310px;
+    padding: 0;
+    margin: 0 0 22px 0;
+    border-radius: 0 0 24px 24px;
+  }
+
+  .hero-carousel,
+  .hero-slide {
+    height: 100%;
+  }
+
+  .hero-slide {
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .hero-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 20px;
+    padding: 0 18px;
+    height: auto;
+    max-width: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .btn-hero {
+    max-width: 245px;
+    padding: 13px 18px;
+    font-size: 0.85rem;
+    border-radius: 999px;
+    letter-spacing: 1px;
+  }
+
+  /* FILTROS MÁS TIPO ECOMMERCE */
+  .filter-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 0 12px;
+    margin: 0 0 22px 0;
+  }
+
+  .filter-btn {
+    width: 100%;
+    padding: 12px 6px;
+    font-size: 0.72rem;
+    letter-spacing: 1.2px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* ACÁ ESTÁ LA CLAVE: 2 PRODUCTOS POR FILA */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+    padding: 0 8px 36px;
+  }
+
+  /* CARD MÁS CHICA Y LIMPIA */
+  .card {
+    border-radius: 14px;
+    background: #171717;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* IMAGEN TIPO CATÁLOGO */
+  .card-image-box {
+    height: auto;
+    aspect-ratio: 3 / 4;
+    font-size: 3rem;
+    background: #111;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .card-image-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* BADGES MÁS CHICOS */
+  .badge-stock {
+    top: 8px;
+    right: 8px;
+    font-size: 0.55rem;
+    padding: 5px 7px;
+    letter-spacing: 0.7px;
+    border-radius: 999px;
+  }
+
+  .category-tag {
+    bottom: 8px;
+    left: 8px;
+    font-size: 0.52rem;
+    padding: 4px 7px;
+    letter-spacing: 1px;
+    border-radius: 999px;
+  }
+
+  /* CUERPO DE CARD */
+  .card-body {
+    padding: 12px 10px 14px;
+  }
+
+  .card-title {
+    font-size: 0.92rem;
+    line-height: 1.25;
+    margin: 0;
+    min-height: 3.45em;
+
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .price-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    display: block;
+  }
+
+  .precio-final {
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .btn-buy {
+    margin-top: 12px;
+    padding: 10px 7px;
+    font-size: 0.66rem;
+    letter-spacing: 0.9px;
+    border-radius: 10px;
+  }
+
+  .skeleton-card {
+    height: 310px;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero-container {
+    height: 285px;
+    min-height: 285px;
+  }
+
+  .btn-hero {
+    max-width: 225px;
+    font-size: 0.8rem;
+    padding: 12px 16px;
+  }
+
+  .filter-container {
+    padding: 0 10px;
+    gap: 9px;
+  }
+
+  .filter-btn {
+    font-size: 0.68rem;
+    padding: 11px 5px;
+    letter-spacing: 1px;
+  }
+
+  .grid {
+    gap: 10px;
+    padding: 0 7px 32px;
+  }
+
+  .card {
+    border-radius: 13px;
+  }
+
+  .card-body {
+    padding: 11px 9px 13px;
+  }
+
+  .card-title {
+    font-size: 0.88rem;
+  }
+
+  .precio-final {
+    font-size: 1rem;
+  }
+
+  .btn-buy {
+    font-size: 0.62rem;
+    padding: 9px 6px;
+  }
+}
