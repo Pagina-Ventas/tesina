@@ -93,37 +93,54 @@ export function Tienda({
   const cantidadBanners = bannersActivos?.length || 1
   const duracionTotal = cantidadBanners * segundosPorBanner
 
+  const renderBanner = (banner, index = 0, single = false) => {
+    const imagenDesktop = getImagenUrl(banner.imagen)
+    const imagenMobile = getImagenUrl(
+      banner.imagenMobile || banner.imagen_mobile || banner.imagen
+    )
+
+    return (
+      <picture
+        key={banner.id || index}
+        className={`hero-picture hero-slide ${single ? 'hero-slide-single' : ''}`}
+        style={
+          single
+            ? undefined
+            : {
+                animationDelay: `${index * segundosPorBanner}s`,
+                animationDuration: `${duracionTotal}s`
+              }
+        }
+      >
+        <source media="(max-width: 768px)" srcSet={imagenMobile} />
+        <img
+          src={imagenDesktop}
+          alt={banner.titulo || `Banner ${index + 1}`}
+          className="hero-img"
+        />
+      </picture>
+    )
+  }
+
   return (
     <>
       <section className="hero-container">
         <div className="hero-carousel">
           {bannersActivos && bannersActivos.length > 0 ? (
             bannersActivos.length === 1 ? (
-              <img
-                src={getImagenUrl(bannersActivos[0].imagen)}
-                alt={bannersActivos[0].titulo || 'Banner'}
-                className="hero-slide hero-slide-single"
-              />
+              renderBanner(bannersActivos[0], 0, true)
             ) : (
-              bannersActivos.map((banner, index) => (
-                <img
-                  key={banner.id}
-                  src={getImagenUrl(banner.imagen)}
-                  alt={banner.titulo || `Banner ${index + 1}`}
-                  className="hero-slide"
-                  style={{
-                    animationDelay: `${index * segundosPorBanner}s`,
-                    animationDuration: `${duracionTotal}s`
-                  }}
-                />
-              ))
+              bannersActivos.map((banner, index) => renderBanner(banner, index, false))
             )
           ) : (
-            <img
-              src="/banners/banner1.jpg"
-              alt="Banner por defecto"
-              className="hero-slide hero-slide-single"
-            />
+            <picture className="hero-picture hero-slide hero-slide-single">
+              <source media="(max-width: 768px)" srcSet="/banners/banner1-mobile.png" />
+              <img
+                src="/banners/banner1.jpg"
+                alt="Banner por defecto"
+                className="hero-img"
+              />
+            </picture>
           )}
         </div>
 
