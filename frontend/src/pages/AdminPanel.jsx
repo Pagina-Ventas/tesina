@@ -48,14 +48,15 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [logs, setLogs] = useState([])
   const [usuarios, setUsuarios] = useState([])
   const [recargoMP, setRecargoMP] = useState(20)
-    const [banners, setBanners] = useState([])
+  const [banners, setBanners] = useState([])
   const [nuevoBanner, setNuevoBanner] = useState({
-    titulo: '',
-    subtitulo: '',
-    orden: 0,
-    activo: 1,
-    imagen: null
-  })
+  titulo: '',
+  subtitulo: '',
+  orden: 0,
+  activo: 1,
+  imagen: null,
+  imagenMobile: null
+})
 
   const [adminNombre, setAdminNombre] = useState('Administrador')
   const [adminIniciales, setAdminIniciales] = useState('AD')
@@ -207,6 +208,15 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
     }
   }
 
+  const handleBannerMobileFileChange = (e) => {
+  if (e.target.files && e.target.files[0]) {
+    setNuevoBanner(prev => ({
+      ...prev,
+      imagenMobile: e.target.files[0]
+    }))
+  }
+}
+
   const crearBanner = async (e) => {
     e.preventDefault()
 
@@ -222,6 +232,10 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       formData.append('orden', nuevoBanner.orden)
       formData.append('activo', nuevoBanner.activo)
       formData.append('imagen', nuevoBanner.imagen)
+
+      if (nuevoBanner.imagenMobile) {
+        formData.append('imagenMobile', nuevoBanner.imagenMobile)
+      }
 
       const res = await fetch(`${API_URL}/api/banners`, {
         method: 'POST',
@@ -244,9 +258,9 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
         subtitulo: '',
         orden: 0,
         activo: 1,
-        imagen: null
+        imagen: null,
+        imagenMobile: null
       })
-
       await cargarBanners()
     } catch (error) {
       console.error(error)
@@ -1622,14 +1636,30 @@ return (
 
               <form onSubmit={crearBanner}>
                 <div className="form-group" style={{ marginBottom: '15px' }}>
-                  <label className="form-label">Imagen del banner</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="form-input"
-                    onChange={handleBannerFileChange}
-                  />
-                </div>
+              <label className="form-label">Imagen del banner para computadora</label>
+              <input
+                type="file"
+                accept="image/*"
+                className="form-input"
+                onChange={handleBannerFileChange}
+              />
+              <p style={{ color: '#aaa', fontSize: '0.8rem', marginTop: '6px' }}>
+                Recomendado: imagen horizontal para web.
+              </p>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '15px' }}>
+              <label className="form-label">Imagen del banner para celular</label>
+              <input
+                type="file"
+                accept="image/*"
+                className="form-input"
+                onChange={handleBannerMobileFileChange}
+              />
+              <p style={{ color: '#aaa', fontSize: '0.8rem', marginTop: '6px' }}>
+                Recomendado: imagen vertical 9:16 para que no se corten las letras en celular.
+              </p>
+            </div>
 
                 <div className="form-group">
                   <label className="form-label">Título (opcional)</label>
@@ -1709,9 +1739,14 @@ return (
                             flexWrap: 'wrap'
                           }}
                         >
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <div>
+                          <p style={{ color: '#aaa', fontSize: '0.75rem', marginBottom: '6px' }}>
+                            Desktop
+                          </p>
                           <img
                             src={getImagenUrl(banner.imagen)}
-                            alt={banner.titulo || 'Banner'}
+                            alt={banner.titulo || 'Banner desktop'}
                             style={{
                               width: '180px',
                               height: '90px',
@@ -1720,7 +1755,27 @@ return (
                               border: '1px solid #333'
                             }}
                           />
+                        </div>
 
+                        {banner.imagenMobile && (
+                          <div>
+                            <p style={{ color: '#aaa', fontSize: '0.75rem', marginBottom: '6px' }}>
+                              Mobile
+                            </p>
+                            <img
+                              src={getImagenUrl(banner.imagenMobile)}
+                              alt={banner.titulo || 'Banner mobile'}
+                              style={{
+                                width: '70px',
+                                height: '120px',
+                                objectFit: 'cover',
+                                borderRadius: '10px',
+                                border: '1px solid #333'
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                           <div style={{ flex: 1, minWidth: '220px' }}>
                             <p style={{ margin: '0 0 8px 0', color: '#fff', fontWeight: 'bold' }}>
                               {banner.titulo || 'Sin título'}
