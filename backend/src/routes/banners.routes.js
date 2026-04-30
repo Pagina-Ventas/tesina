@@ -4,9 +4,7 @@ const controller = require('../controllers/banners.controller');
 const { verificarAdmin } = require('../middlewares/auth.middleware');
 const multer = require('multer');
 
-// IMPORTANTE:
-// Usamos memoryStorage para que la imagen quede en req.file.buffer
-// y luego se suba a Cloudinary desde el controller.
+// Usamos memoryStorage para subir a Cloudinary desde el controller
 const storage = multer.memoryStorage();
 
 const upload = multer({
@@ -23,9 +21,14 @@ const upload = multer({
   }
 });
 
-// Middleware para manejar errores de multer
-const subirImagenBanner = (req, res, next) => {
-  upload.single('imagen')(req, res, (err) => {
+// Ahora acepta:
+// imagen = banner desktop
+// imagenMobile = banner mobile vertical
+const subirImagenesBanner = (req, res, next) => {
+  upload.fields([
+    { name: 'imagen', maxCount: 1 },
+    { name: 'imagenMobile', maxCount: 1 }
+  ])(req, res, (err) => {
     if (err) {
       return res.status(400).json({
         success: false,
@@ -46,14 +49,14 @@ router.get('/admin', verificarAdmin, controller.getBannersAdmin);
 router.post(
   '/',
   verificarAdmin,
-  subirImagenBanner,
+  subirImagenesBanner,
   controller.createBanner
 );
 
 router.put(
   '/:id',
   verificarAdmin,
-  subirImagenBanner,
+  subirImagenesBanner,
   controller.updateBanner
 );
 

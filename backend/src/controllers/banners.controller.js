@@ -24,7 +24,14 @@ const subirACloudinary = (buffer, folder = 'banners') => {
 const getBannersPublicos = async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, imagen, titulo, subtitulo, orden, activo
+      SELECT 
+        id, 
+        imagen, 
+        imagen_mobile AS imagenMobile,
+        titulo, 
+        subtitulo, 
+        orden, 
+        activo
       FROM banners
       WHERE activo = 1
       ORDER BY orden ASC, id ASC
@@ -45,7 +52,15 @@ const getBannersPublicos = async (req, res) => {
 const getBannersAdmin = async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, imagen, titulo, subtitulo, orden, activo, creado_en
+      SELECT 
+        id, 
+        imagen, 
+        imagen_mobile AS imagenMobile,
+        titulo, 
+        subtitulo, 
+        orden, 
+        activo, 
+        creado_en
       FROM banners
       ORDER BY orden ASC, id ASC
     `);
@@ -66,23 +81,34 @@ const createBanner = async (req, res) => {
   try {
     const { titulo, subtitulo, orden, activo } = req.body;
 
-    if (!req.file) {
+    const imagenDesktopFile = req.files?.imagen?.[0];
+    const imagenMobileFile = req.files?.imagenMobile?.[0];
+
+    if (!imagenDesktopFile) {
       return res.status(400).json({
         success: false,
-        message: 'Debes subir una imagen para el banner'
+        message: 'Debes subir una imagen principal para el banner'
       });
     }
 
-    const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'banners');
-    const imagenUrl = resultadoCloudinary.secure_url;
+    const resultadoDesktop = await subirACloudinary(imagenDesktopFile.buffer, 'banners');
+    const imagenUrl = resultadoDesktop.secure_url;
+
+    let imagenMobileUrl = null;
+
+    if (imagenMobileFile) {
+      const resultadoMobile = await subirACloudinary(imagenMobileFile.buffer, 'banners_mobile');
+      imagenMobileUrl = resultadoMobile.secure_url;
+    }
 
     const [result] = await pool.query(
       `
-      INSERT INTO banners (imagen, titulo, subtitulo, orden, activo)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO banners (imagen, imagen_mobile, titulo, subtitulo, orden, activo)
+      VALUES (?, ?, ?, ?, ?, ?)
       `,
       [
         imagenUrl,
+        imagenMobileUrl,
         titulo || null,
         subtitulo || null,
         Number(orden || 0),
@@ -101,6 +127,7 @@ const createBanner = async (req, res) => {
       banner: {
         id: result.insertId,
         imagen: imagenUrl,
+        imagenMobile: imagenMobileUrl,
         titulo: titulo || null,
         subtitulo: subtitulo || null,
         orden: Number(orden || 0),
@@ -131,25 +158,39 @@ const updateBanner = async (req, res) => {
     const [rows] = await pool.query(`SELECT * FROM banners WHERE id = ?`, [id]);
 
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Banner no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Banner no encontrado'
+      });
     }
 
     const actual = rows[0];
-    let imagen = actual.imagen;
 
-    if (req.file) {
-      const resultadoCloudinary = await subirACloudinary(req.file.buffer, 'banners');
-      imagen = resultadoCloudinary.secure_url;
+    const imagenDesktopFile = req.files?.imagen?.[0];
+    const imagenMobileFile = req.files?.imagenMobile?.[0];
+
+    let imagen = actual.imagen;
+    let imagenMobile = actual.imagen_mobile;
+
+    if (imagenDesktopFile) {
+      const resultadoDesktop = await subirACloudinary(imagenDesktopFile.buffer, 'banners');
+      imagen = resultadoDesktop.secure_url;
+    }
+
+    if (imagenMobileFile) {
+      const resultadoMobile = await subirACloudinary(imagenMobileFile.buffer, 'banners_mobile');
+      imagenMobile = resultadoMobile.secure_url;
     }
 
     await pool.query(
       `
       UPDATE banners
-      SET imagen = ?, titulo = ?, subtitulo = ?, orden = ?, activo = ?
+      SET imagen = ?, imagen_mobile = ?, titulo = ?, subtitulo = ?, orden = ?, activo = ?
       WHERE id = ?
       `,
       [
         imagen,
+        imagenMobile,
         titulo ?? actual.titulo,
         subtitulo ?? actual.subtitulo,
         Number(orden ?? actual.orden),
@@ -165,7 +206,15 @@ const updateBanner = async (req, res) => {
     );
 
     const [updatedRows] = await pool.query(`
-      SELECT id, imagen, titulo, subtitulo, orden, activo, creado_en
+      SELECT 
+        id, 
+        imagen, 
+        imagen_mobile AS imagenMobile,
+        titulo, 
+        subtitulo, 
+        orden, 
+        activo, 
+        creado_en
       FROM banners
       WHERE id = ?
     `, [id]);
@@ -196,7 +245,10 @@ const deleteBanner = async (req, res) => {
     const [result] = await pool.query(`DELETE FROM banners WHERE id = ?`, [id]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'Banner no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Banner no encontrado'
+      });
     }
 
     await registrarLog(
