@@ -14,22 +14,23 @@ export const useMercadoPago = () => {
 
       console.log('Respuesta Mercado Pago:', data)
 
-      // ✅ Si el backend devuelve links de redirección
-      const urlPago = data?.sandbox_init_point || data?.init_point
+      // IMPORTANTE:
+      // init_point = pago real / producción
+      // sandbox_init_point = pago de prueba
+      const urlPago = data?.init_point
 
       if (urlPago) {
         window.location.href = urlPago
         return
       }
 
-      // ✅ Si más adelante querés usar Wallet, esto deja preparado el hook
       if (data?.preferenceId || data?.preference_id) {
         return {
           preferenceId: data.preferenceId || data.preference_id
         }
       }
 
-      throw new Error('No se recibió ni sandbox_init_point, ni init_point, ni preferenceId desde el backend')
+      throw new Error('No se recibió init_point desde el backend')
     } catch (err) {
       console.error('Error en Hook useMercadoPago:', err)
       setError(err.message || 'Error desconocido al iniciar pago')
