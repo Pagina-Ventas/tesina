@@ -62,6 +62,7 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
 
   const [busqueda, setBusqueda] = useState('')
   const [vistaActiva, setVistaActiva] = useState('dashboard')
+  const [menuMobileAbierto, setMenuMobileAbierto] = useState(false)
 
   const [mostrarModal, setMostrarModal] = useState(false)
   const [nuevoProd, setNuevoProd] = useState({
@@ -897,76 +898,138 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const pedidosPendientes = pedidos.filter(p => p.estado === 'PENDIENTE')
 
   const usuariosFiltrados = usuarios.filter((u) => {
-    const texto = busqueda.toLowerCase()
-    return (
-      (u.username || '').toLowerCase().includes(texto) ||
-      (u.nombre || '').toLowerCase().includes(texto) ||
-      (u.email || '').toLowerCase().includes(texto)
-    )
+  const texto = busqueda.toLowerCase()
+  return (
+    (u.username || '').toLowerCase().includes(texto) ||
+    (u.nombre || '').toLowerCase().includes(texto) ||
+    (u.email || '').toLowerCase().includes(texto)
+  )
   })
 
-  return (
-    <div className="admin-wrapper">
-      <aside className="admin-sidebar">
-        <div className="sidebar-logo">
-          <h2>APOLO<span>MATE</span></h2>
-          <p>Admin Panel</p>
+const cambiarVistaAdmin = (vista) => {
+  setVistaActiva(vista)
+  setMenuMobileAbierto(false)
+
+  if (vista === 'usuarios') {
+    cargarUsuarios()
+  }
+
+  if (vista === 'logs') {
+    cargarLogs()
+  }
+}
+
+return (
+  <div className="admin-wrapper">
+    <aside className={`admin-sidebar ${menuMobileAbierto ? 'mobile-open' : ''}`}>
+      <button
+        type="button"
+        className="admin-close-menu-btn"
+        onClick={() => setMenuMobileAbierto(false)}
+      >
+        ×
+      </button>
+
+      <div className="sidebar-logo">
+        <h2>APOLO<span>MATE</span></h2>
+        <p>Admin Panel</p>
+      </div>
+
+      <nav className="sidebar-menu">
+        <button
+          className={`menu-item ${vistaActiva === 'dashboard' ? 'active' : ''}`}
+          onClick={() => cambiarVistaAdmin('dashboard')}
+        >
+          📊 Dashboard
+        </button>
+
+        <button
+          className={`menu-item ${vistaActiva === 'inventario' ? 'active' : ''}`}
+          onClick={() => cambiarVistaAdmin('inventario')}
+        >
+          📦 Inventario
+        </button>
+
+        <button
+          className={`menu-item ${vistaActiva === 'categorias' ? 'active' : ''}`}
+          onClick={() => cambiarVistaAdmin('categorias')}
+        >
+          📁 Categorías
+        </button>
+
+        <button
+          className={`menu-item ${vistaActiva === 'pedidos' ? 'active' : ''}`}
+          onClick={() => cambiarVistaAdmin('pedidos')}
+        >
+          🛒 Pedidos {pedidosPendientes.length > 0 && (
+            <span className="badge-alert">{pedidosPendientes.length}</span>
+          )}
+        </button>
+
+        <button
+          className={`menu-item ${vistaActiva === 'usuarios' ? 'active' : ''}`}
+          onClick={() => cambiarVistaAdmin('usuarios')}
+        >
+          👥 Usuarios
+        </button>
+
+        <button
+          className={`menu-item ${vistaActiva === 'logs' ? 'active' : ''}`}
+          onClick={() => cambiarVistaAdmin('logs')}
+        >
+          📜 Historial
+        </button>
+
+        <button
+          className={`menu-item ${vistaActiva === 'ajustes' ? 'active' : ''}`}
+          onClick={() => cambiarVistaAdmin('ajustes')}
+        >
+          ⚙️ Ajustes
+        </button>
+
+        <div className="separator"></div>
+
+        <Link
+          to="/"
+          className="menu-item logout"
+          onClick={() => setMenuMobileAbierto(false)}
+        >
+          ← Volver a Tienda
+        </Link>
+      </nav>
+    </aside>
+
+    {menuMobileAbierto && (
+      <div
+        className="admin-mobile-overlay"
+        onClick={() => setMenuMobileAbierto(false)}
+      />
+    )}
+
+    <main className="admin-content">
+      <button
+        type="button"
+        className="admin-mobile-menu-btn"
+        onClick={() => setMenuMobileAbierto(true)}
+      >
+        ☰ Menú
+      </button>
+
+      <header className="admin-topbar">
+        <h2 className="welcome-text">Hola, {adminNombre} 👋</h2>
+
+        <div className="topbar-actions">
+          <input
+            type="text"
+            placeholder="🔍 Buscar..."
+            className="topbar-search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+
+          <div className="admin-profile">{adminIniciales}</div>
         </div>
-
-        <nav className="sidebar-menu">
-          <button className={`menu-item ${vistaActiva === 'dashboard' ? 'active' : ''}`} onClick={() => setVistaActiva('dashboard')}>
-            📊 Dashboard
-          </button>
-
-          <button className={`menu-item ${vistaActiva === 'inventario' ? 'active' : ''}`} onClick={() => setVistaActiva('inventario')}>
-            📦 Inventario
-          </button>
-
-          <button className={`menu-item ${vistaActiva === 'categorias' ? 'active' : ''}`} onClick={() => setVistaActiva('categorias')}>
-            📁 Categorías
-          </button>
-
-          <button className={`menu-item ${vistaActiva === 'pedidos' ? 'active' : ''}`} onClick={() => setVistaActiva('pedidos')}>
-            🛒 Pedidos {pedidosPendientes.length > 0 && <span className="badge-alert">{pedidosPendientes.length}</span>}
-          </button>
-
-          <button
-            className={`menu-item ${vistaActiva === 'usuarios' ? 'active' : ''}`}
-            onClick={() => {
-              setVistaActiva('usuarios')
-              cargarUsuarios()
-            }}
-          >
-            👥 Usuarios
-          </button>
-
-          <button className={`menu-item ${vistaActiva === 'logs' ? 'active' : ''}`} onClick={() => { setVistaActiva('logs'); cargarLogs(); }}>
-            📜 Historial
-          </button>
-
-          <button className={`menu-item ${vistaActiva === 'ajustes' ? 'active' : ''}`} onClick={() => setVistaActiva('ajustes')}>
-            ⚙️ Ajustes
-          </button>
-
-          <div className="separator"></div>
-          <Link to="/" className="menu-item logout">← Volver a Tienda</Link>
-        </nav>
-      </aside>
-
-      <main className="admin-content">
-        <header className="admin-topbar">
-          <h2 className="welcome-text">Hola, {adminNombre} 👋</h2>
-          <div className="topbar-actions">
-            <input
-              type="text"
-              placeholder="🔍 Buscar..."
-              className="topbar-search"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-            <div className="admin-profile">{adminIniciales}</div>
-          </div>
-        </header>
+      </header>
 
        {vistaActiva === 'dashboard' && (
   <>
