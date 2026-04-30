@@ -1,12 +1,28 @@
 const { Preference, Payment } = require('mercadopago');
 const { mpClient } = require('../config/mercadopago.config');
 
-const crearPreferenciaPago = async (items, idPedido, cliente) => {
+const limpiarBaseUrl = (baseURL) => {
+  let url = baseURL || process.env.FRONT_URL || 'https://www.apolomates.com';
+
+  url = String(url).trim();
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+
+  return url.replace(/\/$/, '');
+};
+
+const crearPreferenciaPago = async (
+  items,
+  idPedido,
+  cliente,
+  baseURL,
+  notificationURL
+) => {
   const preference = new Preference(mpClient);
 
-  // 👇 EL TRUCO: Engañamos a la API usando 'https'
-  const urlExito = 'https://localhost:5173/exito';
-  const urlCarrito = 'https://localhost:5173/carrito';
+  const frontURL = limpiarBaseUrl(baseURL);
 
   const body = {
     items: items.map(item => ({
@@ -16,24 +32,31 @@ const crearPreferenciaPago = async (items, idPedido, cliente) => {
       unit_price: Number(item.unit_price || item.precio || 0),
       currency_id: 'ARS'
     })),
+
     payer: {
       name: cliente?.nombre || 'Cliente',
       surname: cliente?.apellido || '',
-      email: cliente?.email || 'test_user_123@test.com'
+      email: cliente?.email || undefined
     },
-    // Al tener https, Mercado Pago ya no las va a borrar
+
     back_urls: {
-      success: urlExito,
-      failure: urlCarrito,
-      pending: urlCarrito
+      success: `${frontURL}/exito`,
+      failure: `${frontURL}/carrito`,
+      pending: `${frontURL}/carrito`
     },
+
     auto_return: 'approved',
-    external_reference: String(idPedido || 1),
+    external_reference: String(idPedido),
+
     payment_methods: {
       excluded_payment_types: [{ id: 'ticket' }],
       installments: 6
     }
   };
+
+  if (notificationURL) {
+    body.notification_url = notificationURL;
+  }
 
   return await preference.create({ body });
 };
@@ -43,4 +66,7 @@ const consultarPago = async (paymentId) => {
   return await payment.get({ id: paymentId });
 };
 
-module.exports = { crearPreferenciaPago, consultarPago };
+module.exports = {
+  crearPreferenciaPago,
+  consultarPago
+};
