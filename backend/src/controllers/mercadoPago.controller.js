@@ -2,19 +2,46 @@ const { Preference } = require('mercadopago');
 const { mpClient } = require('../config/mercadopago.config.js');
 const pool = require('../db');
 
+const limpiarBaseUrl = () => {
+  let baseUrl = process.env.FRONT_URL || 'https://www.apolomates.com';
+
+  baseUrl = String(baseUrl).trim();
+
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = `https://${baseUrl}`;
+  }
+
+  return baseUrl.replace(/\/$/, '');
+};
+
 const crearPreferencia = async (req, res) => {
   try {
     const { items, pedidoId } = req.body;
+
+    if (!pedidoId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Falta pedidoId'
+      });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No hay productos para pagar'
+      });
+    }
+
     const preference = new Preference(mpClient);
 
     const itemsPasarela = items.map(item => ({
-      title: item.title || item.nombre,
+      title: item.title || item.nombre || 'Producto',
       quantity: Number(item.quantity || item.cantidad || 1),
-      unit_price: Number(item.unit_price || item.precio),
+      unit_price: Number(item.unit_price || item.precio || 0),
       currency_id: 'ARS',
     }));
 
-    const baseUrl = process.env.FRONT_URL || 'http://localhost:5173';
+    const baseUrl = limpiarBaseUrl();
 
     const response = await preference.create({
       body: {
@@ -29,14 +56,19 @@ const crearPreferencia = async (req, res) => {
       },
     });
 
-    res.json({
+    return res.json({
+      success: true,
       preferenceId: response.id,
       initPoint: response.init_point,
-      sandboxInitPoint: response.sandbox_init_point,
+      init_point: response.init_point
     });
   } catch (error) {
     console.error('Error al crear preferencia:', error);
-    res.status(500).json({ error: 'Error al crear la preferencia', detalle: error.message });
+    return res.status(500).json({
+      success: false,
+      error: 'Error al crear la preferencia',
+      detalle: error.message
+    });
   }
 };
 
@@ -101,4 +133,8 @@ const actualizarConfiguracion = async (req, res) => {
   }
 };
 
-module.exports = { crearPreferencia, obtenerConfiguracion, actualizarConfiguracion };
+module.exports = {
+  crearPreferencia,
+  obtenerConfiguracion,
+  actualizarConfiguracion
+};

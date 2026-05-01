@@ -42,12 +42,11 @@ const crearPreferencia = async (req, res) => {
       notificationURL
     );
 
-    return res.json({
-      success: true,
-      id: result.id,
-      init_point: result.init_point,
-      sandbox_init_point: result.sandbox_init_point
-    });
+   return res.json({
+    success: true,
+    id: result.id,
+    init_point: result.init_point
+  });
   } catch (error) {
     console.error('ERROR MP:', error);
     res.status(500).json({
