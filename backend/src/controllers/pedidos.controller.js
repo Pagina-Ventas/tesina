@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const { enviarAlerta, enviarPedido } = require('../services/bot.service');
+const { enviarCorreoCompra } = require('../services/mail.service');
 const { registrarLog } = require('./logs.controller');
 
 // 1. Obtener todos los pedidos (Para el ADMIN)
@@ -12,8 +13,12 @@ const getPedidos = async (req, res) => {
         id AS id,
         usuario_id,
         cliente_nombre AS cliente,
+        cliente_email AS email,
+        cliente_telefono AS telefono,
         total,
         estado,
+        metodo_pago AS metodoPago,
+        tipo_entrega AS tipoEntrega,
         creado_en
       FROM pedidos
       ORDER BY id DESC
@@ -23,7 +28,11 @@ const getPedidos = async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('GET PEDIDOS ERROR:', err);
-    res.status(500).json({ error: 'Error leyendo pedidos', detail: err.message });
+    res.status(500).json({
+      success: false,
+      error: 'Error leyendo pedidos',
+      detail: err.message
+    });
   }
 };
 
@@ -44,8 +53,11 @@ const getMisPedidos = async (req, res) => {
         id AS pedidoId,
         id AS id,
         cliente_nombre AS cliente,
+        cliente_email AS email,
         total,
         estado,
+        metodo_pago AS metodoPago,
+        tipo_entrega AS tipoEntrega,
         creado_en
       FROM pedidos
       WHERE usuario_id = ?
@@ -55,7 +67,11 @@ const getMisPedidos = async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('GET MIS PEDIDOS ERROR:', err);
-    res.status(500).json({ error: 'Error leyendo tus pedidos', detail: err.message });
+    res.status(500).json({
+      success: false,
+      error: 'Error leyendo tus pedidos',
+      detail: err.message
+    });
   }
 };
 
@@ -68,7 +84,10 @@ const createPedido = async (req, res) => {
     const items = Array.isArray(nuevoPedido.items) ? nuevoPedido.items : [];
 
     if (items.length === 0) {
-      return res.status(400).json({ success: false, message: 'El pedido no tiene items' });
+      return res.status(400).json({
+        success: false,
+        message: 'El pedido no tiene items'
+      });
     }
 
     let usuarioId = null;
@@ -95,6 +114,12 @@ const createPedido = async (req, res) => {
       (nuevoPedido.cliente && (nuevoPedido.cliente.nombre || nuevoPedido.cliente.name)) ||
       nuevoPedido.cliente ||
       nuevoPedido.nombre ||
+      null;
+
+    const clienteEmail =
+      (nuevoPedido.cliente && (nuevoPedido.cliente.email || nuevoPedido.cliente.correo)) ||
+      nuevoPedido.email ||
+      nuevoPedido.correo ||
       null;
 
     const clienteTelefono =
@@ -135,11 +160,12 @@ const createPedido = async (req, res) => {
 
     const [rPedido] = await conn.query(
       `INSERT INTO pedidos 
-      (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, total, estado, metodo_pago, tipo_entrega)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (usuario_id, cliente_nombre, cliente_email, cliente_telefono, cliente_direccion, total, estado, metodo_pago, tipo_entrega)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         usuarioId,
         clienteNombre,
+        clienteEmail,
         clienteTelefono,
         clienteDireccion,
         totalFinal,
@@ -168,7 +194,12 @@ const createPedido = async (req, res) => {
     await conn.commit();
 
     const actorLog = usuarioId ? `Usuario ID ${usuarioId}` : 'Invitado';
-    await registrarLog(actorLog, 'NUEVO_PEDIDO', `Creó el pedido #${pedidoId} por un total de $${totalFinal}.`);
+
+    await registrarLog(
+      actorLog,
+      'NUEVO_PEDIDO',
+      `Creó el pedido #${pedidoId} por un total de $${totalFinal}.`
+    );
 
     try {
       await enviarPedido({
@@ -180,23 +211,30 @@ const createPedido = async (req, res) => {
       console.error('Error enviando aviso a Telegram:', error.message);
     }
 
-    res.json({
+    return res.json({
       success: true,
       pedido: {
         ...nuevoPedido,
         pedidoId,
         id: pedidoId,
         usuario_id: usuarioId,
+        clienteNombre,
+        clienteEmail,
+        clienteTelefono,
         total: totalFinal,
         estado: estadoFinal,
         metodoPago,
         tipoEntrega
-      },
+      }
     });
   } catch (err) {
-    try { await conn.rollback(); } catch {}
+    try {
+      await conn.rollback();
+    } catch {}
+
     console.error('CREATE PEDIDO ERROR:', err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       error: 'Error creando pedido',
       detail: err.message
@@ -214,36 +252,65 @@ const updatePedido = async (req, res) => {
     const id = Number(req.params.id);
     const { estado } = req.body || {};
 
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID inválido'
+      });
+    }
+
     if (!estado) {
-      return res.status(400).json({ success: false, message: 'Falta estado' });
+      return res.status(400).json({
+        success: false,
+        message: 'Falta estado'
+      });
     }
 
     await conn.beginTransaction();
 
     const [pRows] = await conn.query(
-      `SELECT id, estado FROM pedidos WHERE id = ? FOR UPDATE`,
+      `SELECT 
+        id,
+        estado,
+        cliente_nombre,
+        cliente_email,
+        total
+       FROM pedidos 
+       WHERE id = ? 
+       FOR UPDATE`,
       [id]
     );
 
     if (pRows.length === 0) {
       await conn.rollback();
-      return res.status(404).json({ error: 'Pedido no encontrado' });
+      return res.status(404).json({
+        success: false,
+        error: 'Pedido no encontrado'
+      });
     }
 
-    const estadoAnterior = pRows[0].estado;
+    const pedido = pRows[0];
+    const estadoAnterior = pedido.estado;
 
     if (estado === 'PAGADO' && estadoAnterior !== 'PAGADO') {
       const [items] = await conn.query(
-        `SELECT producto_id AS productoId, nombre, cantidad FROM pedido_items WHERE pedido_id = ?`,
+        `SELECT producto_id AS productoId, nombre, cantidad 
+         FROM pedido_items 
+         WHERE pedido_id = ?`,
         [id]
       );
+
+      const alertasAEnviar = [];
 
       for (const item of items) {
         const productoId = item.productoId;
         if (!productoId) continue;
 
         const [prodRows] = await conn.query(
-          `SELECT id, nombre, stock, stock_minimo AS stockMinimo FROM productos WHERE id = ? FOR UPDATE`,
+          `SELECT id, nombre, stock, stock_minimo AS stockMinimo 
+           FROM productos 
+           WHERE id = ? 
+           FOR UPDATE`,
           [productoId]
         );
 
@@ -260,42 +327,92 @@ const updatePedido = async (req, res) => {
           [nuevoStock, prod.id]
         );
 
-        item._alerta = {
-          ...prod,
-          stock: nuevoStock,
-          stockMinimo: Number(prod.stockMinimo)
-        };
-      }
-
-      await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
-      await conn.commit();
-
-      await registrarLog('Administrador', 'PEDIDO_PAGADO', `Confirmó el pago del pedido #${id} y se descontó el stock.`);
-
-      for (const item of items) {
-        if (!item._alerta) continue;
-        const prod = item._alerta;
-
-        if (prod.stock <= prod.stockMinimo) {
-          try {
-            await enviarAlerta(prod, true);
-          } catch (e) {}
+        if (nuevoStock <= Number(prod.stockMinimo)) {
+          alertasAEnviar.push({
+            ...prod,
+            stock: nuevoStock,
+            stockMinimo: Number(prod.stockMinimo)
+          });
         }
       }
 
-      return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
+      await conn.query(
+        `UPDATE pedidos SET estado = ? WHERE id = ?`,
+        [estado, id]
+      );
+
+      await conn.commit();
+
+      await registrarLog(
+        'Administrador',
+        'PEDIDO_PAGADO',
+        `Confirmó el pago del pedido #${id} y se descontó el stock.`
+      );
+
+      if (pedido.cliente_email) {
+        try {
+          await enviarCorreoCompra(
+            pedido.cliente_email,
+            pedido.cliente_nombre || 'Cliente',
+            id,
+            pedido.total
+          );
+        } catch (e) {
+          console.error('Error enviando correo de compra:', e.message);
+        }
+      }
+
+      for (const alerta of alertasAEnviar) {
+        try {
+          await enviarAlerta(alerta, true);
+        } catch (e) {
+          console.error('Error enviando alerta Telegram:', e.message);
+        }
+      }
+
+      return res.json({
+        success: true,
+        pedido: {
+          pedidoId: id,
+          id,
+          estado
+        }
+      });
     }
 
-    await conn.query(`UPDATE pedidos SET estado = ? WHERE id = ?`, [estado, id]);
+    await conn.query(
+      `UPDATE pedidos SET estado = ? WHERE id = ?`,
+      [estado, id]
+    );
+
     await conn.commit();
 
-    await registrarLog('Administrador', 'ESTADO_PEDIDO', `Cambió el estado del pedido #${id} a ${estado}.`);
+    await registrarLog(
+      'Administrador',
+      'ESTADO_PEDIDO',
+      `Cambió el estado del pedido #${id} a ${estado}.`
+    );
 
-    return res.json({ success: true, pedido: { pedidoId: id, id, estado } });
+    return res.json({
+      success: true,
+      pedido: {
+        pedidoId: id,
+        id,
+        estado
+      }
+    });
   } catch (err) {
-    try { await conn.rollback(); } catch {}
+    try {
+      await conn.rollback();
+    } catch {}
+
     console.error('UPDATE PEDIDO ERROR:', err);
-    res.status(500).json({ error: 'Error actualizando pedido', detail: err.message });
+
+    return res.status(500).json({
+      success: false,
+      error: 'Error actualizando pedido',
+      detail: err.message
+    });
   } finally {
     conn.release();
   }
@@ -328,6 +445,7 @@ const getPedidoById = async (req, res) => {
         id AS id,
         usuario_id,
         cliente_nombre AS clienteNombre,
+        cliente_email AS clienteEmail,
         cliente_telefono AS clienteTelefono,
         cliente_direccion AS clienteDireccion,
         metodo_pago AS metodoPago,
@@ -338,7 +456,8 @@ const getPedidoById = async (req, res) => {
       FROM pedidos
       WHERE id = ?
     `;
-    let params = [id];
+
+    const params = [id];
 
     if (userRole !== 'admin') {
       query += ` AND usuario_id = ?`;
@@ -366,10 +485,17 @@ const getPedidoById = async (req, res) => {
       [id]
     );
 
-    return res.json({ ...pRows[0], items });
+    return res.json({
+      ...pRows[0],
+      items
+    });
   } catch (err) {
     console.error('GET PEDIDO BY ID ERROR:', err);
-    return res.status(500).json({ success: false, message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
@@ -380,6 +506,13 @@ const deletePedido = async (req, res) => {
   try {
     const id = Number(req.params.id);
 
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID inválido'
+      });
+    }
+
     await conn.beginTransaction();
 
     const [rows] = await conn.query(
@@ -389,20 +522,40 @@ const deletePedido = async (req, res) => {
 
     if (rows.length === 0) {
       await conn.rollback();
-      return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido no encontrado'
+      });
     }
 
-    await conn.query(`DELETE FROM pedidos WHERE id = ?`, [id]);
+    await conn.query(
+      `DELETE FROM pedidos WHERE id = ?`,
+      [id]
+    );
 
     await conn.commit();
 
-    await registrarLog('Administrador', 'ELIMINAR_PEDIDO', `Eliminó el pedido #${id} del sistema.`);
+    await registrarLog(
+      'Administrador',
+      'ELIMINAR_PEDIDO',
+      `Eliminó el pedido #${id} del sistema.`
+    );
 
-    return res.json({ success: true, deletedId: id });
+    return res.json({
+      success: true,
+      deletedId: id
+    });
   } catch (err) {
-    try { await conn.rollback(); } catch {}
+    try {
+      await conn.rollback();
+    } catch {}
+
     console.error('DELETE PEDIDO ERROR:', err);
-    return res.status(500).json({ success: false, message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   } finally {
     conn.release();
   }
