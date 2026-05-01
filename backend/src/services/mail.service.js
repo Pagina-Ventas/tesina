@@ -4,7 +4,10 @@ const { registrarLog } = require('../controllers/logs.controller');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MAIL_FROM =
-  process.env.MAIL_FROM || 'ApoloMate <onboarding@resend.dev>';
+  process.env.MAIL_FROM || 'ApoloMate <ventas@apolomates.com>';
+
+const REPLY_TO =
+  process.env.MAIL_REPLY_TO || 'ventas@apolomates.com';
 
 const formatearPrecio = (valor) => {
   const numero = Number(valor || 0);
@@ -23,38 +26,47 @@ const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) 
       return;
     }
 
+    const nombre = nombreCliente || 'Cliente';
+    const totalFormateado = formatearPrecio(total);
+
     const { data, error } = await resend.emails.send({
       from: MAIL_FROM,
       to: [emailCliente],
-      subject: `✅ Confirmación de pago - Pedido #${idPedido}`,
+      reply_to: REPLY_TO,
+      subject: `Confirmación de pago - Pedido #${idPedido}`,
+      text: `Hola ${nombre}, recibimos correctamente el pago de tu pedido #${idPedido} por un total de ${totalFormateado}. Estamos preparando tu pedido. Te avisaremos cuando esté listo para retirar o cuando coordinemos el envío. Gracias por confiar en ApoloMate.`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #121212; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #c5a059;">
-          <h1 style="color: #c5a059; text-align: center; font-size: 30px; margin: 0 0 20px;">
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #ffffff; color: #111827; padding: 28px; border-radius: 12px; border: 1px solid #e5e7eb;">
+          <h1 style="color: #111827; text-align: center; font-size: 28px; margin: 0 0 22px;">
             ApoloMate
           </h1>
 
-          <h2 style="color: #4ade80; margin-bottom: 15px;">
-            ¡Pago confirmado! 🧉
+          <h2 style="color: #15803d; margin-bottom: 14px; font-size: 22px;">
+            Pago confirmado
           </h2>
 
-          <p style="font-size: 16px; color: #e0e0e0; line-height: 1.6;">
-            Hola <strong>${nombreCliente || 'Cliente'}</strong>, recibimos correctamente el pago de tu pedido.
+          <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+            Hola <strong>${nombre}</strong>, recibimos correctamente el pago de tu pedido.
           </p>
 
-          <div style="background-color: #1e1e1e; padding: 20px; border-radius: 10px; margin: 25px 0; border-left: 4px solid #c5a059;">
-            <p style="margin: 0 0 10px; color: #ffffff; font-size: 16px;">
+          <div style="background-color: #f9fafb; padding: 18px; border-radius: 10px; margin: 24px 0; border-left: 4px solid #c5a059;">
+            <p style="margin: 0 0 10px; color: #111827; font-size: 16px;">
               <strong>Número de pedido:</strong> #${idPedido}
             </p>
-            <p style="margin: 0; color: #ffffff; font-size: 16px;">
-              <strong>Total:</strong> ${formatearPrecio(total)}
+            <p style="margin: 0; color: #111827; font-size: 16px;">
+              <strong>Total:</strong> ${totalFormateado}
             </p>
           </div>
 
-          <p style="font-size: 15px; color: #d1d5db; line-height: 1.6;">
+          <p style="font-size: 15px; color: #4b5563; line-height: 1.6;">
             Estamos preparando tu pedido. Te avisaremos cuando esté listo para retirar o cuando coordinemos el envío.
           </p>
 
-          <p style="text-align: center; color: #888; font-size: 12px; margin-top: 35px; border-top: 1px solid #333; padding-top: 20px;">
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin-top: 24px;">
+            Si necesitás consultarnos algo, podés responder este correo.
+          </p>
+
+          <p style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 34px; border-top: 1px solid #e5e7eb; padding-top: 18px;">
             Gracias por confiar en ApoloMate.<br>
             San Juan, Argentina.
           </p>
@@ -71,7 +83,7 @@ const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) 
     await registrarLog(
       'Sistema (Correo)',
       'EMAIL_ENVIADO',
-      `Se envió el recibo de compra al cliente ${nombreCliente || 'Cliente'} (${emailCliente}) por el pedido #${idPedido}.`
+      `Se envió el recibo de compra al cliente ${nombre} (${emailCliente}) por el pedido #${idPedido}.`
     );
   } catch (error) {
     console.error('❌ Error enviando correo:', error);
@@ -94,17 +106,20 @@ const enviarCorreoVerificacion = async (emailCliente, username, token) => {
     const { data, error } = await resend.emails.send({
       from: MAIL_FROM,
       to: [emailCliente],
-      subject: '📩 Confirmá tu cuenta de ApoloMate',
+      reply_to: REPLY_TO,
+      subject: 'Confirmá tu cuenta de ApoloMate',
+      text: `Hola ${username}, gracias por registrarte en ApoloMate. Para activar tu cuenta abrí este enlace: ${linkVerificacion}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #121212; color: #fff; padding: 30px; border-radius: 10px; border: 1px solid #c5a059;">
-          <h1 style="color: #c5a059; text-align: center; font-size: 28px;">ApoloMate</h1>
-          <h2 style="color: #ffffff;">¡Hola ${username}! 👋</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #ffffff; color: #111827; padding: 28px; border-radius: 12px; border: 1px solid #e5e7eb;">
+          <h1 style="color: #111827; text-align: center; font-size: 28px;">ApoloMate</h1>
 
-          <p style="font-size: 16px; color: #e0e0e0; line-height: 1.5;">
+          <h2 style="color: #111827;">Hola ${username}</h2>
+
+          <p style="font-size: 16px; color: #374151; line-height: 1.6;">
             Gracias por registrarte en <strong>ApoloMate</strong>.
           </p>
 
-          <p style="font-size: 16px; color: #e0e0e0; line-height: 1.5;">
+          <p style="font-size: 16px; color: #374151; line-height: 1.6;">
             Para activar tu cuenta, hacé click en el siguiente botón:
           </p>
 
@@ -117,9 +132,14 @@ const enviarCorreoVerificacion = async (emailCliente, username, token) => {
             </a>
           </div>
 
-          <p style="text-align: center; color: #888; font-size: 12px; margin-top: 40px; border-top: 1px solid #333; padding-top: 20px;">
+          <p style="font-size: 13px; color: #6b7280; line-height: 1.6;">
+            Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br>
+            ${linkVerificacion}
+          </p>
+
+          <p style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 34px; border-top: 1px solid #e5e7eb; padding-top: 18px;">
             Este enlace vence en 24 horas.<br>
-            Gracias por confiar en ApoloMate. 🧉
+            Gracias por confiar en ApoloMate.
           </p>
         </div>
       `
