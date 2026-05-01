@@ -1,24 +1,10 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const { registrarLog } = require('../controllers/logs.controller');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  requireTLS: true,
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-  // Fuerza IPv4 para evitar error ENETUNREACH con IPv6 en Render
-  family: 4,
-
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-
-  connectionTimeout: 60000,
-  greetingTimeout: 60000,
-  socketTimeout: 60000
-});
+const MAIL_FROM =
+  process.env.MAIL_FROM || 'ApoloMate <onboarding@resend.dev>';
 
 const formatearPrecio = (valor) => {
   const numero = Number(valor || 0);
@@ -30,7 +16,6 @@ const formatearPrecio = (valor) => {
   });
 };
 
-// Correo de compra / recibo
 const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) => {
   try {
     if (!emailCliente) {
@@ -38,9 +23,9 @@ const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) 
       return;
     }
 
-    const mailOptions = {
-      from: `"ApoloMate" <${process.env.EMAIL_USER}>`,
-      to: emailCliente,
+    const { data, error } = await resend.emails.send({
+      from: MAIL_FROM,
+      to: [emailCliente],
       subject: `✅ Confirmación de pago - Pedido #${idPedido}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #121212; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #c5a059;">
@@ -75,11 +60,13 @@ const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) 
           </p>
         </div>
       `
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
+    if (error) {
+      throw new Error(error.message || JSON.stringify(error));
+    }
 
-    console.log(`📧 Correo enviado exitosamente a: ${emailCliente}`);
+    console.log(`📧 Correo enviado exitosamente a: ${emailCliente}`, data);
 
     await registrarLog(
       'Sistema (Correo)',
@@ -99,15 +86,14 @@ const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) 
   }
 };
 
-// Correo de verificación de cuenta
 const enviarCorreoVerificacion = async (emailCliente, username, token) => {
   try {
     const apiUrl = (process.env.API_URL || process.env.BACKEND_URL || 'https://tesina-backend.onrender.com').replace(/\/$/, '');
     const linkVerificacion = `${apiUrl}/api/auth/verify-email/${token}`;
 
-    const mailOptions = {
-      from: `"ApoloMate" <${process.env.EMAIL_USER}>`,
-      to: emailCliente,
+    const { data, error } = await resend.emails.send({
+      from: MAIL_FROM,
+      to: [emailCliente],
       subject: '📩 Confirmá tu cuenta de ApoloMate',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #121212; color: #fff; padding: 30px; border-radius: 10px; border: 1px solid #c5a059;">
@@ -137,11 +123,13 @@ const enviarCorreoVerificacion = async (emailCliente, username, token) => {
           </p>
         </div>
       `
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
+    if (error) {
+      throw new Error(error.message || JSON.stringify(error));
+    }
 
-    console.log(`📧 Correo de verificación enviado a: ${emailCliente}`);
+    console.log(`📧 Correo de verificación enviado a: ${emailCliente}`, data);
 
     await registrarLog(
       'Sistema (Correo)',
