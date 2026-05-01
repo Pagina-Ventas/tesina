@@ -6,10 +6,15 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   requireTLS: true,
+
+  // Fuerza IPv4 para evitar error ENETUNREACH con IPv6 en Render
+  family: 4,
+
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
+
   connectionTimeout: 60000,
   greetingTimeout: 60000,
   socketTimeout: 60000
