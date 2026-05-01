@@ -1,52 +1,84 @@
 const nodemailer = require('nodemailer');
 const { registrarLog } = require('../controllers/logs.controller');
 
-// 1. Configuramos el transportador
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
-  }
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000
 });
 
-// 2. Correo de compra
+const formatearPrecio = (valor) => {
+  const numero = Number(valor || 0);
+
+  return numero.toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 0
+  });
+};
+
+// Correo de compra / recibo
 const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) => {
   try {
+    if (!emailCliente) {
+      console.log('No se envió correo: el cliente no tiene email.');
+      return;
+    }
+
     const mailOptions = {
       from: `"ApoloMate" <${process.env.EMAIL_USER}>`,
       to: emailCliente,
-      subject: '✅ ¡Pago Recibido! Tu pedido está en marcha',
+      subject: `✅ Confirmación de pago - Pedido #${idPedido}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #121212; color: #fff; padding: 30px; border-radius: 10px; border: 1px solid #c5a059;">
-          <h1 style="color: #c5a059; text-align: center; font-size: 28px;">Apolo Mate</h1>
-          <h2 style="color: #4caf50;">¡Hola ${nombreCliente}! 👋</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #121212; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #c5a059;">
+          <h1 style="color: #c5a059; text-align: center; font-size: 30px; margin: 0 0 20px;">
+            ApoloMate
+          </h1>
 
-          <p style="font-size: 16px; color: #e0e0e0; line-height: 1.5;">
-            Queríamos avisarte que hemos recibido el pago de tu pedido <strong>#${idPedido}</strong> por un total de <strong>$${total}</strong>.
+          <h2 style="color: #4ade80; margin-bottom: 15px;">
+            ¡Pago confirmado! 🧉
+          </h2>
+
+          <p style="font-size: 16px; color: #e0e0e0; line-height: 1.6;">
+            Hola <strong>${nombreCliente || 'Cliente'}</strong>, recibimos correctamente el pago de tu pedido.
           </p>
 
-          <div style="background-color: #1e1e1e; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #c5a059;">
-            <h3 style="margin-top: 0; color: #c5a059; font-size: 18px;">¿Qué sigue ahora?</h3>
-            <p style="color: #a0a0a0; margin-bottom: 0; font-size: 14px; line-height: 1.5;">
-              Estamos preparando tu pedido con mucho cuidado. Te avisaremos cuando esté listo para retirar por el local o cuando haya sido despachado.
+          <div style="background-color: #1e1e1e; padding: 20px; border-radius: 10px; margin: 25px 0; border-left: 4px solid #c5a059;">
+            <p style="margin: 0 0 10px; color: #ffffff; font-size: 16px;">
+              <strong>Número de pedido:</strong> #${idPedido}
+            </p>
+            <p style="margin: 0; color: #ffffff; font-size: 16px;">
+              <strong>Total:</strong> ${formatearPrecio(total)}
             </p>
           </div>
 
-          <p style="text-align: center; color: #888; font-size: 12px; margin-top: 40px; border-top: 1px solid #333; padding-top: 20px;">
-            Gracias por confiar en ApoloMate.<br>San Juan, Argentina. 🧉
+          <p style="font-size: 15px; color: #d1d5db; line-height: 1.6;">
+            Estamos preparando tu pedido. Te avisaremos cuando esté listo para retirar o cuando coordinemos el envío.
+          </p>
+
+          <p style="text-align: center; color: #888; font-size: 12px; margin-top: 35px; border-top: 1px solid #333; padding-top: 20px;">
+            Gracias por confiar en ApoloMate.<br>
+            San Juan, Argentina.
           </p>
         </div>
       `
     };
 
     await transporter.sendMail(mailOptions);
+
     console.log(`📧 Correo enviado exitosamente a: ${emailCliente}`);
 
     await registrarLog(
       'Sistema (Correo)',
       'EMAIL_ENVIADO',
-      `Se envió el recibo de compra al cliente ${nombreCliente} (${emailCliente}) por el pedido #${idPedido}.`
+      `Se envió el recibo de compra al cliente ${nombreCliente || 'Cliente'} (${emailCliente}) por el pedido #${idPedido}.`
     );
   } catch (error) {
     console.error('❌ Error enviando correo:', error);
@@ -54,15 +86,17 @@ const enviarCorreoCompra = async (emailCliente, nombreCliente, idPedido, total) 
     await registrarLog(
       'Sistema (Correo)',
       'ERROR_EMAIL',
-      `No se pudo enviar el recibo al cliente ${nombreCliente} (${emailCliente}). Detalle: ${error.message}`
+      `No se pudo enviar el recibo al cliente ${nombreCliente || 'Cliente'} (${emailCliente}). Detalle: ${error.message}`
     );
+
+    throw error;
   }
 };
 
-// 3. Correo de verificación de cuenta
+// Correo de verificación de cuenta
 const enviarCorreoVerificacion = async (emailCliente, username, token) => {
   try {
-    const apiUrl = (process.env.API_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const apiUrl = (process.env.API_URL || process.env.BACKEND_URL || 'https://tesina-backend.onrender.com').replace(/\/$/, '');
     const linkVerificacion = `${apiUrl}/api/auth/verify-email/${token}`;
 
     const mailOptions = {
@@ -91,15 +125,6 @@ const enviarCorreoVerificacion = async (emailCliente, username, token) => {
             </a>
           </div>
 
-          <div style="background-color: #1e1e1e; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #c5a059;">
-            <p style="color: #a0a0a0; margin: 0; font-size: 14px; line-height: 1.5;">
-              Si el botón no funciona, copiá y pegá este enlace en tu navegador:
-            </p>
-            <p style="color: #ffffff; word-break: break-all; font-size: 13px; margin-top: 10px;">
-              ${linkVerificacion}
-            </p>
-          </div>
-
           <p style="text-align: center; color: #888; font-size: 12px; margin-top: 40px; border-top: 1px solid #333; padding-top: 20px;">
             Este enlace vence en 24 horas.<br>
             Gracias por confiar en ApoloMate. 🧉
@@ -109,6 +134,7 @@ const enviarCorreoVerificacion = async (emailCliente, username, token) => {
     };
 
     await transporter.sendMail(mailOptions);
+
     console.log(`📧 Correo de verificación enviado a: ${emailCliente}`);
 
     await registrarLog(
@@ -124,6 +150,8 @@ const enviarCorreoVerificacion = async (emailCliente, username, token) => {
       'ERROR_EMAIL_VERIFICACION',
       `No se pudo enviar correo de verificación a ${username} (${emailCliente}). Detalle: ${error.message}`
     );
+
+    throw error;
   }
 };
 
