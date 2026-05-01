@@ -647,49 +647,56 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   }
 
   const confirmarReponer = async () => {
-    if (!productoAReponer) return
+  if (!productoAReponer) return
 
-    const cant = Number(cantidadReponer)
-    if (!Number.isFinite(cant) || cant <= 0) {
-      alert('Ingresá una cantidad válida (> 0)')
-      return
-    }
+  const cant = Number(cantidadReponer)
 
-    try {
-      if (typeof reponerProductoAdmin === 'function') {
-        const actualizado = await reponerProductoAdmin(productoAReponer.id, cant)
-        if (actualizado?.id) {
-          setProductos(prev => prev.map(p => (
-            p.id === actualizado.id ? { ...p, stock: actualizado.stock } : p
-          )))
-        } else {
-          await cargarProductos()
-        }
-      } else {
-        const res = await fetch(`${API_URL}/api/productos/${productoAReponer.id}/reponer`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ cantidad: cant })
-        })
-
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok || !data?.success) throw new Error(data?.message || 'No se pudo reponer')
-
-        setProductos(prev => prev.map(p => (
-          p.id === data.producto.id ? { ...p, stock: data.producto.stock } : p
-        )))
-      }
-
-      setMostrarModalReponer(false)
-      setProductoAReponer(null)
-    } catch (e) {
-      console.error(e)
-      alert(e?.message || 'Error reponiendo stock')
-    }
+  if (!Number.isFinite(cant) || cant <= 0) {
+    alert('Ingresá una cantidad válida mayor a 0')
+    return
   }
+
+  try {
+    const res = await fetch(`${API_URL}/api/productos/${productoAReponer.id}/reponer`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ cantidad: cant })
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || data?.error || 'No se pudo reponer el stock')
+    }
+
+    const productoActualizado = data.producto || data
+
+    setProductos(prev =>
+      prev.map(p =>
+        p.id === productoAReponer.id
+          ? {
+              ...p,
+              stock: Number(productoActualizado.stock ?? p.stock) 
+            }
+          : p
+      )
+    )
+
+    await cargarProductos()
+
+    setMostrarModalReponer(false)
+    setProductoAReponer(null)
+    setCantidadReponer(1)
+
+    alert('✅ Stock repuesto correctamente')
+  } catch (e) {
+    console.error('Error reponiendo stock:', e)
+    alert(e?.message || 'Error reponiendo stock')
+  }
+}
 
   const eliminarProductoAdmin = async (id) => {
     const ok = window.confirm('¿Eliminar este producto del catálogo?')
