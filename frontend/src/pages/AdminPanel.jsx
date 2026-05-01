@@ -769,6 +769,41 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
       alert(e?.message || 'Error eliminando la categoría')
     }
   }
+  const eliminarPedidoAdmin = async (id) => {
+  const pedidoId = Number(id)
+
+  if (!Number.isFinite(pedidoId) || pedidoId <= 0) {
+    alert('No se encontró el ID del pedido')
+    return
+  }
+
+  const ok = window.confirm(`¿Eliminar el pedido #${pedidoId}?`)
+  if (!ok) return
+
+  try {
+    const res = await fetch(`${API_URL}/api/pedidos/${pedidoId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || data?.error || 'No se pudo eliminar el pedido')
+    }
+
+    alert('✅ Pedido eliminado correctamente')
+
+    // Como "pedidos" viene desde el componente padre,
+    // recargamos la página para traer la lista actualizada.
+    window.location.reload()
+  } catch (error) {
+    console.error('Error eliminando pedido:', error)
+    alert(error.message || 'Error eliminando pedido')
+  }
+}
 
   const dataCategoriasGraf = productos.reduce((acc, curr) => {
     const cat = acc.find(item => item.name === curr.categoria)
