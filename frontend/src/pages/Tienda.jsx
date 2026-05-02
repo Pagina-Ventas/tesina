@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../style/tienda.css'
 
@@ -47,6 +47,17 @@ const normalizarTexto = (texto) => {
     .trim()
 }
 
+const mezclarProductos = (lista) => {
+  const copia = [...lista]
+
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copia[i], copia[j]] = [copia[j], copia[i]]
+  }
+
+  return copia
+}
+
 export function Tienda({
   productos,
   agregarAlCarrito,
@@ -74,7 +85,8 @@ export function Tienda({
 
   const textoBusqueda = normalizarTexto(busqueda)
 
-  const productosFiltrados = productos.filter((p) => {
+const productosFiltrados = useMemo(() => {
+  const filtrados = productos.filter((p) => {
     const coincideCategoria =
       categoriaSeleccionada === 'Todos' || p.categoria === categoriaSeleccionada
 
@@ -87,6 +99,13 @@ export function Tienda({
 
     return coincideCategoria && coincideBusqueda
   })
+
+  if (categoriaSeleccionada === 'Todos' && textoBusqueda === '') {
+    return mezclarProductos(filtrados)
+  }
+
+  return filtrados
+}, [productos, categoriaSeleccionada, textoBusqueda])
 
   const bannersActivos = banners.length > 0 ? banners : null
   const segundosPorBanner = 5
