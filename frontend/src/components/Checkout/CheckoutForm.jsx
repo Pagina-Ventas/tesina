@@ -59,15 +59,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
     }
   }, [])
 
-  useEffect(() => {
-    if (datos.metodoPago === 'Efectivo') {
-      setDatos(prev => ({
-        ...prev,
-        tipoEntrega: 'Retiro'
-      }))
-    }
-  }, [datos.metodoPago])
-
   const DATOS_BANCO = {
     cvu: '4530000800014211011333',
     alias: 'alexiaaubone',
@@ -370,7 +361,6 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
             >
               <option value="Transferencia">Transferencia Bancaria (Sin recargo)</option>
               <option value="MercadoPago">Mercado Pago (Tarjetas)</option>
-              <option value="Efectivo">Efectivo (Solo retiro)</option>
             </select>
           </div>
 
@@ -481,12 +471,12 @@ export function CheckoutForm({ carrito, totalProductos, onConfirmar, onCancelar 
                   border: '1px solid #333',
                   fontWeight: 'bold',
                   transition: 'all 0.3s',
-                  cursor: datos.metodoPago === 'Efectivo' ? 'not-allowed' : 'pointer',
                   background: datos.tipoEntrega === 'Envio' ? '#333' : 'transparent',
                   color: datos.tipoEntrega === 'Envio' ? '#fff' : '#a0a0a0',
-                  opacity: datos.metodoPago === 'Efectivo' ? 0.3 : 1
+                  cursor: 'pointer',
+                  opacity: 1
                 }}
-                disabled={datos.metodoPago === 'Efectivo' || procesandoTotal}
+                disabled={procesandoTotal}
               >
                 🚚 ENVÍO
               </button>
