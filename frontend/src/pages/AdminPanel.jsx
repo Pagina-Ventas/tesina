@@ -2004,6 +2004,72 @@ return (
         </div>
       )}
 
+      {mostrarModalReponer && productoAReponer && (
+  <div
+    className="checkout-overlay"
+    onClick={() => {
+      setMostrarModalReponer(false)
+      setProductoAReponer(null)
+      setCantidadReponer(1)
+    }}
+  >
+    <div
+      className="checkout-card"
+      style={{ maxWidth: '420px', width: '100%' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 className="checkout-title" style={{ color: '#3b82f6' }}>
+        Reponer Stock
+      </h2>
+
+      <p style={{ color: '#fff', marginBottom: '10px' }}>
+        Producto: <strong>{productoAReponer.nombre}</strong>
+      </p>
+
+      <p style={{ color: '#aaa', marginBottom: '20px' }}>
+        Stock actual: <strong>{productoAReponer.stock}</strong>
+      </p>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="cantidadReponer">
+          Cantidad a agregar
+        </label>
+
+        <input
+          type="number"
+          name="cantidadReponer"
+          id="cantidadReponer"
+          className="form-input"
+          min="1"
+          value={cantidadReponer}
+          onChange={(e) => setCantidadReponer(e.target.value)}
+          autoFocus
+        />
+      </div>
+
+      <button
+        type="button"
+        className="btn-whatsapp"
+        style={{ background: '#3b82f6', marginTop: '15px' }}
+        onClick={confirmarReponer}
+      >
+        Confirmar reposición
+      </button>
+
+      <button
+        type="button"
+        className="btn-cancel"
+        onClick={() => {
+          setMostrarModalReponer(false)
+          setProductoAReponer(null)
+          setCantidadReponer(1)
+        }}
+      >
+        Cancelar
+      </button>
+    </div>
+  </div>
+)}
       {mostrarModal && (
         <div className="checkout-overlay">
           <div className="checkout-card" style={{ maxWidth: '500px' }}>
