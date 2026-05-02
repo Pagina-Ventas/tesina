@@ -207,6 +207,152 @@ const reponerStock = async (req, res) => {
     conn.release();
   }
 };
+// 3.1. Descontar stock manualmente
+// Si contarComoVenta = true, también crea un pedido PAGADO para que aparezca en gráficos.
+const descontarStockManual = async (req, res) => {
+  const idProd = Number(req.params.id);
+  const cantidad = parseNumero(req.body?.cantidad);
+  const contarComoVenta = Boolean(req.body?.contarComoVenta);
+  const origen = req.body?.origen || 'Venta manual / Instagram';
+
+  if (!Number.isFinite(idProd) || idProd <= 0) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+
+  if (!Number.isFinite(cantidad) || cantidad <= 0) {
+    return res.status(400).json({ success: false, message: 'Cantidad inválida (debe ser > 0)' });
+  }
+
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query(
+      `
+      SELECT
+        id,
+        nombre,
+        precio,
+        stock,
+        stock_minimo AS stockMinimo,
+        categoria,
+        descripcion,
+        imagen
+      FROM productos
+      WHERE id = ?
+      FOR UPDATE
+      `,
+      [idProd]
+    );
+
+    if (rows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    }
+
+    const prod = rows[0];
+    const stockActual = parseNumero(prod.stock);
+    const precioUnitario = parseNumero(prod.precio);
+    const stockMin = parseNumero(prod.stockMinimo);
+    const nuevoStock = stockActual - cantidad;
+
+    if (nuevoStock < 0) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `No hay suficiente stock. Stock actual: ${stockActual}`
+      });
+    }
+
+    await conn.query(
+      `UPDATE productos SET stock = ? WHERE id = ?`,
+      [nuevoStock, idProd]
+    );
+
+    let pedidoId = null;
+    const totalVenta = precioUnitario * cantidad;
+
+    if (contarComoVenta) {
+      const [pedidoResult] = await conn.query(
+        `
+        INSERT INTO pedidos (cliente_nombre, cliente_email, estado, total)
+        VALUES (?, ?, ?, ?)
+        `,
+        [
+          origen,
+          'venta.manual@apolomates.com',
+          'PAGADO',
+          totalVenta
+        ]
+      );
+
+      pedidoId = pedidoResult.insertId;
+
+      await conn.query(
+        `
+        INSERT INTO pedido_items (pedido_id, producto_id, cantidad, precio)
+        VALUES (?, ?, ?, ?)
+        `,
+        [
+          pedidoId,
+          idProd,
+          cantidad,
+          precioUnitario
+        ]
+      );
+    }
+
+    await conn.commit();
+
+    await registrarLog(
+      'Administrador',
+      contarComoVenta ? 'DESCONTAR_STOCK_CON_VENTA' : 'DESCONTAR_STOCK_SIN_VENTA',
+      contarComoVenta
+        ? `Se descontaron ${cantidad} unidades de "${prod.nombre}" y se registró como venta manual. Pedido #${pedidoId}. Stock anterior: ${stockActual}, nuevo stock: ${nuevoStock}.`
+        : `Se descontaron ${cantidad} unidades de "${prod.nombre}" sin registrarlo como venta. Stock anterior: ${stockActual}, nuevo stock: ${nuevoStock}.`
+    );
+
+    if (nuevoStock <= stockMin) {
+      try {
+        await enviarAlerta(
+          {
+            ...prod,
+            stock: nuevoStock,
+            stockMinimo: stockMin
+          },
+          true
+        );
+      } catch (error) {
+        console.error('❌ Error enviando alerta de stock:', error);
+      }
+    }
+
+    return res.json({
+      success: true,
+      contarComoVenta,
+      pedidoId,
+      producto: {
+        ...prod,
+        stock: nuevoStock,
+        stockMinimo: stockMin,
+        precio: precioUnitario,
+        descripcion: prod.descripcion || ''
+      }
+    });
+  } catch (err) {
+    try { await conn.rollback(); } catch {}
+    console.error('DESCONTAR STOCK MANUAL ERROR:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error descontando stock',
+      detail: err.message
+    });
+  } finally {
+    conn.release();
+  }
+};
 
 // 4. Eliminar producto
 const eliminarProducto = async (req, res) => {
@@ -615,6 +761,7 @@ module.exports = {
   getProductos,
   createProducto,
   reponerStock,
+  descontarStockManual,
   eliminarProducto,
   venderProducto,
   verificarStock,

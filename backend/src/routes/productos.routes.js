@@ -81,6 +81,9 @@ router.put(
 // 🔴 PROTEGIDA: Solo el administrador puede reponer stock manualmente
 router.put('/:id/reponer', verificarAdmin, controller.reponerStock);
 
+// 🔴 PROTEGIDA: Descontar stock manualmente y opcionalmente registrarlo como venta
+router.put('/:id/descontar', verificarAdmin, controller.descontarStockManual);
+
 // 🔴 PROTEGIDA: Eliminar imagen secundaria
 router.delete('/imagenes/:imagenId', verificarAdmin, controller.eliminarImagenProducto);
 

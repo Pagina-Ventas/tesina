@@ -80,6 +80,11 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   const [productoAReponer, setProductoAReponer] = useState(null)
   const [cantidadReponer, setCantidadReponer] = useState(1)
 
+  const [mostrarModalDescontar, setMostrarModalDescontar] = useState(false)
+  const [productoADescontar, setProductoADescontar] = useState(null)
+  const [cantidadDescontar, setCantidadDescontar] = useState(1)
+  const [contarComoVenta, setContarComoVenta] = useState(true)
+  const [origenVentaManual, setOrigenVentaManual] = useState('Venta manual / Instagram')
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false)
   const [prodEditar, setProdEditar] = useState(null)
 
@@ -695,6 +700,79 @@ export function Inventario({ pedidos, confirmarPedidoAdmin, crearProducto, repon
   } catch (e) {
     console.error('Error reponiendo stock:', e)
     alert(e?.message || 'Error reponiendo stock')
+  }
+}
+
+const abrirDescontar = (prod) => {
+  setProductoADescontar(prod)
+  setCantidadDescontar(1)
+  setContarComoVenta(true)
+  setOrigenVentaManual('Venta manual / Instagram')
+  setMostrarModalDescontar(true)
+}
+
+const confirmarDescontar = async () => {
+  if (!productoADescontar) return
+
+  const cant = Number(cantidadDescontar)
+
+  if (!Number.isFinite(cant) || cant <= 0) {
+    alert('Ingresá una cantidad válida mayor a 0')
+    return
+  }
+
+  if (cant > Number(productoADescontar.stock || 0)) {
+    alert(`No podés descontar más que el stock actual. Stock actual: ${productoADescontar.stock}`)
+    return
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/api/productos/${productoADescontar.id}/descontar`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        cantidad: cant,
+        contarComoVenta,
+        origen: origenVentaManual
+      })
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || data?.error || 'No se pudo descontar el stock')
+    }
+
+    setProductos(prev =>
+      prev.map(p =>
+        p.id === productoADescontar.id
+          ? {
+              ...p,
+              stock: Number(data.producto?.stock ?? p.stock)
+            }
+          : p
+      )
+    )
+
+    setMostrarModalDescontar(false)
+    setProductoADescontar(null)
+    setCantidadDescontar(1)
+    setContarComoVenta(true)
+    setOrigenVentaManual('Venta manual / Instagram')
+
+    if (data.contarComoVenta) {
+      alert(`✅ Stock descontado y venta registrada. Pedido #${data.pedidoId}`)
+      window.location.reload()
+    } else {
+      await cargarProductos()
+      alert('✅ Stock descontado sin registrarlo como venta')
+    }
+  } catch (e) {
+    console.error('Error descontando stock:', e)
+    alert(e?.message || 'Error descontando stock')
   }
 }
 
@@ -1398,6 +1476,10 @@ return (
 
                         <button className="btn-add" style={{ background: '#3b82f6' }} onClick={() => abrirReponer(prod)}>
                           ➕ Reponer
+                        </button>
+
+                        <button className="btn-add" style={{ background: '#8b5cf6' }} onClick={() => abrirDescontar(prod)}>
+                          ➖ Descontar
                         </button>
 
                         <button className="btn-add" style={{ background: '#ef4444' }} onClick={() => eliminarProductoAdmin(prod.id)}>
