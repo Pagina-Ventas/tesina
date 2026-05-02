@@ -765,3 +765,119 @@ select.form-input option {
     font-size: 16px !important;
   }
 }
+/* =========================================
+   INVENTARIO FULL WIDTH + ACCIONES VISIBLES
+========================================= */
+
+.inventario-section {
+  width: 100%;
+  max-width: none;
+  padding: 28px;
+  box-sizing: border-box;
+}
+
+.inventario-table-responsive {
+  width: 100%;
+  overflow-x: visible;
+}
+
+.inventario-table {
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.inventario-table th,
+.inventario-table td {
+  padding: 14px 10px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Anchos de columnas del inventario */
+.inventario-table th:nth-child(1),
+.inventario-table td:nth-child(1) {
+  width: 60px;
+}
+
+.inventario-table th:nth-child(2),
+.inventario-table td:nth-child(2) {
+  width: 23%;
+}
+
+.inventario-table th:nth-child(3),
+.inventario-table td:nth-child(3) {
+  width: 13%;
+}
+
+.inventario-table th:nth-child(4),
+.inventario-table td:nth-child(4) {
+  width: 95px;
+}
+
+.inventario-table th:nth-child(5),
+.inventario-table td:nth-child(5) {
+  width: 65px;
+  text-align: center;
+}
+
+.inventario-table th:nth-child(6),
+.inventario-table td:nth-child(6) {
+  width: 105px;
+  text-align: center;
+}
+
+.inventario-table th:nth-child(7),
+.inventario-table td:nth-child(7) {
+  width: 330px;
+}
+
+/* Celda de botones */
+.inventario-actions-cell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.inventario-actions-cell .btn-add {
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  min-width: 88px;
+  justify-content: center;
+}
+
+/* Que el contenido admin use mejor el ancho */
+.admin-content {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* Pantallas medianas: si no entra, usa scroll */
+@media (max-width: 1200px) {
+  .inventario-table-responsive {
+    overflow-x: auto;
+  }
+
+  .inventario-table {
+    min-width: 1050px !important;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .inventario-table-responsive {
+    overflow-x: auto;
+  }
+
+  .inventario-table {
+    min-width: 1050px !important;
+  }
+
+  .inventario-actions-cell .btn-add {
+    min-width: 90px;
+    font-size: 0.75rem;
+  }
+}

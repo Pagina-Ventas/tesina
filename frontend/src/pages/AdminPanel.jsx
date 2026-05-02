@@ -1483,14 +1483,14 @@ return (
 )}
 
         {vistaActiva === 'inventario' && (
-          <section className="recent-orders">
+         <section className="recent-orders inventario-section">
             <div className="section-header">
               <h3>Inventario Detallado</h3>
               <button className="btn-add" onClick={() => setMostrarModal(true)}>+ Nuevo Producto</button>
             </div>
 
-            <div className="table-responsive">
-              <table className="clean-table">
+            <div className="table-responsive inventario-table-responsive">
+              <table className="clean-table inventario-table">
                 <thead>
                   <tr>
                     <th>Img</th>
@@ -1525,7 +1525,7 @@ return (
                           {prod.stock === 0 ? 'Agotado' : prod.stock <= prod.stockMinimo ? 'Bajo' : 'En Stock'}
                         </span>
                       </td>
-                      <td style={{ display: 'flex', gap: 10 }}>
+                      <td className="inventario-actions-cell">
                         <button className="btn-add" style={{ background: '#f59e0b' }} onClick={() => abrirEditar(prod)}>
                           ✏️ Editar
                         </button>
