@@ -707,7 +707,7 @@ const abrirDescontar = async (prod) => {
   if (!prod) return
 
   const cantidadIngresada = window.prompt(
-    `¿Cuántas unidades querés descontar de "${prod.nombre}"?\nStock actual: ${prod.stock}`,
+    `Cantidad a descontar de "${prod.nombre}"\nStock actual: ${prod.stock}`,
     '1'
   )
 
@@ -725,25 +725,6 @@ const abrirDescontar = async (prod) => {
     return
   }
 
-  const contarComoVenta = window.confirm(
-    '¿Querés contar esto como venta?\n\nAceptar = Sí, registrar como venta y sumarlo a los gráficos.\nCancelar = No, solo descontar stock.'
-  )
-
-  const origenVentaManual = window.prompt(
-    'Origen / motivo del descuento:',
-    contarComoVenta ? 'Venta manual / Instagram' : 'Ajuste de stock / prueba'
-  )
-
-  if (origenVentaManual === null) return
-
-  const confirmar = window.confirm(
-    contarComoVenta
-      ? `Vas a descontar ${cant} unidad(es) de "${prod.nombre}" y registrarlo como venta. ¿Confirmás?`
-      : `Vas a descontar ${cant} unidad(es) de "${prod.nombre}" SIN registrarlo como venta. ¿Confirmás?`
-  )
-
-  if (!confirmar) return
-
   try {
     const res = await fetch(`${API_URL}/api/productos/${prod.id}/descontar`, {
       method: 'PUT',
@@ -753,8 +734,8 @@ const abrirDescontar = async (prod) => {
       },
       body: JSON.stringify({
         cantidad: cant,
-        contarComoVenta,
-        origen: origenVentaManual || (contarComoVenta ? 'Venta manual / Instagram' : 'Ajuste de stock / prueba')
+        contarComoVenta: true,
+        origen: 'Venta manual / Instagram'
       })
     })
 
@@ -777,12 +758,9 @@ const abrirDescontar = async (prod) => {
 
     await cargarProductos()
 
-    if (data.contarComoVenta) {
-      alert(`✅ Stock descontado y venta registrada. Pedido #${data.pedidoId}`)
-      window.location.reload()
-    } else {
-      alert('✅ Stock descontado sin registrarlo como venta')
-    }
+    alert(`✅ Stock descontado y venta registrada. Pedido #${data.pedidoId}`)
+
+    window.location.reload()
   } catch (e) {
     console.error('Error descontando stock:', e)
     alert(e?.message || 'Error descontando stock')
