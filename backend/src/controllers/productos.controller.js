@@ -291,12 +291,13 @@ const descontarStockManual = async (req, res) => {
 
       await conn.query(
         `
-        INSERT INTO pedido_items (pedido_id, producto_id, cantidad, precio)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO pedido_items (pedido_id, producto_id, nombre, cantidad, precio)
+        VALUES (?, ?, ?, ?, ?)
         `,
         [
           pedidoId,
           idProd,
+          prod.nombre,
           cantidad,
           precioUnitario
         ]
