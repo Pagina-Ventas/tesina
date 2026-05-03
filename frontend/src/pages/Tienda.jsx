@@ -67,6 +67,7 @@ export function Tienda({
   busqueda
 }) {
   const [banners, setBanners] = useState([])
+  const [cantidadVisible, setCantidadVisible] = useState(12)
 
   useEffect(() => {
     const cargarBanners = async () => {
@@ -82,6 +83,10 @@ export function Tienda({
 
     cargarBanners()
   }, [])
+
+  useEffect(() => {
+  setCantidadVisible(12)
+}, [categoriaSeleccionada, busqueda])
 
   const textoBusqueda = normalizarTexto(busqueda)
 
@@ -140,6 +145,9 @@ const productosFiltrados = useMemo(() => {
       </picture>
     )
   }
+
+  const productosVisibles = productosFiltrados.slice(0, cantidadVisible)
+  const hayMasProductos = cantidadVisible < productosFiltrados.length
 
   return (
     <>
@@ -209,7 +217,7 @@ const productosFiltrados = useMemo(() => {
           </div>
         )}
 
-        {productosFiltrados.map(prod => {
+        {productosVisibles.map(prod => {
           const esCritico = prod.stock > 0 && prod.stock <= prod.stockMinimo
 
           return (
@@ -236,6 +244,7 @@ const productosFiltrados = useMemo(() => {
                     <img
                       src={getImagenUrl(prod.imagen)}
                       alt={prod.nombre}
+                      loading="lazy"
                       style={{
                         width: '100%',
                         height: '100%',
@@ -277,6 +286,17 @@ const productosFiltrados = useMemo(() => {
             </div>
           )
         })}
+                {hayMasProductos && (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', marginTop: '25px' }}>
+            <button
+              type="button"
+              className="btn-hero"
+              onClick={() => setCantidadVisible(prev => prev + 12)}
+            >
+              Ver más productos
+            </button>
+          </div>
+        )}
       </div>
     </>
   )
