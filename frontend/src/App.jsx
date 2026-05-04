@@ -1,17 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Toaster, toast } from 'sonner'
 import { initMercadoPago } from '@mercadopago/sdk-react'
 
 // --- IMPORTACIONES ORDENADAS ---
-import { Tienda } from './pages/Tienda'
-import { Carrito } from './pages/Carrito'
-import { Inventario as AdminPanel } from './pages/AdminPanel'
-import { ProductoDetalle } from './pages/ProductoDetalle'
-import { Login } from './pages/Login'
-import { PerfilUsuario } from './pages/PerfilUsuario'
-import { CheckoutForm } from './components/Checkout/CheckoutForm'
-import { Exito } from './pages/Exito'
+const Tienda = lazy(() =>
+  import('./pages/Tienda').then(module => ({ default: module.Tienda }))
+)
+
+const Carrito = lazy(() =>
+  import('./pages/Carrito').then(module => ({ default: module.Carrito }))
+)
+
+const AdminPanel = lazy(() =>
+  import('./pages/AdminPanel').then(module => ({ default: module.Inventario }))
+)
+
+const ProductoDetalle = lazy(() =>
+  import('./pages/ProductoDetalle').then(module => ({ default: module.ProductoDetalle }))
+)
+
+const Login = lazy(() =>
+  import('./pages/Login').then(module => ({ default: module.Login }))
+)
+
+const PerfilUsuario = lazy(() =>
+  import('./pages/PerfilUsuario').then(module => ({ default: module.PerfilUsuario }))
+)
+
+const CheckoutForm = lazy(() =>
+  import('./components/Checkout/CheckoutForm').then(module => ({ default: module.CheckoutForm }))
+)
+
+const Exito = lazy(() =>
+  import('./pages/Exito').then(module => ({ default: module.Exito }))
+)
 
 // --- IMPORTACIONES DE ESTILOS ---
 import './style/base.css'
@@ -505,14 +528,16 @@ function AppContenido() {
     <>
       <Toaster position="bottom-right" theme="dark" />
 
-      {mostrarCheckout && (
-        <CheckoutForm
-          carrito={carrito}
-          totalProductos={totalPrecio}
-          onConfirmar={crearOrdenPendiente}
-          onCancelar={() => setMostrarCheckout(false)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {mostrarCheckout && (
+      <CheckoutForm
+        carrito={carrito}
+        totalProductos={totalPrecio}
+        onConfirmar={crearOrdenPendiente}
+        onCancelar={() => setMostrarCheckout(false)}
+      />
+   )}
+  </Suspense>
 
       <div className="dashboard-container">
         <header className="header">
@@ -673,75 +698,83 @@ function AppContenido() {
           </div>
         </header>
 
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Tienda
-                productos={productos}
-                agregarAlCarrito={agregarAlCarrito}
-                categorias={categorias}
-                categoriaSeleccionada={categoriaSeleccionada}
-                setCategoriaSeleccionada={setCategoriaSeleccionada}
-                busqueda={busqueda}
-              />
-            }
-          />
+        <Suspense
+  fallback={
+    <div style={{ color: '#fff', textAlign: 'center', padding: '60px 20px' }}>
+      Cargando...
+    </div>
+  }
+>
+  <Routes>
+    <Route
+      path="/"
+      element={
+        <Tienda
+          productos={productos}
+          agregarAlCarrito={agregarAlCarrito}
+          categorias={categorias}
+          categoriaSeleccionada={categoriaSeleccionada}
+          setCategoriaSeleccionada={setCategoriaSeleccionada}
+          busqueda={busqueda}
+        />
+      }
+    />
 
-          <Route
-            path="/producto/:id"
-            element={
-              <ProductoDetalle
-                productos={productos}
-                agregarAlCarrito={agregarAlCarrito}
-              />
-            }
-          />
+    <Route
+      path="/producto/:id"
+      element={
+        <ProductoDetalle
+          productos={productos}
+          agregarAlCarrito={agregarAlCarrito}
+        />
+      }
+    />
 
-          <Route
-            path="/carrito"
-            element={
-              <Carrito
-                carrito={carrito}
-                eliminarDelCarrito={eliminarDelCarrito}
-                finalizarCompra={finalizarCompra}
-                modificarCantidad={modificarCantidad}
-              />
-            }
-          />
+    <Route
+      path="/carrito"
+      element={
+        <Carrito
+          carrito={carrito}
+          eliminarDelCarrito={eliminarDelCarrito}
+          finalizarCompra={finalizarCompra}
+          modificarCantidad={modificarCantidad}
+        />
+      }
+    />
 
-          <Route path="/login" element={<Login />} />
-          <Route path="/perfil" element={<PerfilUsuario />} />
+    <Route path="/login" element={<Login />} />
+    <Route path="/perfil" element={<PerfilUsuario />} />
 
-          <Route
-            path="/exito"
-            element={
-              <Exito
-                vaciarCarrito={() => {
-                  setCarrito([])
-                  localStorage.removeItem('carrito')
-                }}
-                recargarProductos={cargarProductos}
-              />
-            }
-          />
+    <Route
+      path="/exito"
+      element={
+        <Exito
+          vaciarCarrito={() => {
+            setCarrito([])
+            localStorage.removeItem('carrito')
+          }}
+          recargarProductos={cargarProductos}
+        />
+      }
+    />
 
-          <Route
-            path="/admin"
-            element={
-              <RutaProtegida>
-                <AdminPanel
-                  pedidos={pedidos}
-                  confirmarPedidoAdmin={confirmarPedidoAdmin}
-                  eliminarPedidoAdmin={eliminarPedidoAdmin}
-                  crearProducto={crearProducto}
-                  reponerProductoAdmin={reponerProductoAdmin}
-                  editarProductoAdmin={editarProductoAdmin}
-                />
-              </RutaProtegida>
-            }
+    <Route
+      path="/admin"
+      element={
+        <RutaProtegida>
+          <AdminPanel
+            pedidos={pedidos}
+            confirmarPedidoAdmin={confirmarPedidoAdmin}
+            eliminarPedidoAdmin={eliminarPedidoAdmin}
+            crearProducto={crearProducto}
+            reponerProductoAdmin={reponerProductoAdmin}
+            editarProductoAdmin={editarProductoAdmin}
           />
-        </Routes>
+        </RutaProtegida>
+      }
+    />
+  </Routes>
+</Suspense>
       </div>
 
       {!esRutaAdmin && <Footer />}
