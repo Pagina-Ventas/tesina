@@ -882,69 +882,30 @@ select.form-input option {
   }
 }
 /* =========================================
-   FIX MODALES ADMIN + TABLA INVENTARIO
+   INVENTARIO: EVITAR TEXTO LETRA POR LETRA
 ========================================= */
 
-/* Modal centrado y arriba de todo */
-.admin-wrapper .checkout-overlay {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 99999 !important;
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  background: rgba(0, 0, 0, 0.82) !important;
-  backdrop-filter: blur(6px);
-
-  padding: 24px !important;
-  box-sizing: border-box;
-}
-
-/* Card del modal */
-.admin-wrapper .checkout-card {
-  width: min(560px, 95vw) !important;
-  max-width: 560px !important;
-  max-height: 88vh !important;
-  overflow-y: auto !important;
-
-  margin: 0 !important;
-  position: relative !important;
-
-  background: #121212 !important;
-  border: 1px solid var(--admin-primary) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75) !important;
-}
-
-/* Evita que el modal quede pegado o cortado */
-.admin-wrapper .checkout-card form {
-  width: 100%;
-}
-
-/* Inventario: que no se rompan palabras letra por letra */
-.inventario-table th,
-.inventario-table td {
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-  white-space: normal !important;
-}
-
-/* Ajuste mejor de columnas */
-.inventario-table {
-  table-layout: auto !important;
-  min-width: 1100px !important;
-}
-
-/* Que el contenedor permita scroll horizontal si no entra */
 .inventario-table-responsive {
+  width: 100%;
   overflow-x: auto !important;
 }
 
-/* Acciones más prolijas */
+.inventario-table {
+  width: 100%;
+  min-width: 1100px !important;
+  table-layout: auto !important;
+}
+
+.inventario-table th,
+.inventario-table td {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  vertical-align: middle;
+}
+
 .inventario-actions-cell {
-  min-width: 320px !important;
+  min-width: 330px !important;
   display: flex !important;
   gap: 8px !important;
   flex-wrap: wrap !important;
@@ -954,4 +915,5 @@ select.form-input option {
 .inventario-actions-cell .btn-add {
   min-width: 105px !important;
   white-space: nowrap !important;
+  justify-content: center;
 }
